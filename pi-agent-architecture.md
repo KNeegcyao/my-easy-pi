@@ -944,54 +944,372 @@ Week 1-2:
 
 ### Phase 2 — 交互完善
 
-**目标**: 支持交互式 TUI，多工具，会话持久化
+**目标**: 把"能在命令行里用"的 Agent 升级为"能交互、能记住历史、能中途打断"的完整产品。
+
+#### 2.1 补齐内置工具（Week 3 — 前 2 天）
+
+> Phase 1 只实现了 `bash`。现在把 `read / write / edit / grep / find / ls` 全部实现。这些工具是 LLM 完成任何代码任务的**手脚**——没有它们，LLM 只能"想"不能"做"。
 
 ```
-Week 3-4:
-├── src/interface/
-│   └── tui/              ← 简单的终端交互界面
-│       ├── editor.ts     ← 文本编辑器组件
-│       └── renderer.ts   ← 消息渲染
-│
-├── src/tools/builtin/
-│   ├── read.ts
-│   ├── write.ts
-│   ├── edit.ts
-│   ├── grep.ts
-│   ├── find.ts
-│   └── ls.ts             ← 补齐内置工具
-│
-├── src/session/
-│   ├── session.ts        ← 会话类
-│   ├── manager.ts        ← 会话管理
-│   └── storage.ts        ← JSONL 存储
-│
-└── 实现消息队列 (steering / follow-up)
+src/tools/builtin/
+├── read.ts    → fs.readFile，支持指定行范围（GNU "nl" 格式输出）
+├── write.ts   → fs.writeFile，自动创建父目录，返回文件大小
+├── edit.ts    → 精确字符串替换（"老王"→"老李"），替换失败报错
+├── grep.ts    → child_process.execSync("grep -n")，返回匹配行+行号
+├── find.ts    → child_process.execSync("find") 或 glob 库
+└── ls.ts      → fs.readdir，支持递归，区分文件/目录
 ```
 
-### Phase 3 — 扩展生态
+**每个工具的三要素**:
+1. **Schema 描述**（TypeBox/Zod）—— LLM 需要知道参数名、类型、描述
+2. **错误处理**—— 文件不存在、权限不足、命令超时，统一 `throw Error`
+3. **结果格式**—— 返回 `{ content: [{ type: 'text', text: '...' }], details: { path, size } }`
 
-**目标**: 支持插件式扩展，多提供商切换
+**验收**: 启动 Agent，说"帮我看下 src/ai/ 目录下有哪些文件"，LLM 自动调用 `ls` 并列出结果。
+
+#### 2.2 消息队列实现（Week 3 — 第 3-4 天）
+
+> Phase 1 的 Agent Loop 是**线性的**：用户说一句 → LLM 回一句 → 结束。但现在 Agent 可能在跑 5 分钟的测试时用户突然想换方向——你要让 Agent 能**边跑边听**。
 
 ```
-Week 5-6:
-├── src/extension/
-│   ├── api.ts            ← ExtensionAPI
-│   └── loader.ts         ← 扩展加载器
-│
-├── src/ai/providers/
-│   ├── openai.ts         ← OpenAI 支持
-│   └── deepseek.ts       ← DeepSeek 支持
-│
-├── src/config/
-│   └── settings.ts       ← 配置文件管理
-│
-├── src/interface/
-│   ├── json.ts           ← JSON 模式
-│   └── rpc.ts            ← RPC 模式
-│
-└── pi install            ← 包管理命令
+src/agent/queue.ts
 ```
+
+**核心逻辑**（回忆 Pi 源码 `PendingMessageQueue`）：
+
+```typescript
+class PendingMessageQueue {
+  private messages: AgentMessage[] = []
+  mode: 'one-at-a-time' | 'all' = 'one-at-a-time'
+
+  enqueue(msg) { this.messages.push(msg) }     // 用户输入 → 进队列
+
+  drain(): AgentMessage[] {
+    if (this.mode === 'all') {                 // 批量模式
+      const all = this.messages.slice()
+      this.messages = []
+      return all
+    }
+    // 默认：一次只取一条，避免多条矛盾消息搞晕 LLM
+    const first = this.messages.shift()        // 一条一条处理
+    return first ? [first] : []
+  }
+}
+```
+
+**集成到 Loop 中**（修改 `src/agent/loop.ts`）:
+
+每轮结束时的注入逻辑：
+```
+本轮结束 ──→ 有 tool_call?
+   ├─ 是 → 执行工具 → 加回结果 → 继续下一轮
+   └─ 否 → steeringQueue.drain() → 有消息?
+            ├─ 是 → 注入为 user 消息 → 继续下一轮
+            └─ 否 → followUpQueue.drain() → 有消息?
+                     ├─ 是 → 注入 → 继续下一轮
+                     └─ 否 → agent_end
+```
+
+**两个队列的语义**:
+| 队列 | 英文 | 类比 | 何时消费 |
+|------|------|------|---------|
+| `steeringQueue` | ⚡ 打断 | "停！先做这个！" | 每轮 tool calls 执行完后立即检查 |
+| `followUpQueue` | 📋 追加 | "做完后帮我总结" | Agent 即将空闲时才检查 |
+
+**验收**:
+1. Agent 正在跑一条长命令（如 `bash('sleep 10')`）时，输入"等等先看看别的"
+2. Agent 完成当前工具后，下一轮把 steering 消息注入，调整方向
+3. Agent 跑完后，说"做完帮我总结一下" → followUp 生效
+
+#### 2.3 会话持久化（Week 3 — 第 5-6 天）
+
+> 现在 Agent 的 `messages` 数组在进程退出后就没了。你要让它记住"上次聊到哪了"，用户可以 `pi -c` 继续上次对话。
+
+```
+src/session/
+├── session.ts    → Session 类：id, name, messages[], cwd, createdAt
+├── manager.ts    → SessionManager：创建/加载/删除/列会话
+└── storage.ts    → JSONL 存储：追加写、读取最新 N 行、按 parentId 找分支
+```
+
+**JSONL 存储格式**（简化自 Pi）：
+
+```jsonl
+{"id":"m1","parentId":null,"role":"user","content":"Hello","ts":1752691200000}
+{"id":"m2","parentId":"m1","role":"assistant","content":"Hi!","ts":1752691201000}
+{"id":"m3","parentId":"m2","role":"user","content":"读config.json","ts":1752691202000}
+{"id":"m4","parentId":"m3","role":"assistant","content":"好的，我来读...","ts":1752691203000}
+```
+
+**为什么用 JSONL 而不是 JSON 数组？**
+- 追加写（append-only）——每次消息直接 `fs.appendFile`，不读完整文件
+- 支持大文件（10 万行对话）——不需要一次全读入内存
+- 树形结构（parentId）——支持分支
+
+**CLI 入口更新**（`src/cli.ts`）:
+```bash
+pi                  # 新建会话
+pi "帮我重构src"    # 带初始提示
+pi -c               # 继续上次会话
+pi -r               # 从历史会话中选择继续
+pi --no-session     # 不保存本次会话
+```
+
+**验收**:
+1. `pi "写个hello world"` → 退出 → `pi -c` → Agent 记得刚才做了什么
+2. `pi -r` → 列出历史会话 → 选择一条 → 恢复
+3. 会话文件在 `~/.pi-agent/sessions/` 下以 JSONL 格式存在
+
+#### 2.4 简单 TUI（Week 4）
+
+> 有了 CLI 的 print 模式后，现在做一个**基础的可交互终端界面**。先做一个能读多行输入、能看流式输出的界面。
+
+```
+src/interface/tui/
+├── index.ts      → TUI 入口：接管 stdin/stdout
+├── editor.ts     → 多行输入编辑器（方向键移动、Tab 补全、Ctrl+C 取消）
+└── renderer.ts   → 消息渲染（user 蓝色、assistant 白色、tool 灰色）
+```
+
+**基础能力**:
+| 按键 | 功能 |
+|------|------|
+| Enter | 发送当前输入 |
+| Shift+Enter | 换行（不发送） |
+| Ctrl+C | 取消当前操作 |
+| Tab | 文件路径补全 |
+| 上/下方向键 | 浏览历史消息 |
+
+**渲染效果示意**:
+```
+┌─ Pi Agent v0.2 ──────────────────────────────┐
+│                                              │
+│ 👤 帮我重构 src/agent/loop.ts                │
+│                                              │
+│ 🤖 好的，让我先读取文件                        │
+│                                              │
+│  ⚙ bash: cat src/agent/loop.ts | head -30   │
+│  ┌─ 结果 ───────────────────────────────┐    │
+│  │ import { AgentState } from '../state'│    │
+│  │ export async function agentLoop(...) │    │
+│  │ ...                                  │    │
+│  └──────────────────────────────────────┘    │
+│                                              │
+│ 🤖 看到了 loop.ts 的内容，我来分析结构         │
+│                                              │
+│ █ 输入: _                                    │
+└──────────────────────────────────────────────┘
+```
+
+**验收**:
+1. 进入 `pi` → 看到 TUI 界面 → 输入消息 → LLM 流式回复 → 工具调用可见
+2. Ctrl+C 取消 → Agent 停止 → 回到输入状态
+
+**Phase 2 完成标志**:
+- [ ] 全部 7 个内置工具可用
+- [ ] 消息队列（steering/follow-up）正常工作
+- [ ] 会话持久化到 JSONL 文件
+- [ ] `pi -c` 能继续上次会话
+- [ ] 基础 TUI 可用（输入/流式输出/工具结果展示）
+- [ ] 这是一个"能用的"Coding Agent ✨
+
+---
+
+### Phase 3 — 扩展生态 + 多模式
+
+**目标**: Agent 不再是一个封闭系统。用户可以写插件扩展它，可以切换多个 LLM 提供商，可以通过 JSON/RPC 模式被其他程序调用。
+
+#### 3.1 扩展系统（Week 5 — 前 3 天）
+
+> 这是将你的 Agent 从"工具"变成"平台"的关键一步。所有你不想写进内核的功能（权限门控、自定义工具、MCP 集成、通知推送）都通过扩展实现。
+
+```
+src/extension/
+├── api.ts     → ExtensionAPI 接口定义
+└── loader.ts  → 扩展发现 + 动态加载（用 jiti 即时编译 TS）
+```
+
+**ExtensionAPI 接口**:
+```typescript
+interface ExtensionAPI {
+  registerTool(tool: AgentTool): void
+  unregisterTool(name: string): void
+  registerCommand(name: string, cmd: { description: string, execute: () => void }): void
+  on(event: string, handler: (event: AgentEvent) => void): void
+  addBeforeToolCall(hook: BeforeToolCallHook): void
+  addAfterToolCall(hook: AfterToolCallHook): void
+}
+```
+
+**扩展文件格式**:
+```typescript
+// ~/.pi-agent/extensions/my-ext.ts
+export default function (api: ExtensionAPI) {
+  api.registerTool({
+    name: 'deploy',
+    label: '部署',
+    description: '部署当前项目',
+    parameters: Type.Object({ env: Type.String() }),
+    execute: async (id, params) => {
+      return { content: [{ type: 'text', text: `部署到${params.env}成功` }] }
+    },
+  })
+
+  api.on('tool_execution_start', (event) => {
+    console.log('工具开始:', event.toolName)
+  })
+}
+```
+
+**扩展发现优先级**:
+```
+1. CLI 指定:     pi -e ./deploy-tool.ts
+2. 全局目录:     ~/.pi-agent/extensions/*.ts
+3. 项目目录:     .pi/extensions/*.ts
+```
+
+**loader.ts 核心实现**:
+```typescript
+import { createJiti } from 'jiti'
+const jiti = createJiti(import.meta.url)
+
+async function loadExtension(path: string, api: ExtensionAPI) {
+  const mod = jiti(path)           // 即时编译 TS
+  const factory = mod.default      // export default function(api)
+  await factory(api)               // 传入 ExtensionAPI
+}
+```
+
+**验收**:
+1. 写一个 `hello-ext.ts`，注册一个 `hello` 工具
+2. `pi -e ./hello-ext.ts` → Agent 启动 → LLM 能调用 `hello` 工具
+3. 扩展里监听 `tool_execution_start` 事件 → 每次工具执行前打印日志
+
+#### 3.2 多提供商切换（Week 5 — 第 4-6 天）
+
+> Phase 1 只接了 Anthropic。用户说"我想用 DeepSeek（便宜）"或"我想用 OpenAI（快）"，你要让他们能一键切换。
+
+```
+src/ai/providers/
+├── anthropic.ts  ← Phase 1 已实现
+├── openai.ts     ← 新增
+└── deepseek.ts   ← 新增
+```
+
+**Provider 差异对比**:
+
+| | Anthropic | OpenAI | DeepSeek |
+|---|---|---|---|
+| 请求格式 | `content: [{ type: 'text' }]` | 相同 | 相同（OpenAI 兼容） |
+| tool_call | `tool_use` content block | `tool_calls` field | 同 OpenAI |
+| 流式事件 | SSE: content_block_delta | SSE: delta.content[] | SSE（OpenAI 兼容） |
+| thinking | `thinking` block | `reasoning_content` | 不支持 |
+
+**通用 LLMEvent 接口**（Provider 内部分别适配）:
+```typescript
+type LLMEvent =
+  | { type: 'text_delta', delta: string }
+  | { type: 'tool_call_start', id: string, name: string, args: unknown }
+  | { type: 'tool_call_delta', id: string, delta: string }
+  | { type: 'thinking_delta', delta: string }
+  | { type: 'error', message: string }
+  | { type: 'done', stopReason: string }
+```
+
+**CLI 切换**:
+```bash
+pi --provider openai --model gpt-4o "帮我重构"
+pi --provider deepseek --model deepseek-chat "便宜的方案"
+/model                    # 交互中列出可用模型
+/model openai/gpt-4o      # 交互中切换
+```
+
+**验收**:
+1. `pi --provider openai` → Agent 用 GPT-4o 正常工作
+2. `pi --provider deepseek` → Agent 用 DeepSeek 正常工作
+3. 在同一会话中 `/model` 切换模型 → Agent 继续对话（不丢失历史）
+
+#### 3.3 多模式接口（Week 6 — 前 2 天）
+
+> 目前只有 print 模式。你要加上 JSON 模式（给脚本/CI 用）和 RPC 模式（给其他语言嵌入用）。
+
+```
+src/interface/
+├── json.ts  → 新增
+└── rpc.ts   → 新增
+```
+
+**JSON 模式**（`pi --mode json`）:
+```bash
+echo "列出src目录" | pi --mode json
+```
+输出 JSONL 事件流，每行一个 JSON：
+```jsonl
+{"type":"agent_start"}
+{"type":"turn_start"}
+{"type":"message_start","message":{"role":"user","content":"列出src目录"}}
+{"type":"tool_execution_start","toolName":"ls","args":{"path":"./src"}}
+{"type":"tool_execution_end","result":{"content":[{"type":"text","text":"ai/\nagent/\ntools/"}]}}
+{"type":"agent_end"}
+```
+
+**RPC 模式**（`pi --mode rpc`）:
+```bash
+# stdin 接收 JSON 请求，stdout 输出 JSON 响应
+# 非 Node.js 程序（Python/Go/Rust）可通过子进程集成
+
+# 请求
+{"method":"prompt","params":{"text":"帮我重构loop.ts"},"id":1}
+
+# 响应（逐行）
+{"type":"event","data":{"type":"message_update","content":"好的..."},"id":1}
+{"type":"event","data":{"type":"agent_end"},"id":1}
+{"type":"result","id":1}
+```
+
+**验收**:
+1. `pi --mode json` → 输出正确的 JSONL 事件流，`jq` 可解析
+2. Python 程序启动 `pi --mode rpc` 子进程 → 发送 JSON → 接收响应
+
+#### 3.4 配置文件系统（Week 6 — 后 3 天）
+
+```
+src/config/
+└── settings.ts
+```
+
+**配置优先级**（后盖前）:
+```
+1. 默认值（代码内）
+2. 全局配置    ~/.pi-agent/settings.json
+3. 项目配置    .pi/settings.json
+4. CLI 参数    --model gpt-4o
+5. 环境变量    ANTHROPIC_API_KEY
+```
+
+**settings.json 示例**:
+```json
+{
+  "model": "anthropic/claude-sonnet-4-6",
+  "thinkingLevel": "medium",
+  "steeringMode": "one-at-a-time",
+  "toolExecution": "parallel",
+  "contextFiles": true,
+  "telemetry": false
+}
+```
+
+**验收**:
+1. 创建 `~/.pi-agent/settings.json` → Agent 启动自动读取
+2. CLI 参数覆盖配置文件（`--model gpt-4o` 覆盖 settings.json 中的 model）
+3. 项目 `.pi/settings.json` 覆盖全局配置
+
+**Phase 3 完成标志**:
+- [ ] 扩展系统可用（jiti 动态加载 .ts 文件）
+- [ ] Anthropic / OpenAI / DeepSeek 三提供商正常工作
+- [ ] JSON 模式和 RPC 模式可用
+- [ ] 配置文件系统工作正常
+- [ ] 这是一个"可扩展的、多提供商的、可嵌入的"Agent ✨
 
 ### Phase 4 — 生产加固
 
