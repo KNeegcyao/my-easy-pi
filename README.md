@@ -22,7 +22,6 @@
 
 **piagent** 是一个从零搭建的 AI 编程助手（Coding Agent），类似简化版的 [Claude Code](https://claude.ai) / [Cursor](https://cursor.sh)。它展示了如何通过 **6 层分层架构**将大语言模型（LLM）与工具调用系统有机结合，实现一个可交互的 AI 助手。
 
-> 🎯 适合作为求职作品：[项目全解文档（语雀）](https://yuque.antfin.com/go/doc/564901513)
 
 ---
 
@@ -374,5 +373,5 @@ MIT License
 ---
 
 <p align="center">
-  由 <a href="https://yuque.antfin.com/go/doc/564901513">语雀文档</a> · <a href="https://github.com/KNeegcyao/my-easy-pi">GitHub</a>
+  由 <a href="https://github.com/KNeegcyao/my-easy-pi">GitHub</a>
 </p>
