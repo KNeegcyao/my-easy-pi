@@ -1,0 +1,21 @@
+{
+  "name": "piagent",
+  "version": "0.1.0",
+  "description": "简易 AI Coding Agent",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.52"
+  }
+}

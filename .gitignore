@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.piagent/
+.pi/
+*.log
+.env
+.env.local
+.DS_Store
+*.tsbuildinfo
+.idea/
+.codefuse/

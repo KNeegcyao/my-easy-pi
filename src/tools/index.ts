@@ -1,0 +1,9 @@
+// 工具层统一导出
+export * from './registry.js'
+export { bashTool } from './builtin/bash.js'
+export { readTool } from './builtin/read.js'
+export { writeTool } from './builtin/write.js'
+export { editTool } from './builtin/edit.js'
+export { grepTool } from './builtin/grep.js'
+export { findTool } from './builtin/find.js'
+export { lsTool } from './builtin/ls.js'
