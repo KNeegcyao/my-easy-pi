@@ -1,27 +1,22 @@
 // ============================================================
 // TUI Editor — 文本输入编辑器
 //
-// 使用 readline 实现的多行输入，支持：
-//   - 基础行编辑
-//   - Ctrl+C 退出
-//   - 在对话模式下循环输入
+// 使用 readline 实现交互式输入。
 // ============================================================
 
 import * as readline from 'readline'
+import { USER_LABEL, PROMPT_SYMBOL } from './theme.js'
 
 export interface EditorOptions {
-  prompt?: string
   onInput: (input: string) => Promise<void>
   onExit: () => void
 }
 
 export function startEditor(options: EditorOptions): void {
-  const prompt = options.prompt || '> '
-
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt,
+    prompt: `  ${USER_LABEL} ${PROMPT_SYMBOL} `,
   })
 
   rl.prompt()
@@ -33,22 +28,20 @@ export function startEditor(options: EditorOptions): void {
       return
     }
 
-    // 退出指令
-    if (trimmed === '/exit' || trimmed === '/quit') {
+    if (['/exit', '/quit'].includes(trimmed)) {
       rl.close()
       return
     }
 
-    // 暂停 readline，让 Agent 输出时不会干扰输入行
     rl.pause()
 
     try {
+      process.stdout.write(`  `)
       await options.onInput(trimmed)
     } catch (error) {
       console.error('\n错误:', error instanceof Error ? error.message : String(error))
     }
 
-    // 恢复 readline
     rl.resume()
     rl.prompt()
   })
@@ -58,8 +51,5 @@ export function startEditor(options: EditorOptions): void {
     options.onExit()
   })
 
-  // Ctrl+C 处理
-  rl.on('SIGINT', () => {
-    rl.close()
-  })
+  rl.on('SIGINT', () => rl.close())
 }

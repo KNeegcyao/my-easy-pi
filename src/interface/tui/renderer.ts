@@ -1,11 +1,12 @@
 // ============================================================
 // TUI Renderer — 消息渲染器
 //
-// 将 Agent 的输出消息渲染到终端。
+// 将 Agent 的输出渲染为结构化、带颜色的终端消息。
 // ============================================================
 
 import { EOL } from 'os'
 import type { Agent, AgentEvent } from '../../agent/index.js'
+import { AI_LABEL, TOOL_LABEL, ERROR_LABEL, dim, green } from './theme.js'
 
 export function createTUIRenderer(agent: Agent): void {
   let lastContentLength = 0
@@ -30,23 +31,26 @@ export function createTUIRenderer(agent: Agent): void {
         const msg = event.message
         if (msg.role === 'assistant') {
           process.stdout.write(EOL + EOL)
-          if (msg.toolCalls && msg.toolCalls.length > 0) {
-            for (const tc of msg.toolCalls) {
-              process.stdout.write(`  🔧 ${tc.name}(${JSON.stringify(tc.args)})${EOL}`)
-            }
-            process.stdout.write(EOL)
-          }
         }
         break
       }
 
+      case 'tool_execution_start':
+        process.stdout.write(EOL + `  ${TOOL_LABEL} ${event.toolName}(${JSON.stringify(event.args)})` + EOL)
+        break
+
       case 'tool_execution_end':
-        process.stdout.write(`  ⚡ 完成${EOL}`)
+        process.stdout.write(`  ${dim(green('✓'))} 完成` + EOL + EOL)
         break
 
       case 'error':
-        process.stderr.write(`  ❌ ${event.message}${EOL}`)
+        process.stdout.write(EOL + `  ${ERROR_LABEL} ${event.message}` + EOL)
         break
     }
   })
+}
+
+/** 打印用户输入 header */
+export function printUserInput(input: string): void {
+  process.stdout.write(EOL + `  ${AI_LABEL} `)
 }
