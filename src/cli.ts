@@ -15,16 +15,20 @@
 // # JSON 输出
 //   pi -m "你好" -o json
 //
-// 环境变量：
+// 环境变量（优先级高于配置文件）：
 //   DEEPSEEK_API_KEY   - DeepSeek API 密钥
 //   ANTHROPIC_API_KEY  - Anthropic API 密钥
 //   OPENAI_API_KEY     - OpenAI API 密钥
+//
+// 配置文件：
+//   ~/.piagent/config.json  用户全局配置（可用 apiKeys 字段存密钥）
 // ============================================================
 
 import { ModelRegistry, AnthropicProvider, DeepSeekProvider, OpenAIProvider } from './ai/index.js'
 import { ToolRegistry, bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool } from './tools/index.js'
 import { Agent } from './agent/index.js'
 import { createPrintInterface, createJSONInterface, startTUI, startRPC } from './interface/index.js'
+import { ConfigManager } from './config/index.js'
 
 type OutputMode = 'print' | 'json' | 'rpc'
 
@@ -90,44 +94,39 @@ piagent — 简易 AI Coding Agent
   --provider <name>     指定提供商: deepseek | anthropic | openai (默认: deepseek)
   -h, --help            显示帮助
 
-环境变量:
-  DEEPSEEK_API_KEY      使用 DeepSeek 时需要
-  ANTHROPIC_API_KEY     使用 Anthropic 时需要
-  OPENAI_API_KEY        使用 OpenAI 时需要
+环境变量 (优先级高于配置文件):
+  DEEPSEEK_API_KEY      DeepSeek API 密钥
+  ANTHROPIC_API_KEY     Anthropic API 密钥
+  OPENAI_API_KEY        OpenAI API 密钥
+
+配置文件:
+  ~/.piagent/config.json  用户全局配置（可用 apiKeys 字段存密钥）
   `)
 }
 
 async function main(): Promise<void> {
   const args = parseArgs()
 
-  // 1. 确定提供商和 API Key
-  const provider = args.provider || 'deepseek'
-  const apiKey = provider === 'deepseek'
-    ? process.env.DEEPSEEK_API_KEY
-    : provider === 'anthropic'
-      ? process.env.ANTHROPIC_API_KEY
-      : process.env.OPENAI_API_KEY
+  // 1. 加载配置
+  const config = new ConfigManager()
+  await config.load()
 
+  // 2. 确定提供商
+  const provider = args.provider || config.getDefaultProvider()
+
+  // 3. 确定 API Key（环境变量 > 用户配置文件）
+  const apiKey = config.getApiKey(provider)
   if (!apiKey) {
-    const keyName = provider === 'deepseek'
-      ? 'DEEPSEEK_API_KEY'
-      : provider === 'anthropic'
-        ? 'ANTHROPIC_API_KEY'
-        : 'OPENAI_API_KEY'
-    console.error(`错误: 请设置 ${keyName} 环境变量`)
-    console.error(`  export ${keyName}=your-api-key-here`)
+    const envVar = `API_KEY_FOR_${provider.toUpperCase()}`
+    console.error(`错误: 未找到 ${provider} 的 API 密钥`)
+    console.error(`  请设置环境变量 ${envVar} 或配置文件 ~/.piagent/config.json`)
     process.exit(1)
   }
 
-  // 2. 确定模型
-  const defaultModel = provider === 'deepseek'
-    ? 'deepseek-chat'
-    : provider === 'anthropic'
-      ? 'claude-sonnet-4-20250514'
-      : 'gpt-4o'
-  const modelId = args.model || defaultModel
+  // 4. 确定模型
+  const modelId = args.model || config.getDefaultModel(provider)
 
-  // 3. 读取用户输入
+  // 5. 读取用户输入
   let userMessage = args.message
 
   if (args.tui || args.output === 'rpc') {
@@ -155,7 +154,7 @@ async function main(): Promise<void> {
     }
   }
 
-  // 4. 设置 ModelRegistry（注册所有支持的提供商）
+  // 6. 设置 ModelRegistry（注册所有支持的提供商）
   const registry = new ModelRegistry()
   registry.setProvider('anthropic', AnthropicProvider)
   registry.setProvider('deepseek', DeepSeekProvider)
@@ -168,7 +167,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  // 5. 创建工具
+  // 7. 创建工具
   const toolRegistry = new ToolRegistry()
   toolRegistry.registerTool(bashTool)
   toolRegistry.registerTool(readTool)
@@ -178,7 +177,7 @@ async function main(): Promise<void> {
   toolRegistry.registerTool(findTool)
   toolRegistry.registerTool(lsTool)
 
-  // 6. 创建 Agent
+  // 8. 创建 Agent
   const agent = new Agent({
     systemPrompt: `你是 piagent — 一个 AI 编程助手。
 当前使用的模型: ${modelId}（提供商: ${provider}）
@@ -198,7 +197,7 @@ async function main(): Promise<void> {
     tools: toolRegistry.listTools(),
   })
 
-  // 7. 启动界面
+  // 9. 启动界面
   if (args.tui) {
     startTUI(agent)
   } else if (args.output === 'json') {
