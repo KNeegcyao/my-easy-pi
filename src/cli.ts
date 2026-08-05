@@ -126,31 +126,27 @@ async function main(): Promise<void> {
   // 4. 确定模型
   const modelId = args.model || config.getDefaultModel(provider)
 
-  // 5. 读取用户输入
+  // 5. 确定执行模式
   let userMessage = args.message
+  const noArgs = !args.message && !args.prompt && !args.tui && args.output === 'print'
 
-  if (args.tui || args.output === 'rpc') {
-    // TUI/RPC 模式下跳过输入检查
-  } else if (!userMessage) {
-    if (!process.stdin.isTTY) {
+  if (noArgs && process.stdin.isTTY) {
+    args.tui = true
+  }
+
+  // 6. 非交互模式的输入读取
+  if (!args.tui && args.output !== 'rpc') {
+    if (args.message) {
+      userMessage = args.message
+    } else if (!process.stdin.isTTY) {
       const chunks: Buffer[] = []
       for await (const chunk of process.stdin) {
         chunks.push(chunk as Buffer)
       }
       const stdinContent = Buffer.concat(chunks).toString('utf-8').trim()
-
-      if (args.prompt) {
-        userMessage = `${args.prompt}\n\n${stdinContent}`
-      } else {
-        userMessage = stdinContent
-      }
+      userMessage = args.prompt ? `${args.prompt}\n\n${stdinContent}` : stdinContent
     } else if (args.prompt) {
       userMessage = args.prompt
-    } else {
-      console.error('错误: 请提供输入内容')
-      console.error('  piagent -m "你的消息"')
-      console.error('  或 echo "内容" | piagent -p "指令"')
-      process.exit(1)
     }
   }
 
