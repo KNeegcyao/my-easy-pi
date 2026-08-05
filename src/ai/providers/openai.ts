@@ -12,6 +12,7 @@ import type {
   ProviderFactory, Model, ModelContext, ModelInfo,
   LLMEvent, StreamOptions,
 } from '../types.js'
+import { fetchWithRetry } from '../retry.js'
 
 const OPENAI_BASE_URL = 'https://api.openai.com'
 
@@ -64,7 +65,7 @@ class OpenAIModel implements Model {
   async *stream(context: ModelContext, options?: StreamOptions): AsyncIterable<LLMEvent> {
     const body = this.buildRequestBody(context)
 
-    const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+    const response = await fetchWithRetry(`${this.baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

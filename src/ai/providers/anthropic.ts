@@ -14,6 +14,7 @@ import type {
   ProviderFactory, Model, ModelContext, ModelInfo,
   LLMEvent, StreamOptions,
 } from '../types.js'
+import { fetchWithRetry } from '../retry.js'
 
 // ── Anthropic API 常量 ──
 const ANTHROPIC_BASE_URL = 'https://api.anthropic.com'
@@ -77,7 +78,7 @@ class AnthropicModel implements Model {
     const body = this.buildRequestBody(context)
 
     // 2. 发起流式请求
-    const response = await fetch(`${this.baseUrl}/v1/messages`, {
+    const response = await fetchWithRetry(`${this.baseUrl}/v1/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

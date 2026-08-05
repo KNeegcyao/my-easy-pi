@@ -1,6 +1,7 @@
 // AI 层统一导出
 export * from './types.js'
 export * from './registry.js'
+export * from './retry.js'
 export { AnthropicProvider } from './providers/anthropic.js'
 export { DeepSeekProvider } from './providers/deepseek.js'
 export { OpenAIProvider } from './providers/openai.js'
