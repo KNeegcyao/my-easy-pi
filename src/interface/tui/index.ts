@@ -27,7 +27,7 @@ export function startTUI(agent: Agent): void {
   )
 
   startEditor({
-    onInput: async (input) => { await agent.prompt(input) },
+    agent,
     onExit: () => { cleanup(); process.exit(0) },
   })
 }
