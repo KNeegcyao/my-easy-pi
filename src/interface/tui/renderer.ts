@@ -1,25 +1,37 @@
 // ============================================================
-// TUI Renderer — 消息渲染器
+// TUI Renderer — 流式渲染器
 //
-// 将 Agent 的输出渲染为结构化、带颜色的终端消息。
+// 流式渲染 AI 回复，覆盖 "thinking..." 行。
 // ============================================================
 
 import { EOL } from 'os'
 import type { Agent, AgentEvent } from '../../agent/index.js'
-import { AI_LABEL, TOOL_LABEL, ERROR_LABEL, dim, green } from './theme.js'
+import { dim, green, yellow, red, italic, gray } from './theme.js'
+
+/** 清除当前行 */
+function clearLine(): void {
+  process.stdout.write('\x1b[2K\r')
+}
 
 export function createTUIRenderer(agent: Agent): void {
   let lastContentLength = 0
+  let hasReceivedContent = false
 
   agent.subscribe((event: AgentEvent) => {
     switch (event.type) {
       case 'message_start':
         lastContentLength = 0
+        hasReceivedContent = false
         break
 
       case 'message_update': {
         const content = event.message.content
         if (content) {
+          // 第一条数据到达时，清除 "thinking..." 行
+          if (!hasReceivedContent && content.length > 0) {
+            clearLine()
+            hasReceivedContent = true
+          }
           const newPart = content.slice(lastContentLength)
           if (newPart) process.stdout.write(newPart)
           lastContentLength = content.length
@@ -27,30 +39,19 @@ export function createTUIRenderer(agent: Agent): void {
         break
       }
 
-      case 'message_end': {
-        const msg = event.message
-        if (msg.role === 'assistant') {
-          process.stdout.write(EOL + EOL)
-        }
-        break
-      }
-
       case 'tool_execution_start':
-        process.stdout.write(EOL + `  ${TOOL_LABEL} ${event.toolName}(${JSON.stringify(event.args)})` + EOL)
+        clearLine()
+        process.stdout.write(`  ${dim(yellow('→'))} ${event.toolName}` + EOL)
         break
 
       case 'tool_execution_end':
-        process.stdout.write(`  ${dim(green('✓'))} 完成` + EOL + EOL)
+        process.stdout.write(`  ${dim(green('✓'))} 完成` + EOL)
         break
 
       case 'error':
-        process.stdout.write(EOL + `  ${ERROR_LABEL} ${event.message}` + EOL)
+        clearLine()
+        process.stdout.write(`  ${red('✗')} ${event.message}` + EOL)
         break
     }
   })
-}
-
-/** 打印用户输入 header */
-export function printUserInput(input: string): void {
-  process.stdout.write(EOL + `  ${AI_LABEL} `)
 }
