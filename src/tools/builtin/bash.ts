@@ -9,6 +9,7 @@
 import { Type } from '@sinclair/typebox'
 import type { AgentTool } from '../../ai/types.js'
 import { getSandbox } from '../../sandbox/index.js'
+import { logger } from '../../config/index.js'
 
 /** 创建 bash 工具 */
 export const bashTool: AgentTool = {
@@ -41,12 +42,18 @@ export const bashTool: AgentTool = {
       const output = result.stdout || result.stderr || '(无输出)'
       const runtimeInfo = result.runtime === 'docker' ? ' [沙箱]' : ' [本地]'
 
+      logger.audit('tool_execution', {
+        tool: 'bash', command, exitCode: result.exitCode, runtime: result.runtime,
+      })
+
       return {
         content: [{ type: 'text', text: output + runtimeInfo }],
         details: { command, exitCode: result.exitCode, runtime: result.runtime },
       }
     } catch (error: unknown) {
       const err = error as Error
+      logger.audit('tool_execution_failed', { tool: 'bash', command, error: err.message })
+
       return {
         content: [{ type: 'text', text: err.message || String(error) }],
         details: { command, exitCode: 1 },
