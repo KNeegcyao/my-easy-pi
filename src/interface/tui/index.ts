@@ -1,26 +1,33 @@
 // ============================================================
-// TUI 入口
+// TUI 入口 — 全屏终端界面
+//
+// 类似 Claude Code 的全屏交互体验。
 // ============================================================
 
 import type { Agent } from '../../agent/index.js'
 import { createTUIRenderer } from './renderer.js'
 import { startEditor } from './editor.js'
-import { green, dim, gray } from './theme.js'
+import { green, gray, enterAltScreen, exitAltScreen, hideCursor, showCursor } from './theme.js'
 
 export function startTUI(agent: Agent): void {
+  process.stdout.write(enterAltScreen() + hideCursor())
+
+  const cleanup = () => {
+    process.stdout.write(showCursor() + exitAltScreen())
+  }
+  process.on('exit', cleanup)
+  process.on('SIGINT', () => { cleanup(); process.exit(0) })
+  process.on('SIGTERM', () => { cleanup(); process.exit(0) })
+
   createTUIRenderer(agent)
 
   const model = agent.state.model
-  const welcome = [
-    green('piagent'),
-    dim(` — ${model.provider}/${model.id}`),
-    '',
-    gray('  /exit 退出 · 直接输入开始对话'),
-  ].join('\n')
+  process.stdout.write(
+    `  ${green('piagent')} — ${gray(`${model.provider}/${model.id}`)}\n\n`
+  )
 
-  console.log('\n' + welcome + '\n')
   startEditor({
     onInput: async (input) => { await agent.prompt(input) },
-    onExit: () => process.exit(0),
+    onExit: () => { cleanup(); process.exit(0) },
   })
 }

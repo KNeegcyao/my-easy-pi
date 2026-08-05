@@ -1,21 +1,18 @@
 // ============================================================
-// TUI Renderer — 流式渲染器
+// TUI Renderer — 全屏渲染器
 //
-// 流式渲染 AI 回复，覆盖 "thinking..." 行。
+// 管理消息区域的渲染，使用 alternate screen。
 // ============================================================
 
-import { EOL } from 'os'
 import type { Agent, AgentEvent } from '../../agent/index.js'
-import { dim, green, yellow, red, italic, gray } from './theme.js'
+import { dim, gray, green, red, clearLine } from './theme.js'
 
-/** 清除当前行 */
-function clearLine(): void {
-  process.stdout.write('\x1b[2K\r')
-}
+let lastContentLength = 0
+let hasReceivedContent = false
 
 export function createTUIRenderer(agent: Agent): void {
-  let lastContentLength = 0
-  let hasReceivedContent = false
+  lastContentLength = 0
+  hasReceivedContent = false
 
   agent.subscribe((event: AgentEvent) => {
     switch (event.type) {
@@ -27,9 +24,8 @@ export function createTUIRenderer(agent: Agent): void {
       case 'message_update': {
         const content = event.message.content
         if (content) {
-          // 第一条数据到达时，清除 "thinking..." 行
           if (!hasReceivedContent && content.length > 0) {
-            clearLine()
+            process.stdout.write('\r' + clearLine() + '\r')
             hasReceivedContent = true
           }
           const newPart = content.slice(lastContentLength)
@@ -39,19 +35,37 @@ export function createTUIRenderer(agent: Agent): void {
         break
       }
 
+      case 'message_end':
+        if (event.message.role === 'assistant' && lastContentLength > 0) {
+          process.stdout.write('\n')
+        }
+        break
+
       case 'tool_execution_start':
-        clearLine()
-        process.stdout.write(`  ${dim(yellow('→'))} ${event.toolName}` + EOL)
+        process.stdout.write('\r' + clearLine() + '\r')
+        process.stdout.write(`  ${dim('→')} ${event.toolName}` + '\n')
         break
 
       case 'tool_execution_end':
-        process.stdout.write(`  ${dim(green('✓'))} 完成` + EOL)
+        process.stdout.write(`  ${green('✓')} 完成\n`)
         break
 
       case 'error':
-        clearLine()
-        process.stdout.write(`  ${red('✗')} ${event.message}` + EOL)
+        process.stdout.write('\r' + clearLine() + '\r')
+        process.stdout.write(`  ${red('✗')} ${event.message}\n`)
         break
     }
   })
+}
+
+export function printThinking(): void {
+  process.stdout.write(`\r${clearLine()}\r\x1b[90m\x1b[3mpiagent is thinking...\x1b[23m\x1b[0m`)
+}
+
+export function printPrompt(): void {
+  process.stdout.write(`\n\x1b[32m> \x1b[0m`)
+}
+
+export function printUserInput(input: string): void {
+  process.stdout.write(`\r${clearLine()}\r\x1b[90m> \x1b[0m${input}\n`)
 }
