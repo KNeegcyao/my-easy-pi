@@ -5,7 +5,7 @@
 // 支持注册、注销、查询和列出工具。
 // ============================================================
 
-import type { AgentTool } from '../ai/types.js'
+import type { AgentTool } from '../agent/types.js'
 
 export class ToolRegistry {
   /** 存储所有已注册的工具 */

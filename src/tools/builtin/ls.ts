@@ -4,7 +4,7 @@
 
 import { readdir } from 'fs/promises'
 import { Type } from '@sinclair/typebox'
-import type { AgentTool } from '../../ai/types.js'
+import type { AgentTool } from '../../agent/types.js'
 
 export const lsTool: AgentTool = {
   name: 'ls',

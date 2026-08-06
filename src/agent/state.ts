@@ -9,7 +9,8 @@
 //   - 流式状态
 // ============================================================
 
-import type { Model, AgentMessage, AgentTool, ThinkingLevel } from '../ai/types.js'
+import type { Model, AgentMessage, ThinkingLevel } from '../ai/types.js'
+import type { AgentTool } from './types.js'
 
 export interface AgentState {
   systemPrompt: string

@@ -8,7 +8,8 @@
 //   - on()             监听 Agent 事件
 // ============================================================
 
-import type { AgentTool, AgentEventListener } from '../ai/types.js'
+import type { AgentTool } from '../agent/types.js'
+import type { AgentEventListener } from '../ai/types.js'
 import type { ToolRegistry } from '../tools/registry.js'
 import type { Agent } from '../agent/index.js'
 

@@ -12,9 +12,10 @@
 // ============================================================
 
 import type {
-  Model, AgentMessage, AgentTool, AgentEvent, AgentEventListener,
+  Model, AgentMessage, AgentEvent, AgentEventListener,
   LLMMessage, LLMEvent, ToolCall, ModelContext, StreamOptions,
 } from '../ai/types.js'
+import type { AgentTool } from './types.js'
 import { ToolRegistry } from '../tools/registry.js'
 import { createAgentState, generateId, type AgentState } from './state.js'
 import { MessageQueue } from './queue.js'

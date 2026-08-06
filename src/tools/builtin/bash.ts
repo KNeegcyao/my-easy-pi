@@ -7,7 +7,7 @@
 // ============================================================
 
 import { Type } from '@sinclair/typebox'
-import type { AgentTool } from '../../ai/types.js'
+import type { AgentTool } from '../../agent/types.js'
 import { getSandbox } from '../../sandbox/index.js'
 import { logger } from '../../config/index.js'
 

@@ -5,7 +5,7 @@
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { Type } from '@sinclair/typebox'
-import type { AgentTool } from '../../ai/types.js'
+import type { AgentTool } from '../../agent/types.js'
 
 const execAsync = promisify(exec)
 

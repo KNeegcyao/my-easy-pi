@@ -152,22 +152,8 @@ export interface Tool {
   executionMode?: 'parallel' | 'sequential'
 }
 
-/** Agent 工具定义（在 Tool 基础上加上执行能力）
- *  定义工具"怎么执行"——Agent 调用这个执行工具 */
-export interface AgentTool extends Tool {
-  /** 执行工具
-   * @param toolCallId - 工具调用 ID
-   * @param params - 工具参数
-   * @param signal - 中断信号
-   * @param onUpdate - 可选的回调，用于流式输出中间结果
-   */
-  execute(
-    toolCallId: string,
-    params: Record<string, unknown>,
-    signal: AbortSignal,
-    onUpdate?: (update: ToolUpdate) => void
-  ): Promise<ToolResult>
-}
+/** Agent 工具定义定义在 agent/types.ts 中（AgentTool extends Tool）
+ *  保持 Tool 为纯类型，不包含运行时行为 */
 
 // ── Agent 事件类型 ──
 // Agent 生命周期中的各种事件，供 UI/日志/扩展订阅
