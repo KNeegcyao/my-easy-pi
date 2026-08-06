@@ -6,7 +6,13 @@
 // ============================================================
 
 import * as storage from './storage.js'
+import { writeFile, readFile, mkdir } from 'fs/promises'
+import { existsSync } from 'fs'
+import { homedir } from 'os'
+import { join } from 'path'
 import type { AgentMessage } from '../ai/types.js'
+
+const LAST_SESSION_PATH = join(homedir(), '.piagent', 'last-session')
 
 export interface SessionSummary {
   id: string
@@ -61,6 +67,23 @@ export class SessionManager {
     }
 
     return summaries
+  }
+
+  /** 保存最后活跃的会话 ID */
+  async saveLastSession(sessionId: string): Promise<void> {
+    try {
+      const dir = join(homedir(), '.piagent')
+      if (!existsSync(dir)) await mkdir(dir, { recursive: true })
+      await writeFile(LAST_SESSION_PATH, sessionId, 'utf-8')
+    } catch { /* 不影响主流程 */ }
+  }
+
+  /** 获取最后活跃的会话 ID */
+  async getLastSession(): Promise<string | null> {
+    try {
+      if (!existsSync(LAST_SESSION_PATH)) return null
+      return await readFile(LAST_SESSION_PATH, 'utf-8') || null
+    } catch { return null }
   }
 
   /** 保存消息到会话 */
