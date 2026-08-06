@@ -5,10 +5,11 @@
 
 import { ModelRegistry, AnthropicProvider, DeepSeekProvider, OpenAIProvider } from './ai/index.js'
 import { ToolRegistry, bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool } from './tools/index.js'
-import { Agent } from './agent/index.js'
+import { Agent, PermissionManager } from './agent/index.js'
 import { createPrintInterface, createJSONInterface, startTUI, startRPC } from './interface/index.js'
 import { ConfigManager } from './config/index.js'
-import { SessionManager } from './session/index.js'
+import { SessionManager, Compactor } from './session/index.js'
+import { recordTokenUsage } from './interface/tui/commands.js'
 
 type OutputMode = 'print' | 'json' | 'rpc'
 
@@ -158,11 +159,17 @@ async function main(): Promise<void> {
     }
   }
 
+  // 初始化权限和压缩
+  const permission = new PermissionManager()
+  const compactor = new Compactor()
+
   // 创建 Agent
   const agent = new Agent({
     systemPrompt: `你是 piagent — 一个 AI 编程助手。\n当前使用的模型: ${modelId}（提供商: ${provider}）\n\n你有以下工具可用：\n- bash：执行 shell 命令\n- read：读取文件内容\n- write：写入文件内容\n- edit：替换文件中的文本\n- grep：在文件中搜索关键词\n- find：查找文件名\n- ls：列出目录内容\n\n请用中文回答用户的问题。保持回答简洁、准确。`,
     model: model!,
     tools: toolRegistry.listTools(),
+    beforeToolCall: (ctx) => permission.check(ctx),
+    transformContext: async (messages) => compactor.compact(messages),
   })
 
   // 加载历史消息
@@ -174,9 +181,15 @@ async function main(): Promise<void> {
   if (!sessionId) sessionId = await sessionManager.createSession()
   await sessionManager.saveLastSession(sessionId)
 
+  let turnCount = 0
   agent.subscribe(async (event) => {
     if (event.type === 'message_end' && event.message.role !== 'notification') {
       await sessionManager.saveMessage(sessionId!, event.message)
+    }
+    if (event.type === 'turn_end') {
+      turnCount++
+      const toolCalls = event.toolResults.length
+      recordTokenUsage(toolCalls * 100, toolCalls * 200) // 估算：每次工具调用 ~100 prompt + ~200 completion tokens
     }
   })
 
