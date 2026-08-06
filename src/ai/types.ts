@@ -142,14 +142,19 @@ export interface ToolResult {
   terminate?: boolean
 }
 
-/** Agent 工具定义 */
-export interface AgentTool {
+/** 基础工具定义（纯类型，无运行时行为）
+ *  定义工具"长什么样"——LLM 根据这个决定是否调用 */
+export interface Tool {
   name: string          // 工具名（LLM 调用时用的标识）
   label?: string        // 显示名（UI 展示用）
   description: string   // 描述（LLM 理解工具用途）
   parameters: JSONSchema // 参数 Schema
   executionMode?: 'parallel' | 'sequential'
+}
 
+/** Agent 工具定义（在 Tool 基础上加上执行能力）
+ *  定义工具"怎么执行"——Agent 调用这个执行工具 */
+export interface AgentTool extends Tool {
   /** 执行工具
    * @param toolCallId - 工具调用 ID
    * @param params - 工具参数
