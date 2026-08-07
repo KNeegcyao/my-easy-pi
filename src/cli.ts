@@ -3,7 +3,7 @@ import { ModelRegistry, AnthropicProvider, DeepSeekProvider, OpenAIProvider } fr
 import { ToolRegistry, bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool } from './tools/index.js'
 import { Agent, PermissionManager } from './agent/index.js'
 import { createPrintInterface, createJSONInterface, startTUI, startRPC } from './interface/index.js'
-import { ConfigManager } from './config/index.js'
+import { ConfigManager, runInit } from './config/index.js'
 import { SessionManager, Compactor } from './session/index.js'
 import { recordTokenUsage } from './interface/tui/commands.js'
 
@@ -12,7 +12,7 @@ type OutputMode = 'print' | 'json' | 'rpc'
 function parseArgs(): {
   prompt?: string; message?: string; model?: string
   provider?: string; tui?: boolean; output?: OutputMode
-  continue?: boolean; list?: boolean; deleteSession?: string
+  continue?: boolean; list?: boolean; deleteSession?: string; init?: boolean
 } {
   const args = process.argv.slice(2)
   const result: any = { output: 'print' }
@@ -27,6 +27,7 @@ function parseArgs(): {
       case '-c': case '--continue': result.continue = true; break
       case '-l': case '--list': result.list = true; break
       case '--delete': result.deleteSession = args[++i]; break
+      case '--init': result.init = true; break
       case '-h': case '--help': printHelp(); process.exit(0)
     }
   }
@@ -53,6 +54,7 @@ piagent — 简易 AI Coding Agent
   -c, --continue  继续上次会话
   -l, --list      列出所有会话
   --delete <id>   删除指定会话
+  --init          初始化配置和沙箱环境
   --model <id>    指定模型
   --provider <name> 指定提供商 (deepseek|anthropic|openai)
   -h, --help      显示帮助
@@ -87,6 +89,11 @@ async function main(): Promise<void> {
   if (args.deleteSession) {
     await sessionManager.deleteSession(args.deleteSession)
     console.log(`已删除会话: ${args.deleteSession}`)
+    process.exit(0)
+  }
+
+  if (args.init) {
+    await runInit()
     process.exit(0)
   }
 
