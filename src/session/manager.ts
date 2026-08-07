@@ -43,6 +43,22 @@ export class SessionManager {
     return messages.filter(m => m.role !== 'notification' || m.id === 'meta')
   }
 
+  /** 重命名会话 */
+  async renameSession(id: string, name: string): Promise<void> {
+    const meta: AgentMessage = {
+      id: 'meta',
+      parentId: null,
+      role: 'notification',
+      content: name,
+      createdAt: Date.now(),
+    }
+    // 读取所有消息，替换 meta，重新写入
+    const allMessages = await storage.readMessages(id)
+    const filtered = allMessages.filter(m => m.id !== 'meta')
+    filtered.unshift(meta)
+    await storage.writeMessages(id, filtered)
+  }
+
   /** 删除会话 */
   async deleteSession(id: string): Promise<void> {
     await storage.deleteSession(id)
