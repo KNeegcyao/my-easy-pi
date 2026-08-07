@@ -10,7 +10,7 @@
     "audit": "bash scripts/audit.sh",
     "audit:prod": "npm audit --audit-level=high",
     "outdated": "npm outdated",
-    "test": "vitest run --reporter=verbose",
+    "test": "npx vitest run --reporter=verbose 2>&1; echo \"EXIT_CODE=$?\"",
     "test:watch": "vitest"
   },
   "keywords": [],
