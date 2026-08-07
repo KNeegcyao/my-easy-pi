@@ -2,6 +2,7 @@
 import { ModelRegistry, AnthropicProvider, DeepSeekProvider, OpenAIProvider } from './ai/index.js'
 import { ToolRegistry, bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool } from './tools/index.js'
 import { Agent, PermissionManager } from './agent/index.js'
+import { isAppError, AUTH_API_KEY_MISSING, PROVIDER_NOT_FOUND, MODEL_NOT_FOUND } from './ai/errors.js'
 import { createPrintInterface, createJSONInterface, startTUI, startRPC } from './interface/index.js'
 import { ConfigManager, runInit } from './config/index.js'
 import { SessionManager, Compactor } from './session/index.js'
@@ -100,7 +101,12 @@ async function main(): Promise<void> {
   // 提供商和模型
   const provider = args.provider || config.getDefaultProvider()
   const apiKey = config.getApiKey(provider)
-  if (!apiKey) { console.error('错误: 未找到 API 密钥'); process.exit(1) }
+  if (!apiKey) {
+    const err = AUTH_API_KEY_MISSING(provider)
+    console.error(`[${err.code}] ${err.message}`)
+    console.error(`  💡 ${err.suggestion}`)
+    process.exit(1)
+  }
   const modelId = args.model || config.getDefaultModel(provider)
 
   // 执行模式
@@ -124,7 +130,11 @@ async function main(): Promise<void> {
   registry.setProvider('deepseek', DeepSeekProvider)
   registry.setProvider('openai', OpenAIProvider)
   const model = registry.getModel(provider, modelId, { apiKey })
-  if (!model) { console.error(`错误: 模型 "${modelId}" 不可用`); process.exit(1) }
+  if (!model) {
+    const err = MODEL_NOT_FOUND(modelId, provider)
+    console.error(`[${err.code}] ${err.message}`)
+    process.exit(1)
+  }
 
   const toolRegistry = new ToolRegistry()
   for (const t of [bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool]) { toolRegistry.registerTool(t) }
@@ -182,12 +192,24 @@ async function main(): Promise<void> {
   if (args.tui) { startTUI(agent) }
   else if (args.output === 'json') {
     createJSONInterface(agent)
-    try { await agent.prompt(userMessage!) } catch (e) { console.error(e); process.exit(1) }
+    try { await agent.prompt(userMessage!) } catch (e) {
+      if (isAppError(e)) {
+        console.error(`\n[${e.code}] ${e.message}`)
+        if (e.suggestion) console.error(`  💡 ${e.suggestion}`)
+      } else { console.error(e) }
+      process.exit(1)
+    }
   } else if (args.output === 'rpc') { startRPC(agent) }
   else {
     createPrintInterface(agent)
     try { await agent.prompt(userMessage!); console.log('\n--- 完成 ---') }
-    catch (e) { console.error('\n错误:', e instanceof Error ? e.message : String(e)); process.exit(1) }
+    catch (e) {
+      if (isAppError(e)) {
+        console.error(`\n[${e.code}] ${e.message}`)
+        if (e.suggestion) console.error(`  💡 ${e.suggestion}`)
+      } else { console.error('\n错误:', e instanceof Error ? e.message : String(e)) }
+      process.exit(1)
+    }
   }
 }
 

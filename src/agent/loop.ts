@@ -16,6 +16,7 @@ import type {
   LLMMessage, LLMEvent, ToolCall, ModelContext, StreamOptions,
 } from '../ai/types.js'
 import type { AgentTool } from './types.js'
+import { AGENT_ALREADY_STREAMING, TOOL_NOT_FOUND, TOOL_EXECUTION_FAILED } from '../ai/errors.js'
 import { ToolRegistry } from '../tools/registry.js'
 import { createAgentState, generateId, type AgentState } from './state.js'
 import { MessageQueue } from './queue.js'
@@ -122,7 +123,7 @@ export class Agent {
   async prompt(text: string): Promise<void> {
     // 如果已经在流式处理中，等待完成
     if (this.state.isStreaming) {
-      throw new Error('Agent is already streaming')
+      throw AGENT_ALREADY_STREAMING()
     }
 
     this.abortController = new AbortController()
@@ -377,8 +378,9 @@ export class Agent {
     for (const tc of toolCalls) {
       const tool = this.toolRegistry.getTool(tc.name)
       if (!tool) {
+        const err = TOOL_NOT_FOUND(tc.name)
         results.push({
-          content: `工具 "${tc.name}" 不存在`,
+          content: `${err.message}${err.suggestion ? ` — ${err.suggestion}` : ''}`,
           isError: true,
           terminate: false,
         })
