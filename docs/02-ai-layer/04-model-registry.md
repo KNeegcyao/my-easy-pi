@@ -1,5 +1,5 @@
 ---
-对应源码: `src/ai/registry.ts`
+对应源码: 'src/ai/registry.ts'
 最后更新: 2026-08-08
 适用版本: piagent v0.1+
 ---
