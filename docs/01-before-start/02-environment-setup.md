@@ -1,7 +1,7 @@
 ---
-> 对应源码: src/config/init.ts, src/cli.ts
-> 最后更新: 2026-08-08
-> 适用版本: v0.1.0+
+对应源码: src/config/init.ts, src/cli.ts
+最后更新: 2026-08-08
+适用版本: v0.1.0+
 ---
 
 # 环境搭建
