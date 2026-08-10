@@ -2,7 +2,7 @@
 // OpenAI Provider
 //
 // OpenAI API 使用标准的 Chat Completions 格式。
-// DeepSeek Provider 也是同样的格式，代码结构基本一致。
+// 使用共享的 SSE 读取器和 OpenAI 兼容格式模块。
 // 支持：
 //   - 流式文本输出（text_delta）
 //   - 工具/函数调用（tool_call）
@@ -13,6 +13,8 @@ import type {
   LLMEvent, StreamOptions,
 } from '../types.js'
 import { fetchWithRetry } from '../retry.js'
+import { readSSEStream } from '../sse.js'
+import { buildOpenAIRequestBody, convertOpenAIEvent } from '../openai-compat.js'
 
 const OPENAI_BASE_URL = 'https://api.openai.com'
 
@@ -63,7 +65,7 @@ class OpenAIModel implements Model {
   }
 
   async *stream(context: ModelContext, options?: StreamOptions): AsyncIterable<LLMEvent> {
-    const body = this.buildRequestBody(context)
+    const body = buildOpenAIRequestBody(this.id, context, this.supportsTools())
 
     const response = await fetchWithRetry(`${this.baseUrl}/v1/chat/completions`, {
       method: 'POST',
@@ -81,169 +83,9 @@ class OpenAIModel implements Model {
       return
     }
 
-    const reader = response.body?.getReader()
-    if (!reader) {
-      yield { type: 'error', message: 'No response body' }
-      return
+    const { events } = await readSSEStream(response, convertOpenAIEvent, options?.signal)
+    for (const event of events) {
+      yield event
     }
-
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          const event = this.parseSSELine(line)
-          if (event) yield event
-        }
-      }
-
-      if (buffer.trim()) {
-        const event = this.parseSSELine(buffer.trim())
-        if (event) yield event
-      }
-    } finally {
-      reader.releaseLock()
-    }
-  }
-
-  private buildRequestBody(context: ModelContext) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const body: Record<string, any> = {
-      model: this.id,
-      stream: true,
-      max_tokens: 8192,
-      messages: [
-        { role: 'system', content: context.systemPrompt },
-        ...context.messages.map(msg => {
-          if (msg.role === 'user') {
-            const content = typeof msg.content === 'string'
-              ? msg.content
-              : msg.content.map(c => {
-                  if (c.type === 'text') return { type: 'text', text: c.text }
-                  if (c.type === 'image') return { type: 'image_url', image_url: { url: `data:${c.mimeType};base64,${c.data}` } }
-                  return { type: 'text', text: JSON.stringify(c) }
-                })
-            return { role: 'user', content }
-          }
-          if (msg.role === 'assistant') {
-            const result: Record<string, unknown> = { role: 'assistant', content: msg.content }
-            if (msg.toolCalls && msg.toolCalls.length > 0) {
-              result.tool_calls = msg.toolCalls.map(tc => ({
-                id: tc.id,
-                type: 'function',
-                function: {
-                  name: tc.name,
-                  arguments: JSON.stringify(tc.args),
-                },
-              }))
-            }
-            return result
-          }
-          if (msg.role === 'toolResult') {
-            return {
-              role: 'tool',
-              tool_call_id: msg.toolCallId,
-              content: msg.content,
-            }
-          }
-          return msg
-        }),
-      ],
-    }
-
-    if (context.tools && context.tools.length > 0 && this.supportsTools()) {
-      body.tools = context.tools.map(t => ({
-        type: 'function',
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.input_schema,
-        },
-      }))
-    }
-
-    return body
-  }
-
-  private parseSSELine(line: string): LLMEvent | null {
-    if (!line || line.startsWith(':')) return null
-    if (!line.startsWith('data: ')) return null
-
-    const jsonStr = line.slice(6).trim()
-    if (jsonStr === '[DONE]') {
-      return { type: 'done', stopReason: 'end_turn' }
-    }
-
-    try {
-      const data = JSON.parse(jsonStr)
-      return this.convertEvent(data)
-    } catch {
-      return null
-    }
-  }
-
-  private convertEvent(data: Record<string, unknown>): LLMEvent | null {
-    const choices = data.choices as Array<Record<string, unknown>> | undefined
-    if (!choices || choices.length === 0) return null
-
-    const delta = choices[0].delta as Record<string, unknown> | undefined
-    const finishReason = choices[0].finish_reason as string | null | undefined
-
-    if (finishReason) {
-      return {
-        type: 'done',
-        stopReason: finishReason === 'tool_calls' ? 'tool_use' as const : 'end_turn' as const,
-      }
-    }
-
-    if (!delta) return null
-
-    if (delta.content) {
-      return { type: 'text_delta', delta: delta.content as string }
-    }
-
-    const toolCalls = delta.tool_calls as Array<Record<string, unknown>> | undefined
-    if (toolCalls && toolCalls.length > 0) {
-      const tc = toolCalls[0]
-      const fn = tc.function as Record<string, unknown> | undefined
-      if (tc.id) {
-        const argsStr = fn?.arguments as string | undefined
-        if (argsStr && argsStr !== 'null' && argsStr !== '') {
-          try {
-            const parsed = JSON.parse(argsStr)
-            return {
-              type: 'tool_call_start',
-              id: tc.id as string,
-              name: fn?.name as string || '',
-              args: parsed,
-            }
-          } catch {
-            // 按流式处理
-          }
-        }
-        return {
-          type: 'tool_call_start',
-          id: tc.id as string,
-          name: fn?.name as string || '',
-          args: {},
-        }
-      } else if (fn?.arguments) {
-        return {
-          type: 'tool_call_delta',
-          id: '',
-          delta: fn.arguments as string,
-        }
-      }
-    }
-
-    return null
   }
 }
