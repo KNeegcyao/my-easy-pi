@@ -1,11 +1,18 @@
 // ============================================================
 // TUI Commands — Slash 命令系统
 //
-// /help   /model   /cost   /clear   /exit
+// 可用命令：
+//   /help            显示帮助
+//   /model           显示当前模型
+//   /tools           列出可用工具
+//   /session         会话信息
+//   /cost            Token 用量统计
+//   /clear           清屏
+//   /exit            退出
 // ============================================================
 
 import type { Agent } from '../../agent/index.js'
-import { green, yellow, dim, gray } from './theme.js'
+import { green, yellow, cyan, dim, gray } from './theme.js'
 
 export interface CommandResult {
   handled: boolean
@@ -39,11 +46,13 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
         output: [
           '',
           `${gray('可用命令:')}`,
-          `  ${green('/help')}      ${gray('显示帮助')}`,
-          `  ${green('/model')}     ${gray('显示当前模型')}`,
-          `  ${green('/cost')}      ${gray('Token 用量')}`,
+          `  ${green('/help')}      ${gray('显示本帮助')}`,
+          `  ${green('/model')}     ${gray('显示当前模型信息')}`,
+          `  ${green('/tools')}     ${gray('列出所有可用工具')}`,
+          `  ${green('/session')}   ${gray('查看会话信息')}`,
+          `  ${green('/cost')}      ${gray('查看 Token 用量统计')}`,
           `  ${green('/clear')}     ${gray('清屏')}`,
-          `  ${green('/exit')}      ${gray('退出')}`,
+          `  ${green('/exit')}      ${gray('退出程序')}`,
           '',
         ].join('\n'),
       }
@@ -51,18 +60,59 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
     case '/model':
       return {
         handled: true,
-        output: `  ${green('当前模型:')} ${agent.state.model.provider}/${agent.state.model.id}`,
+        output: [
+          ``,
+          `  ${yellow('模型信息:')}`,
+          `  ${dim('├─')} ${gray('提供方:')}  ${cyan(agent.state.model.provider)}`,
+          `  ${dim('├─')} ${gray('模型 ID:')} ${cyan(agent.state.model.id)}`,
+          `  ${dim('├─')} ${gray('工具调用:')} ${agent.state.model.supportsTools() ? green('✓ 支持') : red('✗ 不支持')}`,
+          `  ${dim('└─')} ${gray('思考能力:')} ${agent.state.model.supportsThinking() ? green('✓ 支持') : gray('不支持')}`,
+          '',
+        ].join('\n'),
       }
+
+    case '/tools':
+      return {
+        handled: true,
+        output: [
+          ``,
+          `  ${yellow('可用工具:')}`,
+          ...agent.state.tools.map((t, i) => {
+            const isLast = i === agent.state.tools.length - 1
+            const prefix = isLast ? '└─' : '├─'
+            return `  ${dim(prefix)} ${green(t.name)}  ${gray(t.description)}`
+          }),
+          '',
+        ].join('\n'),
+      }
+
+    case '/session': {
+      const msgCount = agent.state.messages.length
+      return {
+        handled: true,
+        output: [
+          ``,
+          `  ${yellow('会话信息:')}`,
+          `  ${dim('├─')} ${gray('消息总数:')} ${cyan(String(msgCount))}`,
+          `  ${dim('├─')} ${gray('流式状态:')} ${agent.state.isStreaming ? yellow('处理中') : green('空闲')}`,
+          `  ${dim('├─')} ${gray('待调工具:')} ${agent.state.pendingToolCalls.size > 0 ? yellow(String(agent.state.pendingToolCalls.size)) : gray('0')}`,
+          `  ${dim('└─')} ${gray('系统提示:')} ${gray(agent.state.systemPrompt.slice(0, 60) + '...')}`,
+          '',
+        ].join('\n'),
+      }
+    }
 
     case '/cost':
       return {
         handled: true,
         output: [
+          ``,
           `  ${yellow('Token 统计:')}`,
-          `  ${dim('├─')} 调用次数:  ${tokenStats.callCount}`,
-          `  ${dim('├─')} 提示 Token: ${tokenStats.promptTokens}`,
-          `  ${dim('├─')} 生成 Token: ${tokenStats.completionTokens}`,
-          `  ${dim('└─')} 总计:      ${tokenStats.totalTokens}`,
+          `  ${dim('├─')} ${gray('调用次数:')}  ${String(tokenStats.callCount)}`,
+          `  ${dim('├─')} ${gray('提示 Token:')} ${String(tokenStats.promptTokens)}`,
+          `  ${dim('├─')} ${gray('生成 Token:')} ${String(tokenStats.completionTokens)}`,
+          `  ${dim('└─')} ${gray('总计:')}      ${String(tokenStats.totalTokens)}`,
+          '',
         ].join('\n'),
       }
 
@@ -81,4 +131,9 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
 
 export function resetTokenStats(): void {
   tokenStats = { promptTokens: 0, completionTokens: 0, totalTokens: 0, callCount: 0 }
+}
+
+// 避免 commands.ts 中引用未导入的 red
+function red(text: string): string {
+  return `\x1b[31m${text}\x1b[0m`
 }
