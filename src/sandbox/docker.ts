@@ -3,21 +3,19 @@
 //
 // 将 bash 命令放到 Docker 容器中执行，隔离宿主机环境。
 //
-// 功能：
-//   - 自动检测 Docker 可用性
-//   - 自动构建/复用沙箱镜像
-//   - 容器中执行命令
-//   - 自动清理容器
-//   - Docker 不可用时回退到本地执行
+// 安全性：
+//   - 使用 spawn + 参数数组，避免 shell 注入 Docker 命令本身
+//   - 命令内容通过 base64 编码传递给容器，避免 shell 转义问题
+//   - 容器资源受限：--network none --read-only --memory 512m 等
+//   - Docker 不可用时自动回退到本地执行
 //
 // 使用方式：
 //   const sandbox = new DockerSandbox()
 //   const result = await sandbox.execute("ls -la", 10000, signal)
 // ============================================================
 
-import { exec } from 'child_process'
+import { spawn, exec } from 'child_process'
 import { promisify } from 'util'
-import { existsSync } from 'fs'
 
 const execAsync = promisify(exec)
 
@@ -32,9 +30,52 @@ export interface SandboxResult {
   runtime: 'docker' | 'local'
 }
 
+/**
+ * 通过 spawn + 参数数组安全执行命令，收集 stdout/stderr
+ */
+function spawnAndCollect(
+  command: string,
+  args: string[],
+  options: { timeout?: number; signal?: AbortSignal } = {},
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      timeout: options.timeout,
+      signal: options.signal,
+    })
+
+    let stdout = ''
+    let stderr = ''
+
+    child.stdout?.on('data', (data: Buffer) => {
+      stdout += data.toString()
+      // 限制输出大小，防止内存溢出
+      if (stdout.length > 10 * 1024 * 1024) {
+        child.kill()
+        resolve({ stdout, stderr, exitCode: 1 })
+      }
+    })
+
+    child.stderr?.on('data', (data: Buffer) => {
+      stderr += data.toString()
+    })
+
+    child.on('error', (err: Error) => {
+      reject(err)
+    })
+
+    child.on('close', (exitCode: number | null) => {
+      resolve({
+        stdout,
+        stderr,
+        exitCode: exitCode ?? 1,
+      })
+    })
+  })
+}
+
 export class DockerSandbox {
   private available: boolean | null = null
-  private containerId: string | null = null
 
   /** 检查 Docker 是否可用 */
   async isAvailable(): Promise<boolean> {
@@ -81,40 +122,50 @@ export class DockerSandbox {
     const containerName = `${CONTAINER_NAME_PREFIX}${Date.now()}`
 
     try {
-      const escaped = command.replace(/'/g, "'\\''")
-      const { stdout, stderr } = await execAsync(
-        `docker run --rm --name ${containerName} ` +
-        `--network none --memory 512m --cpus 1 ` +
-        `--pids-limit 50 --read-only ` +
-        `--tmpfs /tmp:rw,size=10m ` +
-        `${IMAGE_NAME} /bin/bash -c '${escaped}'`,
-        { timeout, signal, maxBuffer: 10 * 1024 * 1024 },
-      )
-      return { stdout, stderr, exitCode: 0, runtime: 'docker' }
+      // 使用 base64 编码命令，彻底避免 shell 转义问题
+      const base64Cmd = Buffer.from(command).toString('base64')
+
+      const result = await spawnAndCollect('docker', [
+        'run', '--rm', '--name', containerName,
+        '--network', 'none',
+        '--memory', '512m',
+        '--cpus', '1',
+        '--pids-limit', '50',
+        '--read-only',
+        '--tmpfs', '/tmp:rw,size=10m',
+        IMAGE_NAME,
+        '/bin/sh', '-c',
+        `echo ${base64Cmd} | base64 -d | /bin/sh`,
+      ], { timeout, signal })
+
+      return { ...result, runtime: 'docker' }
     } catch (error: unknown) {
-      const err = error as Error & { code?: string | number; stdout?: string; stderr?: string }
-      if (err.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
-        return { stdout: err.stdout || '', stderr: err.stderr || '', exitCode: 1, runtime: 'docker' }
+      const err = error as Error & { stdout?: string; stderr?: string }
+      if (err.stdout) {
+        return { stdout: err.stdout, stderr: err.stderr || '', exitCode: 1, runtime: 'docker' }
       }
+      // Docker 执行失败，回退到本地
       return this.executeLocal(command, timeout, signal)
     }
   }
 
-  /** 本地执行（回退方案） */
+  /** 本地执行（回退方案）—— 使用 spawn + 参数数组 */
   private async executeLocal(
     command: string,
     timeout: number,
     signal?: AbortSignal,
   ): Promise<SandboxResult> {
     try {
-      const { stdout, stderr } = await execAsync(command, {
-        timeout, signal, maxBuffer: 10 * 1024 * 1024,
-      })
-      return { stdout, stderr, exitCode: 0, runtime: 'local' }
+      const result = await spawnAndCollect('/bin/sh', ['-c', command], { timeout, signal })
+      return { ...result, runtime: 'local' }
     } catch (error: unknown) {
-      const err = error as Error & { code?: string | number; stdout?: string; stderr?: string; exitCode?: number }
-      const exitCode = typeof err.code === 'number' ? err.code : err.exitCode ?? 1
-      return { stdout: err.stdout || '', stderr: err.stderr || '', exitCode, runtime: 'local' }
+      const err = error as Error & { stdout?: string; stderr?: string; exitCode?: number }
+      return {
+        stdout: err.stdout || '',
+        stderr: err.stderr || '',
+        exitCode: err.exitCode ?? 1,
+        runtime: 'local',
+      }
     }
   }
 

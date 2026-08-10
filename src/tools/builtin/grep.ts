@@ -1,13 +1,16 @@
 // ============================================================
 // Grep 工具 — 在文件中搜索文本
+//
+// 使用 execFile 而不是 exec 来避免命令注入。
+// execFile 不经过 shell，参数作为独立数组传递。
 // ============================================================
 
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { Type } from '@sinclair/typebox'
 import type { AgentTool } from '../../agent/types.js'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 export const grepTool: AgentTool = {
   name: 'grep',
@@ -22,11 +25,20 @@ export const grepTool: AgentTool = {
     const pattern = params.pattern as string
     const path = (params.path as string) || '.'
     try {
-      const { stdout } = await execAsync(`grep -rn "${pattern}" "${path}" 2>/dev/null || true`, { timeout: 10000 })
+      // execFile 不经过 shell，参数作为独立数组传递，无法注入
+      const { stdout } = await execFileAsync('grep', ['-rn', pattern, path], {
+        timeout: 10000,
+        maxBuffer: 1024 * 1024,
+      })
       return { content: [{ type: 'text', text: stdout || '(无匹配结果)' }] }
     } catch (error) {
+      // grep 返回非零退出码（无匹配）也会抛异常，捕获后正常返回
+      const err = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string }
+      if (err.stdout) {
+        return { content: [{ type: 'text', text: err.stdout }] }
+      }
       return {
-        content: [{ type: 'text', text: `搜索失败: ${error instanceof Error ? error.message : String(error)}` }],
+        content: [{ type: 'text', text: `搜索失败: ${err.message || String(error)}` }],
       }
     }
   },

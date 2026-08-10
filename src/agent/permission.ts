@@ -85,15 +85,34 @@ export class PermissionManager {
   /** 评估命令的风险等级 */
   private evaluateRisk(command: string): RiskLevel {
     const trimmed = command.trim()
+
+    // 🛡️ 检测多行注入：如果命令包含换行符，说明 LLM 可能在尝试绕过检查
+    if (trimmed.includes('\n')) {
+      // 分别评估每一行，取最高风险等级
+      const lines = trimmed.split('\n').filter(l => l.trim())
+      let maxRisk = RiskLevel.SAFE
+      for (const line of lines) {
+        const lineRisk = this.evaluateSingleCommand(line.trim())
+        if (lineRisk === RiskLevel.DANGEROUS) return RiskLevel.DANGEROUS
+        if (lineRisk === RiskLevel.NORMAL) maxRisk = RiskLevel.NORMAL
+      }
+      return maxRisk
+    }
+
+    return this.evaluateSingleCommand(trimmed)
+  }
+
+  /** 评估单行命令的风险等级 */
+  private evaluateSingleCommand(command: string): RiskLevel {
     const safeCommands = ['ls', 'cat', 'head', 'tail', 'echo', 'pwd', 'whoami',
       'date', 'which', 'type', 'wc', 'sort', 'uniq', 'grep',
       'find', 'diff', 'git status']
-    if (safeCommands.some(c => trimmed.startsWith(c))) {
+    if (safeCommands.some(c => command.startsWith(c))) {
       return RiskLevel.SAFE
     }
     for (const rule of this.rules) {
       if (rule.pattern instanceof RegExp) {
-        if (rule.pattern.test(trimmed)) return rule.risk
+        if (rule.pattern.test(command)) return rule.risk
       }
     }
     return RiskLevel.NORMAL

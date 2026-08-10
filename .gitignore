@@ -9,3 +9,4 @@ dist/
 *.tsbuildinfo
 .idea/
 .codefuse/
+.claude/settings.local.json
