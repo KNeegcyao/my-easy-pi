@@ -1,30 +1,63 @@
 <p align="center">
   <h1 align="center">piagent</h1>
-  <p align="center">轻量级 AI 编程助手 · AI Coding Agent</p>
   <p align="center">
-    <a href="#-快速开始">快速开始</a>
+    <strong>🧑‍💻 轻量级 AI 编程助手 · 从零搭建的 AI Coding Agent</strong>
+  </p>
+  <p align="center">
+    <a href="docs/README.md"><strong>📖 学习路线图</strong></a>
     ·
-    <a href="#-使用指南">使用指南</a>
+    <a href="#-快速开始">快速开始</a>
     ·
     <a href="#-架构">架构</a>
     ·
-    <a href="#-开发">开发</a>
+    <a href="#-内置工具">内置工具</a>
     ·
-    <a href="#-生产加固">生产加固</a>
+    <a href="#-开发">开发</a>
   </p>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/TypeScript-7.x-3178C6?logo=typescript" alt="TypeScript">
   <img src="https://img.shields.io/badge/Node.js-22+-339933?logo=node.js" alt="Node.js">
-  <img src="https://img.shields.io/badge/Coverage-34%20tests%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/Coverage-49%20tests%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/CI-Passing-brightgreen?logo=githubactions" alt="CI">
+  <a href="docs/README.md"><img src="https://img.shields.io/badge/📖-10%E7%AB%A0%E5%85%A8%E9%9D%A2%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97-blue" alt="学习指南"></a>
 </p>
 
 ---
 
 **piagent** 是一个从零搭建的 AI 编程助手（Coding Agent），类似简化版的 [Claude Code](https://claude.ai) / [Cursor](https://cursor.sh)。它展示了如何通过 **6 层分层架构**将大语言模型（LLM）与工具调用系统有机结合，实现一个可投入团队内部使用的 AI 助手。
+
+---
+
+## 🎓 学习路线图
+
+> **想从零理解 AI Coding Agent 的工作原理？** 本项目配套了一份完整的 **10 章循序渐进学习指南**，从概念到代码，逐层深入。
+
+<p align="center">
+  <a href="docs/README.md">
+    <img src="https://img.shields.io/badge/🚀-开始学习-brightgreen?style=for-the-badge" alt="开始学习">
+  </a>
+</p>
+
+| # | 章节 | 内容 | 时长 |
+|---|------|------|------|
+| 01 | [前置准备](docs/01-before-start/README.md) | 什么是 AI Coding Agent？环境搭建与项目结构 | ~55 min |
+| 02 | [AI 层](docs/02-ai-layer/README.md) | 核心类型 · Model 接口 · Provider 策略 · 注册中心 · 错误码与重试 | ~90 min |
+| 03 | [Agent 层 ⭐](docs/03-agent-layer/README.md) | **核心循环** · 状态管理 · 消息队列 · 权限系统 · 事件驱动 | ~120 min |
+| 04 | [工具层](docs/04-tools-layer/README.md) | 工具注册表 · 7 个内置工具（bash/read/write/edit/grep/find/ls） | ~75 min |
+| 05 | [会话层](docs/05-session-layer/README.md) | JSONL 持久化 · 会话管理 · 上下文压缩 | ~60 min |
+| 06 | [扩展层](docs/06-extension-layer/README.md) | ExtensionAPI · 扩展加载器 · 插件化开发 | ~60 min |
+| 07 | [接口层](docs/07-interface-layer/README.md) | Print 模式 · TUI 交互 · JSON 输出 · RPC 协议 | ~90 min |
+| 08 | [配置与沙箱](docs/08-config-and-sandbox/README.md) | 分层配置 · 日志系统 · Docker 沙箱隔离 | ~75 min |
+| 09 | [串联一切](docs/09-putting-it-together/README.md) | CLI 入口源码分析 · 完整的端到端数据流 | ~90 min |
+| 10 | [进阶主题](docs/10-advanced-topics/README.md) | 新增工具/Provider/扩展 · 测试策略 | ~90 min |
+
+```
+推荐路径: 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10
+         前置准备 → AI 层 → Agent 层 → 工具层 → 会话层 → 扩展层 → 接口层 → 配置沙箱 → 串联 → 进阶
+```
 
 ---
 
@@ -42,32 +75,6 @@
 | 📊 **三种输出模式** | Print（人类可读）、JSON（JSONL 事件流）、RPC（进程间通信） |
 | ⚙️ **分层配置** | CLI > 环境变量 > 用户配置 > 项目配置 > 默认值 |
 | 🛡️ **专业错误处理** | 统一错误码 + 指数退避重试 + JSONL 日志审计 |
-
-## 📖 学习指南
-
-本项目配套了循序渐进的 10 章学习指南，从零开始引导你理解 AI Coding Agent 的核心概念，逐层深入代码实现，最终掌握完整的数据流和扩展开发。
-
-[![学习指南](https://img.shields.io/badge/%F0%9F%93%96-%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97-blue)](docs/README.md)
-
-| 章节 | 说明 | 阅读时间 |
-|------|------|---------|
-| [01. 前置准备](docs/01-before-start/README.md) | 理解 AI Coding Agent 是什么、搭建开发环境、熟悉项目结构 | ~55 分钟 |
-| [02. AI 层](docs/02-ai-layer/README.md) | 核心类型定义、Model 接口、Provider 策略模式、注册中心、错误码与重试 | ~90 分钟 |
-| [03. Agent 层](docs/03-agent-layer/README.md) | ⭐ 核心循环、状态管理、消息队列、权限系统、事件驱动 | ~120 分钟 |
-| [04. 工具层](docs/04-tools-layer/README.md) | 工具注册表、7 个内置工具（bash/read/write/edit/grep/find/ls） | ~75 分钟 |
-| [05. 会话层](docs/05-session-layer/README.md) | JSONL 持久化、会话管理、上下文压缩 | ~60 分钟 |
-| [06. 扩展层](docs/06-extension-layer/README.md) | ExtensionAPI、扩展加载器、插件化开发 | ~60 分钟 |
-| [07. 接口层](docs/07-interface-layer/README.md) | Print 模式、TUI 交互、JSON 输出、RPC 协议 | ~90 分钟 |
-| [08. 配置与沙箱](docs/08-config-sandbox/README.md) | 分层配置管理、日志系统、Docker 沙箱隔离 | ~75 分钟 |
-| [09. 串联一切](docs/09-putting-it-together/README.md) | CLI 入口源码分析、完整的端到端数据流 | ~90 分钟 |
-| [10. 进阶主题](docs/10-advanced-topics/README.md) | 新增工具/Provider/扩展、测试策略 | ~90 分钟 |
-
-> **推荐路径**
->
-> ```
-> 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10
-> 前置准备 → AI 层 → Agent 层 → 工具层 → 会话层 → 扩展层 → 接口层 → 配置沙箱 → 串联 → 进阶
-> ```
 
 ---
 
@@ -487,10 +494,10 @@ piagent/
 │       │   └── theme.ts               #   ANSI 主题
 │       └── index.ts
 │
-├── tests/                             # ✅ 测试（8 文件 / 34 用例）
+├── tests/                             # ✅ 测试（9 文件 / 49 用例）
 │   └── unit/
 │       ├── ai/     (registry, retry)
-│       ├── agent/  (compactor, permission, queue)
+│       ├── agent/  (compactor, loop, permission, queue)
 │       ├── config/ (settings)
 │       ├── extension/ (loader)
 │       └── tools/  (registry)
@@ -499,9 +506,6 @@ piagent/
 ├── .github/workflows/ci.yml           # 🔄 CI（类型检查 + 测试 + 审计）
 ├── scripts/audit.sh                   # 🔒 安全审计脚本
 ├── pi-agent-architecture.md           # 架构设计文档
-├── vitest.config.ts
-├── tsconfig.json
-├── package.json
 └── README.md
 ```
 
