@@ -1,9 +1,8 @@
 // ============================================================
 // TUI Renderer — 全屏渲染器
 //
-// 简洁、干净的消息展示。
-// 不做 Markdown 渲染（流式分块无法正确处理），直接输出原始内容。
-// 只格式化 UI 边框元素（工具调用、结果、用户输入等）。
+// 简洁、稳定的消息展示。
+// 不用 \r 覆盖方案（跨终端不可靠），改用换行分隔。
 // ============================================================
 
 import type { Agent, AgentEvent } from '../../agent/index.js'
@@ -24,12 +23,12 @@ export function createTUIRenderer(agent: Agent): void {
       case 'message_update': {
         const content = event.message.content
         if (content) {
-          // 首次收到内容时，清除 thinking 行
+          // 首次内容：换行清除 thinking 占用行
           if (!hasReceivedContent && content.length > 0) {
-            process.stdout.write('\r' + clearLine() + '\r')
+            process.stdout.write('\n')
             hasReceivedContent = true
           }
-          // 增量输出原始内容（不做 Markdown 转换）
+          // 增量输出
           const newPart = content.slice(lastContentLength)
           if (newPart) process.stdout.write(newPart)
           lastContentLength = content.length
@@ -45,43 +44,28 @@ export function createTUIRenderer(agent: Agent): void {
 
       case 'tool_execution_start': {
         toolNameMap.set(event.toolCallId, event.toolName)
+        process.stdout.write('\r' + clearLine() + '\r')
         const args = event.args as Record<string, unknown>
         const argText = Object.entries(args)
-          .map(([k, v]) => {
-            const s = String(v)
-            return s.length > 80 ? `${k}: ${s.slice(0, 80)}...` : `${k}: ${s}`
-          })
+          .map(([k, v]) => `${k}=${String(v).slice(0, 60)}`)
           .join(', ')
-        process.stdout.write(`\r${clearLine()}\r  ${dim('→')} ${yellow(event.toolName)} ${dim(gray(`(${argText})`))}`)
+        process.stdout.write(`  ${dim('→')} ${yellow(event.toolName)}${argText ? ` ${dim(gray(argText))}` : ''}\n`)
         break
       }
 
-      case 'tool_execution_end': {
-        const name = toolNameMap.get(event.toolCallId) || 'tool'
+      case 'tool_execution_end':
         toolNameMap.delete(event.toolCallId)
-        const textContent = event.result.content
-          .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-          .map(c => c.text)
-          .join('\n')
-          .split('\n')
-          .filter(Boolean)
-          .slice(0, 3)
-          .join(' ')
-        process.stdout.write(`\r${clearLine()}\r  ${green('✓')} ${green(name)} ${textContent ? dim(gray(textContent.slice(0, 100))) : ''}\n`)
         break
-      }
 
       case 'error':
-        process.stdout.write(`\r${clearLine()}\r  ${red('✗')} ${event.message}\n`)
+        process.stdout.write(`  ${red('✗')} ${event.message}\n`)
         break
     }
   })
 }
 
 export function printThinking(): void {
-  process.stdout.write(
-    `\r${clearLine()}\r${dim(gray('piagent is thinking...'))}`
-  )
+  process.stdout.write(`  ${dim(gray('piagent is thinking...'))}`)
 }
 
 export function printPrompt(): void {
@@ -89,6 +73,5 @@ export function printPrompt(): void {
 }
 
 export function printUserInput(input: string): void {
-  // 简单的分隔线 + 用户输入
-  process.stdout.write(`\r${clearLine()}\r${dim(gray('❯'))} ${italic(gray(input))}\n`)
+  process.stdout.write(`\r${clearLine()}\r${dim(gray('>'))} ${italic(gray(input))}\n`)
 }
