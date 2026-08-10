@@ -99,3 +99,7 @@ AI 层提供了"原材料"，Agent 层负责"生产流程"。
 4. **[04-permission-system.md](04-permission-system.md)** — 权限系统
 5. **[05-event-system.md](05-event-system.md)** — 事件驱动模式
 6. **[practice.md](practice.md)** — 本章练习
+
+> ← [📚 返回学习指南](../README.md) · [下一章](../04-tools-layer/README.md) →
+>
+> → 下一篇: [01-agent-loop.md](./01-agent-loop.md)

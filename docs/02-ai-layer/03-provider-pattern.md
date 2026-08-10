@@ -253,3 +253,7 @@ npx tsc --noEmit
 1. 如果要新增一个 Google Gemini Provider，需要实现哪些方法？最大的挑战可能是什么？
 2. `AnthropicProvider` 的 `createModel()` 中使用了 `!modelId.startsWith('claude-')` 作为后备匹配条件，这样做有什么好处和风险？
 3. 为什么 OpenAI 和 DeepSeek 的 Provider 代码高度相似，却没有合并为一个"OpenAI 兼容 Provider"？
+
+> ← [上一节](./02-model-interface.md) · [下一节](./04-model-registry.md) →
+>
+> [📚 返回章节首页](../02-ai-layer/README.md)

@@ -43,6 +43,32 @@
 | ⚙️ **分层配置** | CLI > 环境变量 > 用户配置 > 项目配置 > 默认值 |
 | 🛡️ **专业错误处理** | 统一错误码 + 指数退避重试 + JSONL 日志审计 |
 
+## 📖 学习指南
+
+本项目配套了循序渐进的 10 章学习指南，从零开始引导你理解 AI Coding Agent 的核心概念，逐层深入代码实现，最终掌握完整的数据流和扩展开发。
+
+[![学习指南](https://img.shields.io/badge/%F0%9F%93%96-%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97-blue)](docs/README.md)
+
+| 章节 | 说明 | 阅读时间 |
+|------|------|---------|
+| [01. 前置准备](docs/01-before-start/README.md) | 理解 AI Coding Agent 是什么、搭建开发环境、熟悉项目结构 | ~55 分钟 |
+| [02. AI 层](docs/02-ai-layer/README.md) | 核心类型定义、Model 接口、Provider 策略模式、注册中心、错误码与重试 | ~90 分钟 |
+| [03. Agent 层](docs/03-agent-layer/README.md) | ⭐ 核心循环、状态管理、消息队列、权限系统、事件驱动 | ~120 分钟 |
+| [04. 工具层](docs/04-tools-layer/README.md) | 工具注册表、7 个内置工具（bash/read/write/edit/grep/find/ls） | ~75 分钟 |
+| [05. 会话层](docs/05-session-layer/README.md) | JSONL 持久化、会话管理、上下文压缩 | ~60 分钟 |
+| [06. 扩展层](docs/06-extension-layer/README.md) | ExtensionAPI、扩展加载器、插件化开发 | ~60 分钟 |
+| [07. 接口层](docs/07-interface-layer/README.md) | Print 模式、TUI 交互、JSON 输出、RPC 协议 | ~90 分钟 |
+| [08. 配置与沙箱](docs/08-config-sandbox/README.md) | 分层配置管理、日志系统、Docker 沙箱隔离 | ~75 分钟 |
+| [09. 串联一切](docs/09-putting-it-together/README.md) | CLI 入口源码分析、完整的端到端数据流 | ~90 分钟 |
+| [10. 进阶主题](docs/10-advanced-topics/README.md) | 新增工具/Provider/扩展、测试策略 | ~90 分钟 |
+
+> **推荐路径**
+>
+> ```
+> 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10
+> 前置准备 → AI 层 → Agent 层 → 工具层 → 会话层 → 扩展层 → 接口层 → 配置沙箱 → 串联 → 进阶
+> ```
+
 ---
 
 ## 📦 安装

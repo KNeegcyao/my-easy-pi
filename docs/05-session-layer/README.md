@@ -1,100 +1,218 @@
 ---
-对应源码: src/session/
-最后更新: 2026-08-08
-适用版本: piagent v0.1.0
+source: src/session/*.ts
+last_updated: 2026-08-10
+version: 1.0.0
 ---
 
-# 会话层 — 持久化、恢复与上下文管理
+# 会话层 -- 持久化、恢复与上下文管理
 
-## 1. 本节目标
+> 会话层是 piagent 从"一次性对话"进化到"持久化交互"的关键。它负责将对话保存到磁盘、恢复历史会话，并通过压缩机制管理 LLM 上下文窗口。没有会话层，每次退出程序对话就会丢失。
 
-理解 piagent 的会话层（Session Layer）如何实现以下三个核心能力：
+## 会话层的角色
 
-1. **持久化** — 将用户与 Agent 的对话保存到磁盘，程序重启后不丢失
-2. **恢复** — 支持 `-c` 继续上次会话、`-l` 查看所有会话
-3. **上下文管理** — 通过压缩机制控制发送给 LLM 的消息量，避免超出上下文窗口
+在 piagent 整体架构中，会话层处于 **CLI/接口层** 和 **Agent 核心** 之间，为整个系统提供"记忆"能力。
 
-## 2. 前置知识
+```
+用户输入/输出
+      │
+      ▼
+┌─────────────────────────────────────────────┐
+│          CLI / 接口层 (cli.ts)               │
+│  (解析参数、调用 Agent、展示输出)            │
+├─────────────────────────────────────────────┤
+│          会话层 (session/)                   │◄── 本章重点
+│  (持久化、恢复、上下文压缩)                   │
+├─────────────────────────────────────────────┤
+│          Agent 核心 (agent/)                 │
+│  (Agent Loop、LLM 调用、工具执行)            │
+└─────────────────────────────────────────────┘
+```
 
-- 了解 piagent 的基本用法（`pi -c`、`pi -l` 等 CLI 命令）
+每次 Agent Loop 产生新消息时，会话层自动将消息写入磁盘；当用户通过 `-c` 恢复会话时，会话层从 JSONL 文件读取历史消息，再通过 Compactor 压缩后交给 Agent Loop。
+
+## Learning objectives
+
+理解 piagent 的会话层如何实现以下核心能力：
+
+1. **理解会话层的定位** -- 会话层如何连接 CLI 层和 Agent 核心，作为"记忆"中间件
+2. **掌握 JSONL 格式** -- 理解 JSON Lines 的读写特性，以及相比 JSON 数组的优势
+3. **管理会话生命周期** -- 掌握 `SessionManager` 的 CRUD 操作：创建、加载、删除、列出、重命名
+4. **实现会话恢复** -- 理解 `-c` 参数如何从磁盘恢复上次对话并发送给 LLM
+5. **理解上下文压缩** -- 掌握 Compactor 的工作原理：什么时候压缩、压缩哪些内容、保留哪些消息
+6. **理解 parentId 树** -- 理解消息通过 `id` + `parentId` 构建树形结构，支持对话分支
+7. **学会排查问题** -- 当会话无法恢复、JSONL 文件损坏或压缩异常时，能独立定位并修复
+
+## Prerequisites
+
+- 了解 piagent 的基本 CLI 用法（`-c` 继续、`-l` 列表、`--delete` 删除等命令）
 - 对 TypeScript 的 `async/await`、`fs/promises` 有基本了解
-- 了解 Agent 循环（Agent Loop）的基本概念
+- 了解 [Agent Loop](../03-agent-layer/01-agent-loop.md) 的基本概念 -- LLM 调用和工具执行的循环过程
+- 了解 LLM 上下文窗口的基本概念（Token 限制、滑动窗口等）
 
-## 3. 文件列表
+## Architecture diagram
 
-| 文件 | 说明 |
-|------|------|
-| `src/session/storage.ts` | JSONL 文件存储 — 底层读写 |
-| `src/session/manager.ts` | 会话管理器 — 上层 CRUD 操作 |
-| `src/session/compaction.ts` | 上下文压缩器 — 控制消息数量 |
-| `src/session/index.ts` | 统一导出 |
-
-## 4. 整体架构
+### 会话层与 Agent Loop 的交互流程
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  CLI (cli.ts)                        │
-│   -c 继续  │  -l 列表  │  --delete 删除             │
-└────────────────────┬────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────┐
-│            SessionManager (manager.ts)               │
-│  createSession()  │  loadSession()  │  deleteSession()│
-│  listSessions()   │  saveMessage()  │  renameSession()│
-│  getLastSession() │  saveLastSession()                │
-└────────────────────┬────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────┐
-│            Storage 层 (storage.ts)                    │
-│  appendMessage()  │  readMessages()  │  writeMessages()│
-│  deleteSession()  │  listSessions()                   │
-└────────────────────┬────────────────────────────────┘
-                     │
-                     ▼
-            ┌─────────────────┐
-            │  .jsonl 文件     │
-            │  ~/.piagent/    │
-            │  sessions/      │
-            └─────────────────┘
-
-另外，Agent 每次发给 LLM 的消息会经过 Compactor 处理：
-┌──────────┐     ┌──────────────┐     ┌──────────┐
-│  Agent   │ ──► │  Compactor   │ ──► │   LLM    │
-│ 消息列表  │     │  compact()   │     │          │
-└──────────┘     └──────────────┘     └──────────┘
+  CLI 启动
+     │
+     ├── 新会话 (-m "你好")             用户用 -c 继续上次会话
+     │      │                                   │
+     │      ▼                                   ▼
+     │  SessionManager.createSession()    SessionManager.loadSession(sessionId)
+     │      │                                   │
+     │      ▼                                   ▼
+     │  Storage.writeMessages([meta])     Storage.readMessages(jsonlFilePath)
+     │      │                                   │
+     └──────┼───────────────────────────────────┘
+            │
+            ▼
+     Agent Loop 开始
+            │
+     ┌──────┴──────┐
+     │  Compactor   │◄── 压缩历史消息，控制上下文大小
+     │  compact()  │
+     └──────┬──────┘
+            │
+            ▼
+        发给 LLM
+            │
+            ▼
+      LLM 返回响应 / 触发工具调用
+            │
+            ▼
+     SessionManager.saveMessage(msg)
+            │
+            ▼
+     Storage.appendMessage(jsonlFile, msg)
+            │
+            ▼
+     Agent Loop 继续 / 结束
 ```
 
-## 5. 核心概念
+### 数据流向（三阶段）
 
-### 5.1 会话（Session）
+```
+阶段一：启动时读取
+  JSONL 文件 ──→ Storage.readMessages() ──→ Compactor.compact() ──→ Agent Loop
 
-一个会话对应一次用户与 Agent 的完整对话。每个会话由以下几个要素标识：
+阶段二：运行时写入
+  Agent Loop ──→ saveMessage() ──→ Storage.appendMessage() ──→ JSONL 文件
 
-- **sessionId** — 唯一标识，格式为 `session-{timestamp}`
-- **JSONL 文件** — 存在 `~/.piagent/sessions/{sessionId}.jsonl`
-- **元数据消息** — 第一条消息（`id: 'meta'`）记录会话名称和创建时间
+阶段三：查看历史
+  CLI -l ──→ SessionManager.listSessions() ──→ Storage.listSessions() ──→ 会话列表
+```
 
-### 5.2 JSONL 存储
+## 文件列表
 
-JSONL（JSON Lines）是一种每行一个 JSON 对象的格式，相比 JSON 数组：
+| 文件 | 说明 | 重要性 |
+|------|------|--------|
+| `src/session/manager.ts` | `SessionManager` -- 上层 CRUD 操作，会话生命周期的管理者 | ⭐⭐⭐ |
+| `src/session/storage.ts` | JSONL 文件存储 -- 底层读写，直接操作文件系统 | ⭐⭐⭐ |
+| `src/session/compaction.ts` | `Compactor` -- 上下文压缩器，控制发送给 LLM 的消息数量 | ⭐⭐ |
+| `src/session/index.ts` | 统一导出入口 | ⭐ |
 
-- 支持**追加写**，无需加载整个文件
-- 读取时按行解析，适合**大文件**
-- 通过 `id` + `parentId` 可构建**树形结构**，支持分支
+## Key concepts
 
-### 5.3 上下文压缩
+### 1. 会话（Session）
 
-当对话历史过长时，Compactor 将早期消息合并为一条摘要，保留最近 N 条完整消息，确保发给 LLM 的上下文不会超出模型窗口限制。
+一个会话对应一次用户与 Agent 的完整对话。每个会话由三个要素唯一标识：
 
-## 6. 学习路径
+- **sessionId** -- 格式为 `session-{timestamp}`，例如 `session-1692000000000`
+- **JSONL 文件** -- 存储在 `~/.piagent/sessions/{sessionId}.jsonl`
+- **元数据消息** -- 文件中的第一条消息（`id: 'meta'`）记录会话名称、创建时间、模型信息等
 
-1. 先读 [01-session-manager.md](01-session-manager.md) — 了解会话的增删改查
-2. 再读 [02-jsonl-storage.md](02-jsonl-storage.md) — 理解底层存储格式
-3. 最后读 [03-context-compaction.md](03-context-compaction.md) — 掌握上下文压缩机制
-4. 完成 [practice.md](practice.md) — 动手练习巩固
+### 2. JSONL 存储格式
 
-## 7. 小结
+JSONL（JSON Lines）是每行一个 JSON 对象的文本格式。piagent 选择 JSONL 而非 JSON 数组，基于三个关键优势：
 
-会话层是 piagent 从"一次性对话"进化到"持久化交互"的关键。通过 JSONL 文件实现了零依赖的持久化存储，通过 Compactor 解决了 LLM 上下文窗口限制问题。会话层为上层 CLI 和界面提供了 `-c`（继续）、`-l`（列表）等用户友好功能的基础。
+| 对比维度 | JSON 数组 | JSONL |
+|----------|-----------|-------|
+| 追加写入 | 需读取整个文件、解析、追加、序列化、重写 | 直接 `fs.appendFile` 追加一行 |
+| 大文件读取 | 必须完整解析到内存 | 逐行读取，流式处理 |
+| 部分读取 | 不支持 | 支持读取最后 N 条消息 |
+| 树形结构 | 需要额外索引 | 通过 `id` + `parentId` 天然支持 |
+
+### 3. parentId 树
+
+每条消息都携带 `id` 和 `parentId` 字段，形成一棵对话树：
+
+```
+meta (id: 'meta', parentId: null)
+  └─ user 消息 (id: 'msg-1', parentId: 'meta')
+       └─ assistant 回复 (id: 'msg-2', parentId: 'msg-1')
+            └─ tool 结果 (id: 'msg-3', parentId: 'msg-2')
+                 └─ assistant 最终回复 (id: 'msg-4', parentId: 'msg-3')
+```
+
+这种设计支持对话分支 -- 如果用户想"回到某个节点重新开始"，只需指定不同的 parentId。
+
+### 4. 上下文压缩（Compaction）
+
+当对话历史过长时，Compactor 会将早期消息合并为一条摘要，保留最近 N 条完整消息：
+
+```
+压缩前:
+[消息 1] [消息 2] ... [消息 50] [消息 51] [消息 52]  → 共 52 条
+
+压缩后:
+[摘要消息] [消息 48] [消息 49] [消息 50] [消息 51] [消息 52]  → 共 6 条
+```
+
+压缩策略：早期消息由 LLM 生成摘要 -> 用摘要替换早期消息 -> 保留最新的完整轮次。
+
+## Key design principles
+
+### 1. 零依赖持久化
+
+会话层不依赖数据库。所有存储基于 JSONL 文本文件和 Node.js 原生 `fs` 模块。这意味着：
+- 无需安装数据库、配置连接、管理迁移
+- 文件可读性强，可用 `cat`、`tail`、`jq` 直接查看
+- 备份和迁移只需复制文件夹
+
+### 2. 分层隔离
+
+会话层分为三层，每层职责清晰：
+
+```
+SessionManager (业务逻辑)  →  关心"做什么"
+     ↓
+Storage (文件操作)         →  关心"怎么存"
+     ↓
+JSONL 文件                →  物理存储
+```
+
+上层不关心底层实现细节，底层不决定上层业务逻辑。
+
+### 3. 安全第一
+
+会话存储有防御性考虑：
+- 对会话名称进行路径转义，防止路径遍历攻击
+- 文件操作使用原子写入模式，防止写入中断导致数据损坏
+- 元数据与消息内容分离，方便扩展而不破坏格式
+
+## Reading order
+
+1. **[01-session-manager.md](01-session-manager.md)** -- 先了解会话的增删改查，掌握会话生命周期的管理
+2. **[02-jsonl-storage.md](02-jsonl-storage.md)** -- 理解底层 JSONL 存储格式和文件操作
+3. **[03-context-compaction.md](03-context-compaction.md)** -- 掌握上下文压缩机制和压缩策略
+4. **[practice.md](practice.md)** -- 动手练习巩固所学
+
+## Summary and next steps
+
+会话层实现了 piagent 的三个关键能力：
+
+| 能力 | 实现文件 | 用户可见功能 |
+|------|----------|-------------|
+| **持久化** | `storage.ts` | 对话不丢失 |
+| **恢复** | `manager.ts` | `-c` 继续会话、`-l` 列出会话 |
+| **上下文管理** | `compaction.ts` | 长对话自动压缩，不超限 |
+
+完成本章后，你已理解会话层的完整设计。下一步：
+
+- 进入 [接口层](../07-interface-layer/README.md)，了解事件驱动如何将 Agent 输出渲染成用户可读的界面
+- 或回顾 [Agent 层](../03-agent-layer/README.md)，加深对 Agent Loop 的理解
+
+> ← [📚 返回学习指南](../README.md) · [下一章](../06-extension-layer/README.md) →
+>
+> → 下一篇: [01-session-manager.md](./01-session-manager.md)

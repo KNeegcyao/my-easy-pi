@@ -246,4 +246,33 @@ echo "✅ 首次对话: 手动运行 pi -m '你好' 确认"
 
 ---
 
-> 下一节: [项目结构一览](./03-project-structure.md)
+## 7. 故障排除
+
+> 以下汇集了使用 piagent 时最常见的错误信息。所有错误码定义在 `src/ai/errors.ts` 中，你可以直接查看源码了解每个错误的详细上下文。
+
+### 常见问题及解决方法
+
+| 错误信息 | 可能原因 | 解决方法 |
+|---------|---------|---------|
+| `AUTH_API_KEY_MISSING` | 未设置 API 密钥的环境变量 | 执行 `export DEEPSEEK_API_KEY=sk-xxx`，或将密钥写入 `~/.piagent/config.json` |
+| `AUTH_API_KEY_INVALID` | API 密钥格式错误或已过期 | 检查密钥前后是否有空格；登录对应 LLM 官网确认密钥仍然有效 |
+| `CONFIG_INVALID` | `~/.piagent/config.json` 格式不正确（如缺少逗号、多余引号） | 用 `cat ~/.piagent/config.json` 查看内容，确保是合法 JSON；可使用在线 JSON 校验工具检查 |
+| `PROVIDER_NOT_FOUND` | `--provider` 参数使用了不支持的 LLM 提供商名称 | 使用 `deepseek` / `anthropic` / `openai` 之一；检查拼写是否完全匹配 |
+| `MODEL_NOT_FOUND` | 指定的模型在当前提供商中不存在 | 确认模型名拼写正确（如 `deepseek-chat` 而非 `deepseek-chat-v2`）；查阅对应 API 文档获取可用模型列表 |
+| `PROVIDER_RATE_LIMITED` | API 请求频率过高，触发限流 | `fetchWithRetry` 会自动处理 429 响应并等待 `Retry-After` 头指定的时间后重试；如持续出现，降低请求频率 |
+| `TOOL_NOT_FOUND` | Agent 调用了未注册的工具名称 | 检查 `ToolRegistry` 中是否注册了对应工具；确认工具名与注册时完全一致 |
+| `TOOL_EXECUTION_FAILED` | 工具执行过程中抛出异常（如文件不存在、命令失败） | 查看错误信息中的 `reason` 字段，修复对应问题后重试 |
+| `TOOL_PERMISSION_DENIED` | 用户在 TUI 中拒绝了工具的执行请求 | 在交互界面确认操作；或在配置中预先批准可信命令 |
+| `AGENT_ALREADY_STREAMING` | Agent 正在响应时发起了新的 `prompt()` | 使用 `await agent.waitForIdle()` 等待当前处理完成后再发送新消息 |
+| `INTERNAL_UNEXPECTED` | 代码中出现了未预料的异常 | 查看控制台的堆栈跟踪，确认是哪一步操作触发的；可到项目的 GitHub Issues 中反馈 |
+| 网络错误 `fetch failed` | 无法连接到 LLM API（无网络、DNS 解析失败、代理不通） | 执行 `curl https://api.deepseek.com` 测试连通性；检查是否需要配置 HTTP 代理 |
+| `Error: connect ECONNREFUSED` | API 端点被防火墙或 VPN 规则阻止 | 检查网络环境是否限制了对 API 端点的访问；确认 API 地址拼写正确 |
+| `npm test` 全部失败 | 依赖安装不完整或 Node.js 版本不匹配 | 运行 `node -v` 确认版本 >= 22；再次执行 `npm install` 重装依赖 |
+
+> **提示**：如果你遇到了上面没有列出的错误，可以先查看 `src/ai/errors.ts` 中的错误码定义，很多场景下错误信息本身就包含了修复建议（`suggestion` 字段）。
+
+---
+
+> ← [上一节](./01-what-is-coding-agent.md) · [下一节](./03-project-structure.md) →
+>
+> [📚 返回章节首页](../01-before-start/README.md)

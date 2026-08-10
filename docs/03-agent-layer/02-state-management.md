@@ -227,3 +227,7 @@ console.log(ids.size)  // 1000（无重复）
 2. `pendingToolCalls` 是一个 `Set<string>`，如果某个工具调用被 `beforeToolCall` 阻止了，它的 ID 是否会被加入这个集合？查看 `executeToolCalls()` 的代码来分析。
 3. 如果要在 Agent 运行时动态修改 `thinkingLevel`，应该怎么做？需要注意什么？
 4. `generateId` 使用了模块级计数器，如果多个 Agent 实例共享同一个模块，ID 会不会冲突？
+
+> ← [上一节](./01-agent-loop.md) · [下一节](./03-message-queue.md) →
+>
+> [📚 返回章节首页](../03-agent-layer/README.md)

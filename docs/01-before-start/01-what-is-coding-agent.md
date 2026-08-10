@@ -231,4 +231,6 @@ npx tsx src/cli.ts -m "你好，请介绍一下你自己"
 
 ---
 
-> 下一节: [环境搭建](./02-environment-setup.md)
+> ← [上一节](../01-before-start/README.md) · [下一节](./02-environment-setup.md) →
+>
+> [📚 返回章节首页](../01-before-start/README.md)

@@ -336,3 +336,7 @@ describe('curlTool', () => {
 1. 如果要实现一个 weather 工具（查询天气），需要哪些参数？参数 Schema 应该如何定义？
 2. 为什么工具的 `execute` 方法不应该抛出异常？如果抛出了异常，Agent 会怎么处理？
 3. 如何让工具支持流式输出（如逐行返回结果）？提示：你看 `onUpdate` 回调。
+
+> ← [上一节](../10-advanced-topics/README.md) · [下一节](./02-adding-new-provider.md) →
+>
+> [📚 返回章节首页](../10-advanced-topics/README.md)

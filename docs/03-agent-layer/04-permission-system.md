@@ -316,3 +316,7 @@ echo "test" | node -e "
 2. 已批准命令缓存使用 `Set<string>` 存储，只精确匹配。如果用户先批准了 `rm file1.txt`，然后 Agent 想执行 `rm file2.txt`，会再次询问。如何优化？
 3. 当前只检查 `bash` 工具。如果后续新增了 `file_write` 工具，也需要权限检查，应该如何扩展？
 4. 30 秒超时是写死的。如果要成为可配置的选项，应该怎么设计？
+
+> ← [上一节](./03-message-queue.md) · [下一节](./05-event-system.md) →
+>
+> [📚 返回章节首页](../03-agent-layer/README.md)

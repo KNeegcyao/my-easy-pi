@@ -220,3 +220,7 @@ EOF
 1. 如果希望 `getModel()` 缓存已创建的 Model 实例（相同 provider + modelId 复用），应该如何修改代码？
 2. 现有设计中，`listModels()` 每次调用都创建临时实例，如果这个操作频繁调用，有什么优化方案？
 3. `setProvider('anthropic', AnthropicProvider)` 的第二个参数是一个带有 `create()` 方法的对象字面量，如果在注册后修改了这个对象，会发生什么？
+
+> ← [上一节](./03-provider-pattern.md) · [下一节](./05-error-handling.md) →
+>
+> [📚 返回章节首页](../02-ai-layer/README.md)

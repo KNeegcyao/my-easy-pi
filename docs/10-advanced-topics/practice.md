@@ -304,3 +304,5 @@ describe('weatherTool', () => {
 - 测试文件放在 `tests/unit/tools/weather.test.ts`
 - 使用 `vitest` 的 `describe`/`test`/`expect` API
 - 测试应该覆盖正常路径和异常路径
+
+> [📚 返回章节首页](../10-advanced-topics/README.md)

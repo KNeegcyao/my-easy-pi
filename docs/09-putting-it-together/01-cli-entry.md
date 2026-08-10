@@ -492,3 +492,7 @@ $ node dist/cli.js -l
 3. 为什么 `parseArgs` 的默认 output 是 `'print'`，但代码中又会检测 `process.stdin.isTTY` 来决定是否使用 TUI？
 4. 尝试修改 `cli.ts`，让 Agent 启动时自动加载 `~/.piagent/extensions/` 目录下的所有扩展文件，应该在哪里添加代码？
 5. 如果用户同时传了 `-m "你好"` 和 `-i`（TUI）两个参数，代码会优先使用哪个模式？为什么？
+
+> ← [上一节](../09-putting-it-together/README.md) · [下一节](./02-end-to-end-flow.md) →
+>
+> [📚 返回章节首页](../09-putting-it-together/README.md)

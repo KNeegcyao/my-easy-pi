@@ -209,3 +209,7 @@
 - **keepRecent=3 的影响**：LLM 只能看到最近 3 条消息，完全失去了对早期对话上下文的感知，Agent 可能无法持续完成复杂任务。
 - **threshold 过大**：如果模型上下文窗口是 128K tokens，而 100 条消息可能已经超过 128K，LLM 会报错或丢失信息。
 - **threshold === keepRecent**：当消息数刚好等于 threshold 时不会触发压缩；当消息数超过 threshold 时，如 11 条消息、threshold=10、keepRecent=10，则 oldMessages 为 1 条，压缩后变成 1 条摘要 + 10 条最近 = 11 条，实际上没有减少消息数量！这是一个边界情况，需要考虑。
+
+> [📚 返回章节首页](../05-session-layer/README.md)
+>
+> [下一章 →](../06-extension-layer/README.md)

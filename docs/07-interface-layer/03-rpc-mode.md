@@ -255,3 +255,7 @@ RPC 模式是 piagent 接口层中功能最丰富的实现，它通过一个简�
 1. 为什么 RPC 模式使用 `startRPC` 命名，而 Print/JSON 使用 `createPrintInterface`/`createJSONInterface`？命名差异反映了什么设计意图？
 2. 如果外部程序发送消息时 Agent 正在处理上一条消息，会发生什么？代码中是否处理了并发问题？
 3. 如何扩展 RPC 协议以支持工具调用结果的自定义处理？
+
+> ← [上一节](./02-json-mode.md) · [下一节](./04-tui.md) →
+>
+> [📚 返回章节首页](../07-interface-layer/README.md)

@@ -264,3 +264,7 @@ async function consumeEvents(events: AsyncIterable<LLMEvent>) {
 1. `AgentMessage` 中的 `parentId` 字段有什么作用？在什么场景下会用到它？
 2. 如果 DeepSeek 也支持了 thinking 输出，`LLMEvent` 需要新增事件类型吗？为什么？
 3. `ContentBlock` 中的 `tool_use` 和 `tool_result` 类型与 `ToolCall` 有什么关系和区别？
+
+> ← [上一节](./README.md) · [下一节](./02-model-interface.md) →
+>
+> [📚 返回章节首页](../02-ai-layer/README.md)

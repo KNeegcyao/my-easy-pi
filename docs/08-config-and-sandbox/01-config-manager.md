@@ -309,3 +309,7 @@ pi -m "hello"
 1. 为什么 `getApiKey` 方法中环境变量优先于用户配置？这样设计有什么安全考虑？
 2. 如果用户配置和项目配置中都定义了 `defaultModel`，最终会使用哪个值？为什么？
 3. 如何为 piagent 添加一个自定义配置项（如 `maxTokens`）？需要修改哪些文件？
+
+> ← [上一节](../08-config-and-sandbox/README.md) · [下一节](./02-logger.md) →
+>
+> [📚 返回章节首页](../08-config-and-sandbox/README.md)

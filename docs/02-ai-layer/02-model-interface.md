@@ -264,3 +264,7 @@ EOF
 1. 如果 `stream()` 方法改用 `EventEmitter` 或 `Observable` 模式，代码会有什么不同？各有什么优缺点？
 2. 为什么 `yield` 错误事件（`{ type: 'error' }`）而不是 `throw` 一个异常？两种方式对调用方的影响有何不同？
 3. 在 SSE 解析中，`buffer = lines.pop() || ''` 这行代码为什么要保留最后一段？如果不保留会出什么问题？
+
+> ← [上一节](./01-core-types.md) · [下一节](./03-provider-pattern.md) →
+>
+> [📚 返回章节首页](../02-ai-layer/README.md)

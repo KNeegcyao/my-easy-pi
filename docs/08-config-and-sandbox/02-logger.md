@@ -291,3 +291,7 @@ pi -m "hello"
 1. 为什么审计日志（audit）只写文件不输出到终端？什么场景下需要这样做？
 2. 如果要将日志文件存储到自定义目录（如 `/var/log/piagent/`），需要修改哪些代码？
 3. 如何实现日志文件自动清理（如只保留最近 7 天的日志）？
+
+> ← [上一节](./01-config-manager.md) · [下一节](./03-docker-sandbox.md) →
+>
+> [📚 返回章节首页](../08-config-and-sandbox/README.md)

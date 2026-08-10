@@ -250,3 +250,7 @@ await agent.waitForIdle()
 2. 当前的实现中，队列只在 LLM 没有调用工具时检查。假设 LLM 连续调用了 5 轮工具，这期间插入的 Steering 消息要等到第 5 轮结束后才能被处理。这是否合理？如果要让 Steering 消息能"打断"正在执行的工具，应该怎么改？
 3. `MessageQueue` 中的消息 ID 使用了 `steer-` 和 `follow-` 前缀。如果与 `generateId()` 生成的 `msg-` 前缀消息混合使用，在日志中会不会造成混淆？
 4. `hasPending()` 方法目前没有被 Agent 使用。如果要新增一个"在 Agent 空闲时检查队列"的功能，应该怎么设计？
+
+> ← [上一节](./02-state-management.md) · [下一节](./04-permission-system.md) →
+>
+> [📚 返回章节首页](../03-agent-layer/README.md)

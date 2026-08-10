@@ -21,7 +21,32 @@
 
 ## 3. 核心概念
 
-### 3.1 扩展加载器的工作流程
+### 3.1 用"手机 App 安装"来理解扩展加载
+
+如果你阅读了上一章中"用手机 App 来理解扩展"的类比，那么 `ExtensionLoader` 的角色就相当于**手机的开机启动过程**：
+
+```
+手机开机 ──► 系统扫描已安装的 App 列表 ──► 逐个启动 App
+    │                                          │
+    ▼                                          ▼
+piagent 启动 ──► ExtensionLoader 扫描目录 ──► 逐个加载扩展
+```
+
+具体对应关系：
+
+| 手机 App 安装流程 | ExtensionLoader 的对应步骤 |
+|-------------------|---------------------------|
+| 从 App Store 下载 App 安装包 | 用户将扩展文件放入 `~/.piagent/extensions/` |
+| 手机开机 | piagent 启动，调用 `loadAll()` |
+| 系统扫描已安装的 App 列表 | `getSearchDirs()` 获取扩展目录 |
+| 系统检查 App 的签名和 manifest | 检查文件是否为 `.ts/.js`、`default` 导出是否为函数 |
+| 系统启动 App（调用 main 函数） | `import()` 动态导入 + 调用 `default()` 函数 |
+| App 注册自己的服务（如推送通知） | 扩展调用 `api.registerTool()` 等注册能力 |
+| 某个 App 崩溃，不影响其他 App | 单个扩展 `import()` 失败，不影响其他扩展 |
+
+> **本质**：`ExtensionLoader` 就是一个"扩展启动器"，它的工作就是找到扩展文件、验证格式、执行初始化。
+
+### 3.2 扩展加载器的工作流程
 
 ```
 loadAll() 被调用
@@ -50,7 +75,7 @@ loadDir() 读取目录下的所有文件
     └── 加载失败 → 捕获异常，继续下一个
 ```
 
-### 3.2 加载优先级
+### 3.3 加载优先级
 
 扩展加载按以下优先级搜索：
 
@@ -61,7 +86,7 @@ loadDir() 读取目录下的所有文件
 
 > **注意**: 当前实现中，`getSearchDirs()` 返回的目录列表只有两个。如果后续需要支持 CLI 参数指定路径，可以在该方法中增加一个动态注入的路径。
 
-### 3.3 容错设计
+### 3.4 容错设计
 
 `ExtensionLoader` 采用了多层容错策略：
 
@@ -78,76 +103,151 @@ loadDir() 读取目录下的所有文件
 // ============================================================
 // ExtensionLoader — 扩展加载器
 //
-// 自动发现并加载扩展：
-//   1. 项目目录  .pi/extensions/*.ts
-//   2. 全局目录  ~/.piagent/extensions/*.ts
+// 职责：自动发现并加载扩展文件
 //
-// 扩展文件默认导出一个函数，接收 ExtensionAPI 实例。
+// 搜索路径（按优先级）：
+//   1. 项目目录  .pi/extensions/*.ts   ← 随项目版本控制的扩展
+//   2. 全局目录  ~/.piagent/extensions/*.ts  ← 用户全局安装的扩展
+//
+// 加载流程（对每个文件）：
+//   1. 过滤：只接受 .ts 和 .js 文件
+//   2. 去重：已加载的同名文件不再加载
+//   3. 导入：使用动态 import() 加载模块
+//   4. 验证：检查 default 导出是否为函数
+//   5. 初始化：调用 default(api) 执行扩展的入口函数
+//
+// 容错原则：单个扩展的失败不影响其他扩展
 // ============================================================
 
-import { readdir } from 'fs/promises'
-import { existsSync } from 'fs'
-import { homedir } from 'os'
-import { join } from 'path'
-import type { ExtensionAPI } from './api.js'
+import { readdir } from 'fs/promises'    // readdir：读取目录内容（Promise 版本）
+import { existsSync } from 'fs'           // existsSync：同步检查文件/目录是否存在
+import { homedir } from 'os'              // homedir：获取当前用户的主目录路径
+import { join } from 'path'               // join：跨平台路径拼接
+import type { ExtensionAPI } from './api.js'  // ExtensionAPI 类型
 
-/** 扩展加载器 */
+/**
+ * ExtensionLoader — 扩展加载器
+ *
+ * 实现了扩展的自动发现、按优先级加载和容错处理。
+ * 核心方法是 loadAll()，在 piagent 启动时被调用。
+ *
+ * 使用示例：
+ *   const loader = new ExtensionLoader(api)
+ *   const count = await loader.loadAll()
+ *   console.log(`成功加载 ${count} 个扩展`)
+ */
 export class ExtensionLoader {
   // 已加载的文件名集合，用于去重
+  // 选择 Set 数据结构：自动保证元素唯一性，查找效率 O(1)
+  // 注意：这里用的是文件名（如 "hello.ts"）而非完整路径
   private loaded = new Set<string>()
 
+  // 构造函数：接收两个参数
+  // api       — 所有扩展共享同一个 ExtensionAPI 实例
+  //             （这样扩展注册的工具会合并到同一个注册表）
+  // projectDir — 项目根目录，默认 process.cwd()
+  //              （可注入，方便测试时指定不同路径）
   constructor(
-    private api: ExtensionAPI,          // 传给每个扩展的 API 实例
-    private projectDir: string = process.cwd(),  // 项目根目录，默认当前工作目录
+    private api: ExtensionAPI,
+    private projectDir: string = process.cwd(),
   ) {}
 
-  /** 加载所有扩展 */
+  /**
+   * loadAll — 加载所有扩展
+   *
+   * 遍历所有搜索目录，加载每个目录中的扩展文件。
+   * 返回成功加载的扩展总数。
+   *
+   * 返回值用途：
+   *   - 日志输出："已加载 3 个扩展"
+   *   - 健康检查：如果为 0，可能提示用户未安装扩展
+   */
   async loadAll(): Promise<number> {
     let count = 0
-    const dirs = this.getSearchDirs()  // 获取搜索目录列表
+    const dirs = this.getSearchDirs()
 
     for (const dir of dirs) {
-      if (!existsSync(dir)) continue   // 目录不存在则跳过
-      count += await this.loadDir(dir) // 加载该目录下的所有扩展
+      // 先检查目录是否存在，避免不必要的异步 readdir 调用
+      // existsSync 是同步的，但在这里可以提前过滤无效路径
+      if (!existsSync(dir)) continue
+      count += await this.loadDir(dir)
     }
 
-    return count  // 返回成功加载的扩展数量
+    return count
   }
 
-  /** 获取搜索目录列表（按优先级） */
+  /**
+   * getSearchDirs — 获取搜索目录列表
+   *
+   * 返回按优先级排列的目录列表。
+   * 数组顺序即优先级顺序：索引越小，优先级越高。
+   * 高优先级目录中的文件会"覆盖"低优先级目录中的同名文件（去重效果）。
+   *
+   * 扩展路径说明：
+   *   - .pi/extensions/：点开头的目录，通常会被 git 忽略
+   *     但 .pi/ 本身可以被版本控制，方便团队共享扩展
+   *   - ~/.piagent/extensions/：用户级别的扩展，所有项目共用
+   */
   private getSearchDirs(): string[] {
     return [
-      join(this.projectDir, '.pi', 'extensions'),   // 项目级扩展
-      join(homedir(), '.piagent', 'extensions'),     // 全局扩展
+      join(this.projectDir, '.pi', 'extensions'),     // ← 优先级高
+      join(homedir(), '.piagent', 'extensions'),       // ← 优先级低
     ]
   }
 
-  /** 加载单个目录下的所有扩展 */
+  /**
+   * loadDir — 加载单个目录下的所有扩展文件
+   *
+   * 双层 try-catch 设计：
+   *   - 外层 catch：处理 readdir 错误（目录不存在、无读取权限）
+   *   - 内层 catch：处理单个文件的 import/执行错误
+   *
+   * 这种设计确保了"错误隔离"——
+   *   任何单个文件的失败都不会影响其他文件的加载
+   */
   private async loadDir(dir: string): Promise<number> {
     let count = 0
     try {
-      const files = await readdir(dir)  // 读取目录中的所有文件
+      const files = await readdir(dir)
+
       for (const file of files) {
-        // 只处理 .ts 或 .js 文件
+        // ★ 文件过滤：只处理 .ts 和 .js 文件
+        // 不处理 .d.ts（类型声明）、.map（sourcemap）、.json 等
         if (!file.endsWith('.ts') && !file.endsWith('.js')) continue
-        // 跳过已加载的文件（去重）
+
+        // ★ 去重保护：跳过已加载的文件
+        // 这就是"项目级扩展覆盖全局扩展"的实现原理——
+        // 项目目录先被遍历，同名文件先被加入 loaded Set
+        // 全局目录中的同名文件因为已经 loaded，所以被跳过
         if (this.loaded.has(file)) continue
         this.loaded.add(file)
 
+        // 内层 try-catch：隔离单个文件的加载错误
         try {
-          const fullPath = join(dir, file)  // 构造完整路径
-          const mod = await import(fullPath) // 动态导入模块
-          // 检查模块是否有 default 导出，且为函数
+          const fullPath = join(dir, file)
+          // ★ 动态导入：Node.js 原生支持的运行时加载
+          // import() 返回 Promise，所以要用 await
+          // 这也是扩展文件需要是 .ts/.js 的原因（Node.js 支持格式）
+          const mod = await import(fullPath)
+
+          // ★ 格式验证：检查 default 导出是否为函数
+          // 这就是为什么扩展文件必须 "export default function"
+          // 如果导出的是对象、类等，会被静默跳过
           if (typeof mod.default === 'function') {
-            await mod.default(this.api)  // 执行扩展初始化函数
-            count++                      // 计数加一
+            // 调用扩展的入口函数，传入 API 实例
+            // 扩展在此函数中调用 api.registerTool() 等注册能力
+            await mod.default(this.api)
+            count++
           }
+          // 非函数导出：静默跳过，不报错也不计数
         } catch {
-          // 单个扩展加载失败不影响其他扩展
+          // 单个扩展加载失败：静默捕获，不影响其他扩展
+          // 可能的原因：语法错误、import 依赖缺失、扩展内部异常
         }
       }
     } catch {
-      // 目录不存在或无法读取时跳过
+      // 目录读取失败：静默捕获，继续下一个搜索目录
+      // 可能的原因：目录不存在、权限不足
     }
     return count
   }
@@ -232,6 +332,86 @@ private async loadDir(dir: string): Promise<number> {
 4. **动态导入**（第 59 行）— 使用 `import(fullPath)` 实现运行时加载，这是 Node.js 原生支持的动态导入语法
 5. **函数检查**（第 60 行）— 只有 `default` 导出为函数的模块才被视为有效扩展
 
+### 4.3 扩展加载的生命周期：完整的时序图
+
+结合上一章的 `ExtensionAPI`，一个扩展从文件到可用的完整过程如下：
+
+```
+启动时                      ExtensionLoader                 扩展文件                 ExtensionAPI
+  │                             │                             │                       │
+  │  loadAll()                  │                             │                       │
+  ├────────────────────────────►│                             │                       │
+  │                             │                             │                       │
+  │                             ├── getSearchDirs()           │                       │
+  │                             │  返回 [".pi/extensions/",    │                       │
+  │                             │         "~/.piagent/ext/"]  │                       │
+  │                             │                             │                       │
+  │                             ├── loadDir(".pi/extensions") │                       │
+  │                             │                             │                       │
+  │                             ├── readdir() ──────────────►│                       │
+  │                             │◄──── [hello.ts, ...] ─────┤                       │
+  │                             │                             │                       │
+  │                             ├── file.endsWith('.ts')  ✓   │                       │
+  │                             │                             │                       │
+  │                             ├── loaded.has("hello.ts") ✗  │    （去重检查通过）     │
+  │                             │                             │                       │
+  │                             ├── import("./hello.ts") ───►│                       │
+  │                             │◄── { default: function } ──┤                       │
+  │                             │                             │                       │
+  │                             ├── typeof default === 'function'  ✓                 │
+  │                             │                             │                       │
+  │                             ├── default(api) ────────────►│                       │
+  │                             │                             ├── registerTool() ────►│
+  │                             │                             │                       ├── ToolRegistry
+  │                             │                             │                       │
+  │                             │                             ├── registerCommand() ──►│
+  │                             │                             │                       ├── commands Map
+  │                             │                             │                       │
+  │                             │                             ├── on() ──────────────►│
+  │                             │                             │                       ├── Agent.subscribe
+  │                             │                             │                       │
+  │                             │◄── 扩展初始化完成 ────────┤                       │
+  │                             │                             │                       │
+  │                             ├── count = 1                  │                       │
+  │                             │                             │                       │
+  │◄── 返回 1（加载成功数） ───┤                             │                       │
+  │                             │                             │                       │
+  │  （Agent 开始运行）          │                             │                       │
+  │                             │                             │                       │
+  │  LLM 调用 "hello" 工具      │                             │                       │
+  ├─────────────────────────────────────────────────────────────────────────────────►│
+  │                             │                             │   （从 ToolRegistry    │
+  │                             │                             │    查找并执行工具）    │
+  │◄── "你好，xxx！" ─────────┤                             │                       │
+```
+
+#### 4.3.1 加载阶段的容错流程
+
+```
+loadDir(dir)
+    │
+    ├── try:
+    │     ├── readdir(dir)         ← 可能失败（目录不存在、无权限）
+    │     │     └── 失败 → catch → 返回 0（跳过该目录）
+    │     │
+    │     ├── for each file:
+    │     │     ├── 过滤非 .ts/.js  ← 不报错，直接跳过
+    │     │     ├── 去重检查        ← 跳过已加载文件
+    │     │     │
+    │     │     ├── try:
+    │     │     │     ├── import()  ← 可能失败（语法错误、依赖缺失）
+    │     │     │     ├── 检查 default 导出 ← 非函数则跳过（不报错）
+    │     │     │     └── 执行 default()    ← 可能失败（扩展内部错误）
+    │     │     │
+    │     │     └── catch:          ← 静默捕获，继续下一个文件
+    │     │           跳过此文件，不影响其他扩展
+    │     │
+    │     └── 返回 count
+    │
+    └── catch:
+          跳过此目录，继续下一个搜索目录
+```
+
 ## 5. 运行与验证
 
 ### 5.1 手动测试加载器
@@ -292,3 +472,7 @@ EOF
 1. 如果想让扩展支持热更新（文件变化时自动重新加载），`ExtensionLoader` 需要做哪些改动？
 2. 当前去重使用文件名（`file`）而非完整路径（`fullPath`），这会导致什么问题？如何修复？
 3. 为什么 `loadDir` 中 `loaded.add(file)` 放在 `import()` 之前而不是之后？
+
+> ← [上一节](./01-extension-api.md) · [下一节](./practice.md) →
+>
+> [📚 返回章节首页](../06-extension-layer/README.md)

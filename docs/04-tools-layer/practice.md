@@ -196,3 +196,15 @@ npm start
 - **练习 3**：Agent 的构造函数接受 `tools: AgentTool[]`，只需在数组中添加新工具即可
 - **拓展思考 1**：可以考虑返回 `ToolResult` 的 `details` 字段，在其中放入结构化数据
 - **拓展思考 3**：可以扩展 `ContentBlock` 类型，支持 `table`、`tree` 等新类型
+
+---
+
+> [📚 返回章节首页](../04-tools-layer/README.md)
+>
+> [下一章 →](../05-session-layer/README.md)
+
+---
+
+> [📚 返回章节首页](../04-tools-layer/README.md)
+>
+> [下一章 →](../05-session-layer/README.md)

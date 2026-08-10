@@ -330,3 +330,7 @@ Agent Loop 的 10 个步骤：
 - `maxMessages = 2`：Agent 可能"失忆"，无法进行多轮对话
 - 摘要压缩：可以使用 LLM 的 `summarize` 能力，但需要额外的一次 LLM 调用
 - 截断工具结果：如果截断了 `toolResult` 但保留了 `assistant` 消息中的 `toolCalls`，LLM 会认为工具还没执行完
+
+> [📚 返回章节首页](../03-agent-layer/README.md)
+>
+> [下一章 →](../04-tools-layer/README.md)

@@ -380,3 +380,7 @@ export default async function (api: ExtensionAPI) {
    - 确认事件类型字符串拼写正确（如 `tool_execution_start`）
    - 确认 `on()` 注册在扩展加载函数中
    - 确认 Agent 确实产生了对应类型的事件
+
+> [📚 返回章节首页](../06-extension-layer/README.md)
+>
+> [下一章 →](../07-interface-layer/README.md)

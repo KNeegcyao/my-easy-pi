@@ -945,3 +945,7 @@ node --inspect-brk dist/cli.js -m "帮我读 config.json 并总结"
 3. 如果 `transformContext` 函数将早期消息压缩为摘要，重新发送给 LLM 时，LLM 还能看到完整的对话历史吗？
 4. 为什么 `message_update` 事件中传递的是 `{ content: "..." }`（完整内容）而不是 `{ delta: "..." }`（差异内容）？这有什么优缺点？
 5. 尝试修改代码，让 Print 模式也能显示工具调用信息（类似 TUI 的 "⚙ 正在执行 read..."），应该怎么做？
+
+> ← [上一节](./01-cli-entry.md) · [下一节](./practice.md) →
+>
+> [📚 返回章节首页](../09-putting-it-together/README.md)

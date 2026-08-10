@@ -367,3 +367,7 @@ npx prettier --check docs/09-putting-it-together/*.md
 ls -la docs/09-putting-it-together/
 # 应包含：README.md, 01-cli-entry.md, 02-end-to-end-flow.md, practice.md
 ```
+
+> [📚 返回章节首页](../09-putting-it-together/README.md)
+>
+> [下一章 →](../10-advanced-topics/README.md)

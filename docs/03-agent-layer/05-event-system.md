@@ -361,3 +361,7 @@ await agent.prompt('你好')
 2. 如果 `message_update` 事件在 1 秒内发射了 100 次（因为 LLM 输出很快），UI 层可能会频繁重绘。如果要实现"节流"（throttle）功能，应该在 Agent 端还是订阅者端实现？
 3. 当前的 `emit` 会等待所有监听器完成。如果某个监听器执行了耗时的操作（如写入数据库），会阻塞事件发射。如何改成"发射后不管"（fire-and-forget）模式？
 4. 假设要新增一个 `token_usage` 事件（在 LLM 调用结束时报告 token 用量），需要修改哪些文件？
+
+> ← [上一节](./04-permission-system.md) · [下一节](./practice.md) →
+>
+> [📚 返回章节首页](../03-agent-layer/README.md)

@@ -492,3 +492,7 @@ console.log('可用模型:', instance.listModels().map(m => m.id));
 2. 如果接入的 LLM API 不支持流式响应，应该怎么处理？（提示：可以模拟流式）
 3. 查看 `src/ai/providers/deepseek.ts` 的代码，它与 `openai.ts` 高度相似。为什么 DeepSeek 不直接复用 OpenAI 的 Provider？
 4. 如果要接入 Moonshot（月之暗面），它的 API 兼容 OpenAI 格式，最简单的接入方式是什么？
+
+> ← [上一节](./01-adding-new-tool.md) · [下一节](./03-creating-extension.md) →
+>
+> [📚 返回章节首页](../10-advanced-topics/README.md)

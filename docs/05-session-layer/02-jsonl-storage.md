@@ -225,3 +225,7 @@ JSONL 是 piagent 会话层的存储基石。它的设计选择背后有明确�
 1. 如果会话文件达到 100MB，`readMessages()` 一次性读取整个文件会有问题吗？如何改进？
 2. 为什么 `appendMessage` 调用 `ensureDir()` 而 `readMessages` 也需要调用它？（提示：思考目录首次被删除的场景）
 3. 如果想把存储从 JSONL 迁移到 SQLite，需要修改哪些文件？接口是否需要变化？
+
+> ← [上一节](./01-session-manager.md) · [下一节](./03-context-compaction.md) →
+>
+> [📚 返回章节首页](../05-session-layer/README.md)

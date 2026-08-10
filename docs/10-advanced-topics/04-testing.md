@@ -328,3 +328,7 @@ piagent 的测试体系具有以下特点：
 2. 查看 `tests/unit/ai/registry.test.ts`，它只有 2 个测试用例。你觉得应该补充哪些测试？
 3. 如果要为 `GeminiProvider` 编写测试，如何在不实际调用 API 的情况下测试？
 4. 查看 `.github/workflows/ci.yml`，如果想让 CI 在 Node.js 20 和 22 上都运行，应该怎么修改？
+
+> ← [上一节](./03-creating-extension.md) · [下一节](./practice.md) →
+>
+> [📚 返回章节首页](../10-advanced-topics/README.md)

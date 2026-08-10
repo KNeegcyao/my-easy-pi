@@ -108,3 +108,7 @@ CLI 指定路径  →  项目目录 .pi/extensions/  →  全局目录 ~/.piagen
 1. 扩展层的设计为什么把 `ExtensionAPI` 和 `ExtensionLoader` 分离成两个类？
 2. 如果想让扩展支持依赖注入（例如扩展 A 依赖扩展 B 提供的工具），加载器需要做哪些改动？
 3. 扩展的 `on()` 方法订阅了 Agent 事件，但扩展本身没有 `unsubscribe` 的返回方法——这是设计缺陷吗？如何改进？
+
+> ← [📚 返回学习指南](../README.md) · [下一章](../07-interface-layer/README.md) →
+>
+> → 下一篇: [01-extension-api.md](./01-extension-api.md)

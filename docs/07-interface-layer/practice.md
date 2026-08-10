@@ -193,6 +193,10 @@ node custom-interface.js
 3. 接口层代码中没有任何类继承，全部是函数和模块。这种设计比类继承好在哪？
 4. 如果要实现一个 WebSocket 接口（WebSocketInterface），需要复用哪些代码？需要新增哪些代码？
 
+> [📚 返回章节首页](../07-interface-layer/README.md)
+>
+> [下一章 →](../08-config-and-sandbox/README.md)
+
 ### 实验
 
 ```bash
@@ -243,3 +247,7 @@ echo "请手动运行: piagent --tui"
 3. 函数式设计更简单、更易测试、更易组合。没有 `this` 绑定问题，没有继承链的认知负担，TypeScript 的类型推断也更顺畅。
 
 4. WebSocket 接口需要复用：事件订阅机制（`agent.subscribe()`）、事件序列化（`JSON.stringify`）。需要新增：WebSocket 服务器创建、连接管理、WebSocket 特有的消息格式。
+
+> [📚 返回章节首页](../07-interface-layer/README.md)
+>
+> [下一章 →](../08-config-and-sandbox/README.md)

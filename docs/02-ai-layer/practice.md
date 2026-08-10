@@ -227,3 +227,7 @@ if (model) {
 3. 独立实现一个新的 Provider，包括工厂、模型和事件转换
 
 这些练习覆盖了 AI 层最核心的概念和实现，是后续理解 Agent 层的基础。
+
+> [📚 返回章节首页](../02-ai-layer/README.md)
+>
+> [下一章 →](../03-agent-layer/README.md)

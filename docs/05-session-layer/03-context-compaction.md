@@ -246,3 +246,7 @@ Compactor 是 piagent 应对 LLM 上下文窗口限制的关键组件。虽然�
 1. 当前实现中，压缩后的摘要消息 `role` 是 `'notification'`，但 `Manager.saveMessage()` 会过滤 `notification` 消息。这意味着摘要不会被持久化，下次恢复会话时又会回到压缩前的状态。这是一个 bug 还是有意为之？
 2. 如果用 LLM 生成摘要，每次压缩都调用 LLM 会增加额外成本。如何平衡压缩频率和成本？
 3. 如果用户想"回看"被压缩掉的早期对话，当前实现能支持吗？如何改进？
+
+> ← [上一节](./02-jsonl-storage.md) · [下一节](./practice.md) →
+>
+> [📚 返回章节首页](../05-session-layer/README.md)

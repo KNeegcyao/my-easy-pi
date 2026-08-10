@@ -107,3 +107,7 @@ AI 层是 piagent 的"地基"，它通过四层抽象（类型定义 → Model �
 1. 为什么 `AgentMessage` 比 `LLMMessage` 多出了 `notification` 和 `thinking` 角色？这些角色出现在 LLM 调用中会怎样？
 2. 如果要在 `LLMEvent` 中新增一种事件类型（如 `image_delta`），需要修改哪些文件？
 3. 为什么 `ModelRegistry.getModel()` 每次调用都创建新的 Model 实例，而不是缓存复用？
+
+> ← [📚 返回学习指南](../README.md) · [下一章](../03-agent-layer/README.md) →
+>
+> → 下一篇: [01-core-types.md](./01-core-types.md)

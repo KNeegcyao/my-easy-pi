@@ -233,3 +233,7 @@ CLI 入口是"组装工"，负责创建所有模块实例并将它们连接起�
 | [01-cli-entry.md](./01-cli-entry.md) | CLI 入口：逐行解析 `src/cli.ts`，理解模块组装流程 | ⭐⭐⭐ |
 | [02-end-to-end-flow.md](./02-end-to-end-flow.md) | 完整请求链路追踪：从用户输入到最终输出的全过程 | ⭐⭐⭐⭐⭐ |
 | [practice.md](./practice.md) | 本章练习：动手实践与思考题 | ⭐⭐⭐⭐ |
+
+> ← [📚 返回学习指南](../README.md) · [下一章](../10-advanced-topics/README.md) →
+>
+> → 下一篇: [01-cli-entry.md](./01-cli-entry.md)

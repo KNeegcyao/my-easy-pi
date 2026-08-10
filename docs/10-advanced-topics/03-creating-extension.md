@@ -348,3 +348,7 @@ import('./dist/extension/api.js').then(({ ExtensionAPI }) => {
 2. 如何让扩展支持配置参数？（提示：可以在扩展函数中读取配置文件）
 3. 如果要创建一个"命令审核"扩展（记录所有执行的命令），应该监听哪个事件？
 4. 扩展中注册的工具和内置工具有什么区别？LLM 能区分它们吗？
+
+> ← [上一节](./02-adding-new-provider.md) · [下一节](./04-testing.md) →
+>
+> [📚 返回章节首页](../10-advanced-topics/README.md)

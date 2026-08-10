@@ -114,4 +114,6 @@ npx tsx src/cli.ts -m "你好"  # 看到 AI 回复
 
 ---
 
-> 下一章: [AI 层 — 核心类型与 Provider 模式](../02-ai-layer/README.md)
+> ← [📚 返回学习指南](../README.md) · [下一章](../02-ai-layer/README.md) →
+>
+> → 下一篇: [01-what-is-coding-agent.md](./01-what-is-coding-agent.md)

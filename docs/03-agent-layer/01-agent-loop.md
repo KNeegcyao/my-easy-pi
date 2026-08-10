@@ -740,6 +740,30 @@ const agent = new Agent({
 })
 ```
 
+### 4.11 状态变化一览表
+
+以下是 `AgentState` 每个字段在 Agent 生命周期各阶段的值变化。理解这张表，你就理解了 Agent 的"状态机"本质。
+
+| 字段 | 初始值 (new Agent) | prompt() 开始 | runLoop 循环中 | prompt() 结束 | reset() 后 |
+|------|--------------------|---------------|---------------|-------------|----------|
+| `systemPrompt` | 构造函数传入值 | 不变 | 不变 | 不变 | 不变 |
+| `model` | 构造函数传入值 | 不变 | 不变 | 不变 | 不变 |
+| `thinkingLevel` | `'off'` 或构造函数传入值 | 不变 | 不变 | 不变 | 不变 |
+| `tools` | 构造函数传入的工具列表 | 不变 | 不变 | 不变 | 不变 |
+| `messages` | `[]` (空数组) | `[userMessage]` | 持续追加 user→assistant→toolResult... | 完整消息历史 | `[]` 清空 |
+| `isStreaming` | `false` | `true` | `true` | `false` | `false` |
+| `streamingMessage` | `undefined` | `undefined` | 当前正在构建的 assistant 消息 | `undefined` | `undefined` |
+| `pendingToolCalls` | `Set{}` (空) | `Set{}` | 正在执行的 toolCall.id 集合 | `Set{}` | `Set{}` 清空 |
+| `errorMessage` | `undefined` | `undefined` | 遇 LLM 错误时置为错误文本 | `undefined` (未清除!) | `undefined` 清空 |
+
+**变化规律总结：**
+
+- **只读字段**：`systemPrompt`、`model`、`thinkingLevel`、`tools` 在构造函数中确定后不再改变 —— 它们定义 Agent 的"身份"和"能力边界"
+- **增长字段**：`messages` 只增不减（除非调用 `reset()`），每轮循环追加 user → assistant → toolResult 消息链
+- **开关字段**：`isStreaming` 像一把"互斥锁"，在 `prompt()` 入口上锁、出口释放，防止并发调用
+- **临时字段**：`streamingMessage` 和 `pendingToolCalls` 只在循环中短暂存在，任务结束后自动清理
+- **错误字段**：`errorMessage` 在遇到 LLM 流错误时设置，但 `prompt()` 结束**不会自动清除**——这是刻意设计的，让外部在 `agent_end` 事件中可以读取到错误信息
+
 ## 6. 小结
 
 ### 学到的核心概念
@@ -756,3 +780,7 @@ const agent = new Agent({
 2. `processLLMStream()` 中的 `thinking_delta` 事件目前被忽略了。如果要支持"显示 LLM 思考过程"的功能，应该怎么改？
 3. 现有代码中 `toolExecution` 配置了 `'parallel'` 但实际执行时是逐个串行的。如果要改成真正的并行执行，需要注意哪些问题？
 4. `beforeToolCall` 钩子可以阻止工具执行。如果 `beforeToolCall` 也抛出了异常，当前的错误处理机制是否足够健壮？
+
+> ← [上一节](./README.md) · [下一节](./02-state-management.md) →
+>
+> [📚 返回章节首页](../03-agent-layer/README.md)

@@ -251,3 +251,7 @@ EOF
 1. `isAppError` 类型守卫的实现中，为什么只检查 `code` 和 `message` 字段存在，而不检查它们的类型是否正确？
 2. 如果错误需要在多个系统间传递（如通过网络序列化），`AppError` 接口的设计有什么需要改进的地方？
 3. 为什么 `AUTH_API_KEY_MISSING` 使用函数返回对象（`() => ({...})`），而 `AGENT_ALREADY_STREAMING` 也使用函数返回对象？直接用对象字面量有什么问题？
+
+> ← [上一节](./04-model-registry.md) · [下一节](./06-retry-mechanism.md) →
+>
+> [📚 返回章节首页](../02-ai-layer/README.md)

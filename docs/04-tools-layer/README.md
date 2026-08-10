@@ -173,6 +173,6 @@ npx vitest run src/tools/ --reporter=verbose 2>&1 | head -30
 
 ---
 
-## 下一章
-
-→ [工具注册与发现](01-tool-registry.md)
+> ← [📚 返回学习指南](../README.md) · [下一章](../05-session-layer/README.md) →
+>
+> → 下一篇: [01-tool-registry.md](./01-tool-registry.md)

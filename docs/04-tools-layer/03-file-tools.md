@@ -231,6 +231,8 @@ import('./dist/tools/builtin/edit.js').then(({ editTool }) => {
 
 ---
 
-## 下一章
+---
 
-→ [搜索工具](04-search-tools.md)
+> ← [上一节](./02-bash-tool.md) · [下一节](./04-search-tools.md) →
+>
+> [📚 返回章节首页](../04-tools-layer/README.md)

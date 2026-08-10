@@ -286,4 +286,6 @@ done
 
 ---
 
-> 下一章: [AI 层 — 核心类型与 Provider 模式](../02-ai-layer/README.md)
+> ← [上一节](./02-environment-setup.md) · [下一节](../02-ai-layer/README.md) →
+>
+> [📚 返回章节首页](../01-before-start/README.md)

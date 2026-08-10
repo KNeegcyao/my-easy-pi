@@ -246,6 +246,6 @@ import('./dist/tools/builtin/bash.js').then(({ bashTool }) => {
 
 ---
 
-## 下一章
-
-→ [文件工具](03-file-tools.md)
+> ← [上一节](./01-tool-registry.md) · [下一节](./03-file-tools.md) →
+>
+> [📚 返回章节首页](../04-tools-layer/README.md)

@@ -202,6 +202,6 @@ console.log('注销后:', registry.listTools().length);
 
 ---
 
-## 下一章
-
-→ [Bash 工具](02-bash-tool.md)
+> ← [上一节](./README.md) · [下一节](./02-bash-tool.md) →
+>
+> [📚 返回章节首页](../04-tools-layer/README.md)
