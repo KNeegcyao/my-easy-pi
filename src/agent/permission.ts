@@ -1,20 +1,24 @@
 // ============================================================
 // PermissionManager — 权限管理器
 //
-// 让用户在执行危险工具前确认，增加安全防线。
+// 用于在执行危险工具前要求确认，提供安全防线。
 //
-// 工作方式：
-//   1. 拦截 bash 等高危工具调用
-//   2. 显示命令内容和风险提示
-//   3. 等待用户输入 y/n 确认
-//   4. 同一会话中已确认的命令不再重复询问
+// 关键设计：通过依赖注入与 UI 解耦
+//   本模块不再直接 import readline / 写 stderr，
+//   而是通过构造时传入的 confirm 回调向外部请求用户确认。
+//   这样 TUI、CLI、测试环境可以提供各自合适的确认方式，
+//   agent 层完全不感知输出通道。
 //
 // 使用方式：
-//   const pm = new PermissionManager()
+//   const pm = new PermissionManager({
+//     confirm: async ({ command, risk }) => {
+//       // 这里弹 TUI overlay / readline / 测试 mock
+//       return true  // 'yes'
+//     },
+//   })
 //   agent.beforeToolCall = (ctx) => pm.check(ctx)
 // ============================================================
 
-import * as readline from 'readline'
 import type { ToolCallContext, BlockResult } from './loop.js'
 
 /** 工具风险等级 */
@@ -31,7 +35,16 @@ export interface PermissionRule {
   reason?: string
 }
 
-/** 默认的危险命令规则 */
+/** 请求用户确认的入参 */
+export interface ConfirmationRequest {
+  command: string
+  risk: RiskLevel
+  reason?: string
+}
+
+/** 用户确认回调：由 UI 层（TUI overlay / CLI readline / 测试 mock）实现 */
+export type ConfirmFn = (req: ConfirmationRequest) => Promise<boolean>
+
 const DEFAULT_RULES: PermissionRule[] = [
   { pattern: /^rm\s+-[rf]/, risk: RiskLevel.DANGEROUS, reason: '强制删除文件' },
   { pattern: /^rm\s+/, risk: RiskLevel.NORMAL, reason: '删除文件' },
@@ -39,18 +52,37 @@ const DEFAULT_RULES: PermissionRule[] = [
   { pattern: /^(chmod|chown|chattr)\s+/, risk: RiskLevel.NORMAL, reason: '修改文件权限' },
   { pattern: /^(mkfs|fdisk|dd|format)\s+/, risk: RiskLevel.DANGEROUS, reason: '磁盘操作' },
   { pattern: /^kill\s+/, risk: RiskLevel.NORMAL, reason: '终止进程' },
-  { pattern: /^rm\s+-[rf]/, risk: RiskLevel.DANGEROUS, reason: '强制删除' },
   { pattern: /^(wget|curl)\s+.*\||.*(?:curl|wget).*\|/, risk: RiskLevel.DANGEROUS, reason: '远程执行脚本' },
   { pattern: /^>\s+/, risk: RiskLevel.NORMAL, reason: '覆盖文件' },
   { pattern: /^>>\s+/, risk: RiskLevel.NORMAL, reason: '追加文件' },
 ]
 
+export interface PermissionManagerOptions {
+  /** 自定义规则；不传用默认规则 */
+  rules?: PermissionRule[]
+  /** 用户确认回调；不传则在需要确认时 fail-closed（返回 false） */
+  confirm?: ConfirmFn
+}
+
 export class PermissionManager {
   private rules: PermissionRule[]
+  private confirmFn?: ConfirmFn
   private approved = new Set<string>()
 
-  constructor(rules?: PermissionRule[]) {
-    this.rules = rules || DEFAULT_RULES
+  constructor(options?: PermissionManagerOptions | PermissionRule[]) {
+    // 兼容旧构造：new PermissionManager(rules)
+    if (Array.isArray(options)) {
+      this.rules = options
+      this.confirmFn = undefined
+    } else {
+      this.rules = options?.rules || DEFAULT_RULES
+      this.confirmFn = options?.confirm
+    }
+  }
+
+  /** 替换/注入确认回调（便于 TUI 启动后再挂载） */
+  setConfirm(confirm: ConfirmFn | undefined): void {
+    this.confirmFn = confirm
   }
 
   /** 检查工具调用是否允许执行 */
@@ -65,12 +97,18 @@ export class PermissionManager {
     const key = command.trim()
     if (this.approved.has(key)) return undefined
 
-    // 非交互环境（测试/CI/管道）直接拒绝
-    if (!process.stdin.isTTY) {
+    // 非交互环境且无确认回调：fail-closed
+    if (!process.stdin.isTTY && !this.confirmFn) {
       return { block: true, reason: `非交互环境，已自动拒绝: ${command.slice(0, 100)}` }
     }
 
-    const confirmed = await this.promptUser(command, risk)
+    // 没有确认回调：fail-closed，避免静默执行高危命令
+    if (!this.confirmFn) {
+      return { block: true, reason: `无确认通道，已自动拒绝: ${command.slice(0, 100)}` }
+    }
+
+    const reasonText = this.explainRisk(command, risk)
+    const confirmed = await this.confirmFn({ command, risk, reason: reasonText })
     if (confirmed) {
       this.approved.add(key)
       return undefined
@@ -86,9 +124,8 @@ export class PermissionManager {
   private evaluateRisk(command: string): RiskLevel {
     const trimmed = command.trim()
 
-    // 🛡️ 检测多行注入：如果命令包含换行符，说明 LLM 可能在尝试绕过检查
+    // 🛡️ 检测多行注入：如果命令包含换行符，LLM 可能在绕过检查
     if (trimmed.includes('\n')) {
-      // 分别评估每一行，取最高风险等级
       const lines = trimmed.split('\n').filter(l => l.trim())
       let maxRisk = RiskLevel.SAFE
       for (const line of lines) {
@@ -102,7 +139,6 @@ export class PermissionManager {
     return this.evaluateSingleCommand(trimmed)
   }
 
-  /** 评估单行命令的风险等级 */
   private evaluateSingleCommand(command: string): RiskLevel {
     const safeCommands = ['ls', 'cat', 'head', 'tail', 'echo', 'pwd', 'whoami',
       'date', 'which', 'type', 'wc', 'sort', 'uniq', 'grep',
@@ -118,30 +154,8 @@ export class PermissionManager {
     return RiskLevel.NORMAL
   }
 
-  /** 提示用户确认 */
-  private promptUser(command: string, risk: RiskLevel): Promise<boolean> {
-    const riskLabel = risk === RiskLevel.DANGEROUS ? '🔴 高风险' : '🟡 普通风险'
-    return new Promise((resolve) => {
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stderr,
-      })
-      process.stderr.write(`\n${'='.repeat(50)}\n`)
-      process.stderr.write(`${riskLabel} 操作需要确认\n`)
-      process.stderr.write(`命令: ${command}\n`)
-      process.stderr.write(`${'='.repeat(50)}\n`)
-      process.stderr.write('是否允许执行？(y/N) ')
-      const timeout = setTimeout(() => {
-        rl.close()
-        resolve(false)
-      }, 30_000)
-      rl.on('line', (line) => {
-        clearTimeout(timeout)
-        rl.close()
-        resolve(['y', 'yes'].includes(line.trim().toLowerCase()))
-      })
-      rl.on('SIGINT', () => { clearTimeout(timeout); rl.close(); resolve(false) })
-    })
+  private explainRisk(_command: string, risk: RiskLevel): string {
+    return risk === RiskLevel.DANGEROUS ? '高风险' : '普通风险'
   }
 
   clearApproved(): void { this.approved.clear() }

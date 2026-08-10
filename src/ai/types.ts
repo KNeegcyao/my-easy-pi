@@ -162,7 +162,7 @@ export type AgentEvent =
   | { type: 'agent_start' }
   | { type: 'agent_end'; messages: AgentMessage[] }
   | { type: 'turn_start' }
-  | { type: 'turn_end'; message: AgentMessage; toolResults: ToolResult[] }
+  | { type: 'turn_end'; message: AgentMessage; toolResults: ToolResult[]; usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number } }
   | { type: 'message_start'; message: AgentMessage }
   | { type: 'message_update'; message: Partial<AgentMessage> }
   | { type: 'message_end'; message: AgentMessage }

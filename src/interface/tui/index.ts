@@ -3,6 +3,10 @@
 //
 // 类似 Claude Code 的全屏交互体验。
 // 包含全局错误处理，防止意外退出。
+//
+// @deprecated (过渡期内保留)
+//   此实现将在 Phase 7 被 `src/tui/` + `src/interface/tui/interactive-mode.ts` 替换。
+//   设计依据见 docs/tui-strategy.md。
 // ============================================================
 
 import type { Agent } from '../../agent/index.js'

@@ -2,9 +2,10 @@
 
 | 元信息 | 内容 |
 |--------|------|
-| 对应源码 | `src/interface/tui/` 目录 |
-| 最后更新 | 2026-08-08 |
+| 对应源码 | `src/interface/tui/`（现实现，过渡期）→ `src/tui/`（新框架，见 [../tui-strategy.md](../tui-strategy.md)） |
+| 最后更新 | 2026-08-10 |
 | 适用版本 | piagent v0.1.0 |
+| 重构状态 | 进行中 — 见 [docs/tui-strategy.md](../tui-strategy.md) |
 
 ---
 

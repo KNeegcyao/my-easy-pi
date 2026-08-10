@@ -24,11 +24,14 @@ export interface TokenStats {
   completionTokens: number
   totalTokens: number
   callCount: number
+  /** 是否有任何一次调用拿到了真实 usage；false 时 /cost 显示 N/A 而非 0 */
+  hasRealUsage: boolean
 }
 
-let tokenStats: TokenStats = { promptTokens: 0, completionTokens: 0, totalTokens: 0, callCount: 0 }
+let tokenStats: TokenStats = { promptTokens: 0, completionTokens: 0, totalTokens: 0, callCount: 0, hasRealUsage: false }
 
 export function recordTokenUsage(prompt: number, completion: number): void {
+  if (prompt > 0 || completion > 0) tokenStats.hasRealUsage = true
   tokenStats.promptTokens += prompt
   tokenStats.completionTokens += completion
   tokenStats.totalTokens += prompt + completion
@@ -102,19 +105,21 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
       }
     }
 
-    case '/cost':
+    case '/cost': {
+      const na = gray('N/A (provider 未上报)')
       return {
         handled: true,
         output: [
           ``,
           `  ${yellow('Token 统计:')}`,
           `  ${dim('├─')} ${gray('调用次数:')}  ${String(tokenStats.callCount)}`,
-          `  ${dim('├─')} ${gray('提示 Token:')} ${String(tokenStats.promptTokens)}`,
-          `  ${dim('├─')} ${gray('生成 Token:')} ${String(tokenStats.completionTokens)}`,
-          `  ${dim('└─')} ${gray('总计:')}      ${String(tokenStats.totalTokens)}`,
+          `  ${dim('├─')} ${gray('提示 Token:')} ${tokenStats.hasRealUsage ? String(tokenStats.promptTokens) : na}`,
+          `  ${dim('├─')} ${gray('生成 Token:')} ${tokenStats.hasRealUsage ? String(tokenStats.completionTokens) : na}`,
+          `  ${dim('└─')} ${gray('总计:')}      ${tokenStats.hasRealUsage ? String(tokenStats.totalTokens) : na}`,
           '',
         ].join('\n'),
       }
+    }
 
     case '/clear':
       process.stdout.write('\x1b[2J\x1b[H')
@@ -130,7 +135,7 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
 }
 
 export function resetTokenStats(): void {
-  tokenStats = { promptTokens: 0, completionTokens: 0, totalTokens: 0, callCount: 0 }
+  tokenStats = { promptTokens: 0, completionTokens: 0, totalTokens: 0, callCount: 0, hasRealUsage: false }
 }
 
 // 避免 commands.ts 中引用未导入的 red

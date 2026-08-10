@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+import * as readline from 'node:readline'
 import { ModelRegistry, AnthropicProvider, DeepSeekProvider, OpenAIProvider } from './ai/index.js'
 import { ToolRegistry, bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, webFetchTool } from './tools/index.js'
-import { Agent, PermissionManager } from './agent/index.js'
+import { Agent, PermissionManager, type ConfirmFn, RiskLevel } from './agent/index.js'
 import { isAppError, AUTH_API_KEY_MISSING, PROVIDER_NOT_FOUND, MODEL_NOT_FOUND } from './ai/errors.js'
 import { createPrintInterface, createJSONInterface, startTUI, startRPC } from './interface/index.js'
 import { ConfigManager, runInit } from './config/index.js'
@@ -155,7 +156,29 @@ async function main(): Promise<void> {
     if (!initialMessages) { console.error('没有可恢复的会话'); process.exit(1) }
   }
 
-  const permission = new PermissionManager()
+  // PermissionManager 通过注入的 confirm 回调与 UI 解耦：
+  //  - 交互式 TTY 环境（print / tui 前置聊天）提供 CLI readline 确认
+  //  - 非交互 / JSON / RPC 模式不传 confirm，PermissionManager 内部走 fail-closed
+  const cliConfirm: ConfirmFn | undefined = process.stdin.isTTY
+    ? async ({ command, risk }) => {
+        const riskLabel = risk === RiskLevel.DANGEROUS ? '🔴 高风险' : '🟡 普通风险'
+        return new Promise<boolean>((resolve) => {
+          const rl = readline.createInterface({ input: process.stdin, output: process.stderr })
+          process.stderr.write(`\n${'='.repeat(50)}\n`)
+          process.stderr.write(`${riskLabel} 操作需要确认\n`)
+          process.stderr.write(`命令: ${command}\n`)
+          process.stderr.write(`${'='.repeat(50)}\n`)
+          process.stderr.write('是否允许执行？(y/N) ')
+          const timeout = setTimeout(() => { rl.close(); resolve(false) }, 30_000)
+          rl.on('line', (line) => {
+            clearTimeout(timeout); rl.close()
+            resolve(['y', 'yes'].includes(line.trim().toLowerCase()))
+          })
+          rl.on('SIGINT', () => { clearTimeout(timeout); rl.close(); resolve(false) })
+        })
+      }
+    : undefined
+  const permission = new PermissionManager({ confirm: cliConfirm })
   const compactor = new Compactor()
 
   const agent = new Agent({
@@ -187,8 +210,13 @@ async function main(): Promise<void> {
     }
     if (event.type === 'turn_end') {
       turnCount++
-      const toolCalls = event.toolResults.length
-      recordTokenUsage(toolCalls * 100, toolCalls * 200)
+      const usage = event.usage
+      if (usage && (usage.promptTokens != null || usage.completionTokens != null)) {
+        recordTokenUsage(usage.promptTokens ?? 0, usage.completionTokens ?? 0)
+      } else {
+        // Provider 未返回 usage：不造假。counter 仍加 1 表示一次完整调用，tokens 显示 N/A。
+        recordTokenUsage(0, 0)
+      }
     }
   })
 

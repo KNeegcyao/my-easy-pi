@@ -187,7 +187,7 @@ export class Agent {
       }
 
       // 4. 调用 LLM 并处理流式事件
-      const { content, toolCalls } = await this.processLLMStream(context)
+      const { content, toolCalls, usage } = await this.processLLMStream(context)
 
       // 5. 创建 assistant 消息
       const assistantMessage: AgentMessage = {
@@ -208,6 +208,7 @@ export class Agent {
           type: 'turn_end',
           message: assistantMessage,
           toolResults: [],
+          usage,
         })
 
         // 从队列中取出下一条消息
@@ -232,6 +233,7 @@ export class Agent {
           content: [{ type: 'text' as const, text: r.content }],
           terminate: r.terminate,
         })),
+        usage,
       })
 
       // 8. 将 toolResult 加入消息列表（在 terminate 检查之前，确保历史完整）
@@ -257,15 +259,17 @@ export class Agent {
     }
   }
 
-  /** 处理 LLM 流式响应，提取文本和工具调用 */
+  /** 处理 LLM 流式响应，提取文本、工具调用和可选 usage */
   private async processLLMStream(context: ModelContext): Promise<{
     content: string
     toolCalls: ToolCall[]
+    usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number }
   }> {
     let content = ''
     const toolCalls: ToolCall[] = []
     let currentToolCall: Partial<ToolCall> | null = null
     let toolCallArgs = ''
+    let usage: { promptTokens?: number; completionTokens?: number; totalTokens?: number } | undefined
 
     const streamOptions: StreamOptions = {
       signal: this.abortController?.signal,
@@ -273,6 +277,15 @@ export class Agent {
 
     try {
       for await (const event of this.state.model.stream(context, streamOptions)) {
+        // usage 是 done 事件的非规范字段（sse.ts 捕获并附加），这里做最佳努力提取
+        if (event.type === 'done' && (event as Record<string, unknown>).usage) {
+          const raw = (event as Record<string, unknown>).usage as Record<string, number | undefined>
+          usage = {
+            promptTokens: raw?.promptTokens ?? raw?.prompt_tokens,
+            completionTokens: raw?.completionTokens ?? raw?.completion_tokens,
+            totalTokens: raw?.totalTokens ?? raw?.total_tokens,
+          }
+        }
         switch (event.type) {
           case 'text_delta':
             content += event.delta
@@ -350,7 +363,7 @@ export class Agent {
       })
     }
 
-    return { content, toolCalls }
+    return { content, toolCalls, usage }
   }
 
   /** 执行工具调用 */

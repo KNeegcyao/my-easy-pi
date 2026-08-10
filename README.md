@@ -146,7 +146,7 @@ piagent (本仓库)
 |------|------|
 | 🤖 **多 LLM 提供商** | 支持 DeepSeek（默认）、Anthropic Claude、OpenAI |
 | 🔧 **7 个内置工具** | bash、read、write、edit、grep、find、ls |
-| 🖥️ **全屏 TUI** | 仿 Claude Code 的 Alt Screen 模式 |
+| 🖥️ **全屏 TUI** | 仿 Claude Code 的 Alt Screen 模式（重构中，见 [docs/tui-strategy.md](docs/tui-strategy.md)） |
 | 📁 **会话持久化** | JSONL 格式自动保存，支持 `-c` 恢复 |
 | 🔒 **三级权限系统** | SAFE / NORMAL / DANGEROUS + TTY 检测 |
 | 📦 **Docker 沙箱** | 可选容器化执行，自动降级回退 |
