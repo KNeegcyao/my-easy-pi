@@ -234,11 +234,7 @@ export class Agent {
         })),
       })
 
-      // 8. 检查是否所有工具都返回 terminate: true
-      const allTerminate = toolResults.every(r => r.terminate)
-      if (allTerminate) break
-
-      // 9. 将 toolResult 加入消息列表，继续下一轮
+      // 8. 将 toolResult 加入消息列表（在 terminate 检查之前，确保历史完整）
       for (let i = 0; i < toolCalls.length; i++) {
         const tc = toolCalls[i]
         const result = toolResults[i]
@@ -252,6 +248,10 @@ export class Agent {
           createdAt: Date.now(),
         })
       }
+
+      // 9. 检查是否所有工具都返回 terminate: true
+      const allTerminate = toolResults.every(r => r.terminate)
+      if (allTerminate) break
 
       turnMessages = []
     }
@@ -345,6 +345,7 @@ export class Agent {
   /** 执行工具调用 */
   private async executeToolCalls(toolCalls: ToolCall[]): Promise<AgentToolResult[]> {
     // 1. 预检阶段：调用 beforeToolCall 钩子
+    const blockedCallIds = new Set<string>()
     for (const tc of toolCalls) {
       if (this.beforeToolCallFn) {
         const blockResult = await this.beforeToolCallFn({
@@ -354,7 +355,7 @@ export class Agent {
         })
 
         if (blockResult?.block) {
-          // 工具被阻止
+          // 工具被阻止：加入消息历史 + 记录 blocked ID
           this.state.messages.push({
             id: generateId(),
             parentId: this.state.messages[this.state.messages.length - 1]?.id || null,
@@ -364,6 +365,7 @@ export class Agent {
             isError: true,
             createdAt: Date.now(),
           })
+          blockedCallIds.add(tc.id)
           continue
         }
       }
@@ -376,6 +378,15 @@ export class Agent {
     const results: AgentToolResult[] = []
 
     for (const tc of toolCalls) {
+      // 跳过被阻止的工具调用
+      if (blockedCallIds.has(tc.id)) {
+        results.push({
+          content: '工具调用被阻止',
+          isError: true,
+          terminate: false,
+        })
+        continue
+      }
       const tool = this.toolRegistry.getTool(tc.name)
       if (!tool) {
         const err = TOOL_NOT_FOUND(tc.name)
