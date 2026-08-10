@@ -11,7 +11,7 @@
 
 import * as readline from 'readline'
 import type { Agent } from '../../agent/index.js'
-import { printThinking, printUserInput, printPrompt } from './renderer.js'
+import { printThinking, printPrompt } from './renderer.js'
 import { dim, gray, green } from './theme.js'
 import { executeCommand } from './commands.js'
 
@@ -37,8 +37,8 @@ export function startEditor(options: EditorOptions): void {
     const trimmed = line.trim()
     if (!trimmed) { printPrompt(); return }
 
-    // 显示用户输入的边框
-    printUserInput(trimmed)
+    // 用户输入已实时回显到终端，这里不再重复打印归档行。
+    // （旧行为：printUserInput 会再写一行灰色斜体副本，导致视觉重复）
 
     // 处理 Slash 命令
     if (trimmed.startsWith('/')) {

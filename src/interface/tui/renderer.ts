@@ -8,7 +8,7 @@
 // ============================================================
 
 import type { Agent, AgentEvent } from '../../agent/index.js'
-import { dim, gray, green, yellow, red, clearLine, clearBelow, italic } from './theme.js'
+import { dim, gray, green, yellow, red, clearLine, clearBelow } from './theme.js'
 import { renderToLines } from '../markdown-renderer.js'
 
 // 用于覆盖旧输出的 ANSI 序列
@@ -127,6 +127,5 @@ export function printPrompt(): void {
   process.stdout.write(`\n${green('> ')}`)
 }
 
-export function printUserInput(input: string): void {
-  process.stdout.write(`\r${clearLine()}\r${dim(gray('>'))} ${italic(gray(input))}\n`)
-}
+// printUserInput 已移除 —— 旧行为是"回显后再写一份灰色归档副本"，
+// 视觉上等同打印两次。现在用户输入仅由 readline 回显负责。
