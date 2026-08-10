@@ -12,105 +12,77 @@
 //   - 链接 [text](url)
 //
 // 用法:
-//   renderMarkdown(text)   → 直接输出到终端
-//   stripMarkdown(text)    → 去除标记，纯文本
+//   renderMarkdown(text)   → 输出格式化终端文本
+//   stripMarkdown(text)    → 去除标记，返回纯文本
+//   stripMarkdownInline(text) → 仅剥离行内标记，保留结构
 // ============================================================
 
 import { bold, dim, gray, cyan, yellow, italic } from './tui/theme.js'
 
-// ── ANSI 工具 ──
+// ── 纯文本剥离（适合流式增量输出） ──
 
-/** 在终端输出文本（带缓存消除） */
-let lastOutput = ''
-export function writeChunk(text: string): void {
-  if (text === lastOutput) return  // 避免重复输出相同内容
-  lastOutput = text
-  process.stdout.write(text)
-}
+/**
+ * 剥离 Markdown 标记，返回纯文本（适合流式输出）
+ * 只去除标记符号，不添加 ANSI 转义码
+ */
+export function stripMarkdown(markdown: string): string {
+  if (!markdown) return ''
 
-// ── 行级渲染 ──
+  let result = markdown
 
-/** 渲染标题行 */
-function renderHeading(line: string, level: number): string {
-  const prefix = ' '.repeat(2)
-  const icon = level === 1 ? '📌' : level === 2 ? '📎' : '  •'
-  const color = level === 1 ? bold : level === 2 ? yellow : cyan
-  return `\n${prefix}${icon} ${color(line.replace(/^#+\s*/, ''))}\n`
-}
+  // 代码块替换为空行
+  result = result.replace(/```[\s\S]*?```/g, '')
 
-/** 渲染代码块分隔行 */
-function renderCodeFence(): string {
-  return dim(gray('│'))
-}
+  // 标题标记
+  result = result.replace(/^###\s+/gm, '')
+  result = result.replace(/^##\s+/gm, '')
+  result = result.replace(/^#\s+/gm, '')
 
-/** 渲染引用行 */
-function renderQuote(line: string): string {
-  const text = line.replace(/^>\s*/, '').trim()
-  return `${dim('│')} ${dim(italic(text))}`
-}
+  // 引用标记
+  result = result.replace(/^>\s*/gm, '')
 
-/** 渲染列表项 */
-function renderListItem(line: string): string {
-  const text = line.replace(/^[\s]*[-*]\s+/, '')
-  return `  • ${text}`
-}
+  // 列表标记
+  result = result.replace(/^[\s]*[-*]\s+/gm, '  • ')
 
-/** 渲染分割线 */
-function renderHr(): string {
-  return dim(gray('─'.repeat(process.stdout.columns || 60)))
-}
+  // 分割线
+  result = result.replace(/^-{3,}$/gm, '───')
 
-// ── 行内渲染 ──
+  // 加粗 / 斜体
+  result = result.replace(/\*\*(.+?)\*\*/g, '$1')
+  result = result.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
 
-/** 渲染行内格式（加粗、斜体、行内代码、链接） */
-function renderInline(text: string): string {
-  let result = text
+  // 行内代码
+  result = result.replace(/`([^`]+)`/g, '$1')
 
-  // 代码块标记（行内 `code`）— 优先处理
-  result = result.replace(/`([^`]+)`/g, (_, code) => {
-    return gray(code)
-  })
-
-  // 加粗 **text**
-  result = result.replace(/\*\*(.+?)\*\*/g, (_, t) => bold(t))
-
-  // 斜体 *text*
-  result = result.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, (_, t) => italic(t))
-
-  // 链接 [text](url)
-  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
-    return `${cyan(text)}${dim(gray(` (${url})`))}`
-  })
+  // 链接 [text](url) → text
+  result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
 
   return result
 }
 
-// ── 主入口 ──
+// ── 格式化输出（适合完整消息渲染） ──
 
 /**
  * 将 Markdown 文本渲染为 ANSI 格式并输出到 stdout
- * @param markdown - 原始 Markdown 文本
+ * 每行追加换行，适合分段渲染
  */
 export function renderMarkdown(markdown: string): void {
   if (!markdown) return
-  lastOutput = ''
 
   const lines = markdown.split('\n')
   let inCodeBlock = false
 
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i]
-
+  for (const rawLine of lines) {
     // 代码块切换
     if (rawLine.trimStart().startsWith('```')) {
       inCodeBlock = !inCodeBlock
-      writeChunk(renderCodeFence() + '\n')
+      process.stdout.write(dim(gray('│')) + '\n')
       continue
     }
 
-    // 代码块内的文本 — 原样输出但不换行，不渲染
+    // 代码块内的文本 — 灰色缩进
     if (inCodeBlock) {
-      writeChunk(`  ${gray(rawLine)}\n`)
+      process.stdout.write(`  ${gray(rawLine)}\n`)
       continue
     }
 
@@ -118,59 +90,68 @@ export function renderMarkdown(markdown: string): void {
 
     // 空行
     if (!trimmed) {
-      writeChunk('\n')
+      process.stdout.write('\n')
       continue
     }
 
     // 标题
     if (trimmed.startsWith('### ')) {
-      writeChunk(renderHeading(rawLine, 3))
+      process.stdout.write(`  ${cyan(rawLine.replace(/^###\s*/, ''))}\n`)
       continue
     }
     if (trimmed.startsWith('## ')) {
-      writeChunk(renderHeading(rawLine, 2))
+      process.stdout.write(` ${yellow(rawLine.replace(/^##\s*/, ''))}\n`)
       continue
     }
     if (trimmed.startsWith('# ')) {
-      writeChunk(renderHeading(rawLine, 1))
+      process.stdout.write(`${bold(rawLine.replace(/^#\s*/, ''))}\n`)
       continue
     }
 
     // 分割线
     if (/^-{3,}$/.test(trimmed)) {
-      writeChunk(renderHr() + '\n')
+      process.stdout.write(dim(gray('─'.repeat(Math.min(process.stdout.columns || 60, 60)))) + '\n')
       continue
     }
 
-    // 引用
+    // 引用 — 暗淡斜体
     if (trimmed.startsWith('>')) {
-      writeChunk(renderQuote(rawLine) + '\n')
+      const text = rawLine.replace(/^>\s*/, '').trim()
+      process.stdout.write(`${dim('│')} ${dim(italic(text))}\n`)
       continue
     }
 
-    // 列表
+    // 列表 — 带圆点
     if (/^[\s]*[-*]\s+/.test(trimmed)) {
-      writeChunk(renderInline(renderListItem(rawLine)) + '\n')
+      const text = renderInline(rawLine.replace(/^[\s]*[-*]\s+/, ''))
+      process.stdout.write(`  • ${text}\n`)
       continue
     }
 
     // 普通文本 — 渲染行内格式
-    writeChunk(renderInline(rawLine) + '\n')
+    process.stdout.write(renderInline(rawLine) + '\n')
   }
 }
 
-/**
- * 去除 Markdown 标记，返回纯文本（用于搜索、日志等场景）
- */
-export function stripMarkdown(markdown: string): string {
-  return markdown
-    .replace(/```[\s\S]*?```/g, '')    // 移除代码块
-    .replace(/`([^`]+)`/g, '$1')       // 移除行内代码
-    .replace(/\*\*(.+?)\*\*/g, '$1')   // 移除加粗
-    .replace(/\*([^*]+)\*/g, '$1')     // 移除斜体
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // 链接只保留文字
-    .replace(/^#+\s*/gm, '')           // 移除标题标记
-    .replace(/^>\s*/gm, '')            // 移除引用标记
-    .replace(/^[\s]*[-*]\s+/gm, '')    // 移除列表标记
-    .trim()
+// ── 行内格式化 ──
+
+/** 渲染行内格式（加粗、斜体、行内代码、链接） */
+function renderInline(text: string): string {
+  let result = text
+
+  // 行内代码 — 优先处理
+  result = result.replace(/`([^`]+)`/g, (_, code: string) => gray(code))
+
+  // 加粗
+  result = result.replace(/\*\*(.+?)\*\*/g, (_, t: string) => bold(t))
+
+  // 斜体
+  result = result.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, (_, t: string) => italic(t))
+
+  // 链接
+  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text: string, url: string) => {
+    return `${cyan(text)}${dim(gray(` (${url})`))}`
+  })
+
+  return result
 }

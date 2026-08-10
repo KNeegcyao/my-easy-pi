@@ -2,48 +2,44 @@
 // TUI Renderer — 全屏渲染器
 //
 // 管理消息区域的渲染，使用 alternate screen。
-// 自动将 Markdown 渲染为 ANSI 终端格式。
+// 流式增量输出，自动剥离 Markdown 标记。
 // ============================================================
 
 import type { Agent, AgentEvent } from '../../agent/index.js'
-import { dim, gray, green, red, clearLine, clearBelow } from './theme.js'
-import { renderMarkdown } from '../markdown-renderer.js'
-
-let renderedContent = ''
-let hasReceivedContent = false
+import { dim, gray, green, red, clearLine } from './theme.js'
+import { stripMarkdown } from '../markdown-renderer.js'
 
 export function createTUIRenderer(agent: Agent): void {
-  renderedContent = ''
-  hasReceivedContent = false
+  let lastContentLength = 0
+  let hasReceivedContent = false
 
   agent.subscribe((event: AgentEvent) => {
     switch (event.type) {
       case 'message_start':
-        renderedContent = ''
+        lastContentLength = 0
         hasReceivedContent = false
         break
 
       case 'message_update': {
         const content = event.message.content
-        if (content && content !== renderedContent) {
-          // 首次收到内容时，清除"thinking..."行
-          if (!hasReceivedContent) {
+        if (content) {
+          if (!hasReceivedContent && content.length > 0) {
+            // 清除"thinking..."行
             process.stdout.write('\r' + clearLine() + '\r')
             hasReceivedContent = true
           }
-
-          // 清除之前渲染的内容，重新输出完整内容
-          // 注意：这里假设输出始终在终端底部，使用 clearBelow 清除光标下方
-          const prefix = clearBelow()
-          process.stdout.write('\r' + prefix + '\r')
-          renderMarkdown(content)
-          renderedContent = content
+          // 增量输出 — 只写入新增的字符
+          const newPart = content.slice(lastContentLength)
+          if (newPart) {
+            process.stdout.write(stripMarkdown(newPart))
+          }
+          lastContentLength = content.length
         }
         break
       }
 
       case 'message_end':
-        if (event.message.role === 'assistant' && renderedContent) {
+        if (event.message.role === 'assistant' && lastContentLength > 0) {
           process.stdout.write('\n')
         }
         break
