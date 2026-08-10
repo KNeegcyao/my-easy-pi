@@ -1,13 +1,41 @@
 ---
+
+> **"What I cannot create, I do not understand."** — Richard Feynman
+>
+> piagent 的核心理念：**与其停留在"使用"层面，不如亲手搭建一个。**
+> 这个项目源于 [Pi](https://github.com/earendil-works/pi) 的设计哲学——一个**自扩展编码 Agent**。
+> piagent 是 pi 的精简学习版，保留了核心架构，砍掉了生产级复杂度，
+> 让你可以在 **~3000 行代码** 的规模上，完整理解 AI Coding Agent 的每一层。
+
 ---
 
-# piagent 学习路线图
+# 🎓 piagent 学习路线图
 
 > 从零理解并构建一个 AI Coding Agent 的渐进式学习指南
+>
+> 本教程假设你已经了解 TypeScript 基础——但对 AI 和 Agent 零基础也完全 OK。
 
 ---
 
-## 路线图总览
+## 🧬 piagent 与 pi 的关系
+
+本仓库是 [Pi](https://github.com/earendil-works/pi) 的学习伴侣。如果你熟悉 pi，你会发现：
+
+```
+Pi（生产级）                  piagent（学习版）
+──────────                   ──────────
+数十万行代码                   ~3000 行
+多包 monorepo                 单仓库
+外部文档                       10 章内嵌教程
+少注释                         逐行中文注释
+自扩展设计                      简化扩展系统
+```
+
+**学习路径建议：** 先通读 piagent → 再深入 pi → 最终理解 Claude Code / Cursor
+
+---
+
+## 🗺️ 路线图总览
 
 ```
 01-before-start/      前置准备

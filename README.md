@@ -1,16 +1,19 @@
 <p align="center">
   <h1 align="center">piagent</h1>
   <p align="center">
-    <strong>🧑‍💻 轻量级 AI 编程助手 · 从零搭建的 AI Coding Agent</strong>
+    <strong>🧑‍💻 从零学习 AI Coding Agent 的渐进式教程</strong>
   </p>
   <p align="center">
-    <a href="docs/README.md"><strong>📖 学习路线图</strong></a>
+    <em>Learn by building — 通过动手搭建，真正理解 AI Coding Agent 如何工作</em>
+  </p>
+  <p align="center">
+    <a href="docs/README.md"><strong>📖 开始学习 →</strong></a>
     ·
     <a href="#-快速开始">快速开始</a>
     ·
-    <a href="#-架构">架构</a>
+    <a href="#-关于-pi">关于 pi</a>
     ·
-    <a href="#-内置工具">内置工具</a>
+    <a href="#-架构">架构</a>
     ·
     <a href="#-开发">开发</a>
   </p>
@@ -27,13 +30,39 @@
 
 ---
 
-**piagent** 是一个从零搭建的 AI 编程助手（Coding Agent），类似简化版的 [Claude Code](https://claude.ai) / [Cursor](https://cursor.sh)。它展示了如何通过 **6 层分层架构**将大语言模型（LLM）与工具调用系统有机结合，实现一个可投入团队内部使用的 AI 助手。
+> **"What I cannot create, I do not understand."** — Richard Feynman
+>
+> piagent 的核心理念：**读代码不如写代码，用工具不如造工具。** 只有亲手从零搭建一个 AI Coding Agent，你才能真正理解它背后的每一行逻辑。
+
+---
+
+## 🎯 学习使命
+
+piagent 不是一个"开箱即用"的产品，而是一份**从零学习 AI Coding Agent 的渐进式教程**。
+
+| 维度 | piagent | Claude Code / Cursor |
+|------|---------|---------------------|
+| 🎓 **定位** | 学习项目，代码可读 | 生产工具，代码量大 |
+| 📏 **规模** | ~3000 行 TypeScript | 数十万行 |
+| 🧩 **架构** | 6 层分层，每层清晰 | 复杂模块化 |
+| 📖 **文档** | 10 章循序渐进的教程 | 产品文档 |
+| 🔧 **可扩展** | ✅ 扩展系统 | ✅ 插件市场 |
+
+**适合你，如果：**
+- 你想深入理解 AI Coding Agent 的**工作原理**
+- 你想知道 LLM 是如何"调用工具"的
+- 你想学习 **TypeScript 分层架构设计**
+- 你想为将来贡献开源项目或开发自己的 Agent 打基础
+
+**不适合你，如果：**
+- 你只需要一个开箱即用的 AI 编程助手 → 请用 [Claude Code](https://claude.ai) 或 [Cursor](https://cursor.sh)
+- 你不想了解底层原理
 
 ---
 
 ## 🎓 学习路线图
 
-> **想从零理解 AI Coding Agent 的工作原理？** 本项目配套了一份完整的 **10 章循序渐进学习指南**，从概念到代码，逐层深入。
+> 从零开始，10 章带你逐层深入 piagent 的每一行代码。
 
 <p align="center">
   <a href="docs/README.md">
@@ -46,46 +75,89 @@
 | 01 | [前置准备](docs/01-before-start/README.md) | 什么是 AI Coding Agent？环境搭建与项目结构 | ~55 min |
 | 02 | [AI 层](docs/02-ai-layer/README.md) | 核心类型 · Model 接口 · Provider 策略 · 注册中心 · 错误码与重试 | ~90 min |
 | 03 | [Agent 层 ⭐](docs/03-agent-layer/README.md) | **核心循环** · 状态管理 · 消息队列 · 权限系统 · 事件驱动 | ~120 min |
-| 04 | [工具层](docs/04-tools-layer/README.md) | 工具注册表 · 7 个内置工具（bash/read/write/edit/grep/find/ls） | ~75 min |
+| 04 | [工具层](docs/04-tools-layer/README.md) | 工具注册表 · 7 个内置工具 | ~75 min |
 | 05 | [会话层](docs/05-session-layer/README.md) | JSONL 持久化 · 会话管理 · 上下文压缩 | ~60 min |
 | 06 | [扩展层](docs/06-extension-layer/README.md) | ExtensionAPI · 扩展加载器 · 插件化开发 | ~60 min |
-| 07 | [接口层](docs/07-interface-layer/README.md) | Print 模式 · TUI 交互 · JSON 输出 · RPC 协议 | ~90 min |
-| 08 | [配置与沙箱](docs/08-config-and-sandbox/README.md) | 分层配置 · 日志系统 · Docker 沙箱隔离 | ~75 min |
-| 09 | [串联一切](docs/09-putting-it-together/README.md) | CLI 入口源码分析 · 完整的端到端数据流 | ~90 min |
-| 10 | [进阶主题](docs/10-advanced-topics/README.md) | 新增工具/Provider/扩展 · 测试策略 | ~90 min |
+| 07 | [接口层](docs/07-interface-layer/README.md) | Print · TUI · JSON · RPC 四种交互模式 | ~90 min |
+| 08 | [配置与沙箱](docs/08-config-and-sandbox/README.md) | 分层配置 · 日志 · Docker 沙箱隔离 | ~75 min |
+| 09 | [串联一切](docs/09-putting-it-together/README.md) | CLI 入口源码分析 · 完整端到端数据流 | ~90 min |
+| 10 | [进阶主题](docs/10-advanced-topics/README.md) | 新增工具 · Provider · 扩展 · 测试策略 | ~90 min |
 
 ```
 推荐路径: 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10
-         前置准备 → AI 层 → Agent 层 → 工具层 → 会话层 → 扩展层 → 接口层 → 配置沙箱 → 串联 → 进阶
 ```
 
 ---
 
-## ✨ 特性
+## 🧬 关于 pi
+
+piagent 的设计深受 [earendil-works/pi](https://github.com/earendil-works/pi) 的启发。
+
+### pi 的思想
+
+[Pi](https://pi.dev) 是一个**自扩展编码 Agent**（self-extensible coding agent），它的核心哲学是：
+
+> **Agent 应该能够理解并扩展自身。** Pi 不仅是一个工具，更是一个框架——它提供了统一的 LLM 调用抽象、Agent 运行时、工具系统和 TUI，让你可以在此基础上构建自己的 AI 助手。
+
+### piagent 与 pi 的关系
+
+```
+Pi (earendil-works/pi)
+├── @earendil-works/pi-coding-agent    ← 交互式 CLI
+├── @earendil-works/pi-agent-core      ← Agent 运行时
+├── @earendil-works/pi-ai             ← 多 Provider LLM 层
+├── @earendil-works/pi-tui            ← 终端 UI 库
+└── ...
+
+piagent (本仓库)
+├── src/cli.ts                        ← 精简版 CLI
+├── src/ai/                           ← 统一 LLM 接口
+├── src/agent/                        ← Agent 核心循环
+├── src/tools/                        ← 内置工具
+├── src/session/                      ← 会话管理
+├── src/extension/                    ← 扩展系统
+├── src/interface/                    ← 输出模式
+└── docs/                             ← 10 章学习教程
+```
+
+**关键区别：**
+
+| 维度 | Pi | piagent |
+|------|----|---------|
+| 🎯 **目标** | 生产级自扩展 Agent | 学习用精简实现 |
+| 📚 **学习成本** | 需要理解完整生态 | 单人可读完 |
+| 📝 **代码注释** | 少量 | **逐行注释** |
+| 📖 **配套教程** | 外部文档 | **10 章渐进式教程** |
+| 🔌 **扩展方式** | npm 包 + 扩展 | 文件级扩展系统 |
+
+### 从 pi 开始的理由
+
+选择 pi 的生态作为学习起点，而不是从零凭空造轮子，是因为：
+
+1. **经过验证的架构** — pi 的分层设计已经被生产环境验证
+2. **真实项目映射** — 学习 piagent 后，你能更快理解 pi、Claude Code 等工作原理
+3. **可扩展的基础** — 掌握了 piagent，你可以轻松过渡到 pi 的完整生态
+4. **社区支持** — pi 有活跃的社区和丰富的扩展
+
+---
+
+## ✨ 特性速览
 
 | 特性 | 说明 |
 |------|------|
-| 🤖 **多 LLM 提供商** | 支持 DeepSeek（默认）、Anthropic Claude、OpenAI，策略模式可扩展 |
-| 🔧 **7 个内置工具** | bash、read、write、edit、grep、find、ls，覆盖日常开发操作 |
-| 🖥️ **全屏 TUI** | 仿 Claude Code 的交替屏幕（Alt Screen）模式，输入/输出区域分离 |
-| 📁 **会话持久化** | JSONL 格式自动保存，支持 `pi -c` 恢复上次会话 |
-| 🔒 **三级权限系统** | SAFE / NORMAL / DANGEROUS 风险控制 + TTY 检测 |
-| 📦 **Docker 沙箱** | 可选容器化执行，资源受限隔离主机，不可用时自动回退本地 |
-| 🔌 **扩展系统** | ExtensionAPI 支持自定义工具注册，无需修改内核 |
-| 📊 **三种输出模式** | Print（人类可读）、JSON（JSONL 事件流）、RPC（进程间通信） |
-| ⚙️ **分层配置** | CLI > 环境变量 > 用户配置 > 项目配置 > 默认值 |
-| 🛡️ **专业错误处理** | 统一错误码 + 指数退避重试 + JSONL 日志审计 |
+| 🤖 **多 LLM 提供商** | 支持 DeepSeek（默认）、Anthropic Claude、OpenAI |
+| 🔧 **7 个内置工具** | bash、read、write、edit、grep、find、ls |
+| 🖥️ **全屏 TUI** | 仿 Claude Code 的 Alt Screen 模式 |
+| 📁 **会话持久化** | JSONL 格式自动保存，支持 `-c` 恢复 |
+| 🔒 **三级权限系统** | SAFE / NORMAL / DANGEROUS + TTY 检测 |
+| 📦 **Docker 沙箱** | 可选容器化执行，自动降级回退 |
+| 🔌 **扩展系统** | ExtensionAPI 支持自定义工具，无需修改内核 |
+| 📊 **四种输出模式** | Print · TUI · JSON · RPC |
+| 🛡️ **专业错误处理** | 统一错误码 + 指数退避重试 |
 
 ---
 
 ## 📦 安装
-
-### 前置要求
-
-- **Node.js** >= 22
-- **npm** >= 10
-
-### 本地安装
 
 ```bash
 # 克隆仓库
@@ -97,330 +169,54 @@ npm install
 
 # 类型检查
 npx tsc --noEmit
+
+# 配置 API 密钥
+export DEEPSEEK_API_KEY=sk-xxxx
+
+# 启动 TUI
+npx tsx src/cli.ts
 ```
 
-### 配置全局命令
-
-```bash
-# 推荐：一键初始化（创建配置文件 + 构建沙箱 + 环境检查）
-npx tsx src/cli.ts --init
-
-# 或手动设置别名
-echo 'alias pi="npx tsx $(pwd)/src/cli.ts"' >> ~/.zshrc
-source ~/.zshrc
-```
-
-### 设置 API 密钥
-
-```bash
-# 方式一：环境变量（推荐，优先级高）
-export DEEPSEEK_API_KEY=sk-xxxx        # DeepSeek（默认提供商）
-export ANTHROPIC_API_KEY=sk-ant-xxxx   # Anthropic Claude
-export OPENAI_API_KEY=sk-xxxx          # OpenAI
-
-# 方式二：配置文件（pi --init 自动创建，编辑 ~/.piagent/config.json）
-```
+> 完整的安装指南请见 [环境搭建](docs/01-before-start/02-environment-setup.md)
 
 ---
 
-## 🚀 快速开始
-
-```bash
-# 一键启动全屏 TUI（最常用的方式）
-pi
-
-# 直接问答
-pi -m "解释一下 JavaScript 的闭包"
-
-# 管道模式——让 AI 处理文件内容
-cat package.json | pi -p "分析依赖关系"
-
-# 继续上次会话
-pi -c
-
-# 列出所有会话
-pi -l
-
-# 删除指定会话
-pi --delete session-1746000000000
-
-# 指定模型和提供商
-pi -m "你好" --provider anthropic --model claude-sonnet-4-20250514
-```
-
----
-
-## 📖 使用指南
-
-### 命令行参数
-
-| 参数 | 说明 | 示例 |
-|------|------|------|
-| `-m, --message` | 直接输入消息 | `pi -m "你好"` |
-| `-p, --prompt` | 管道模式指令 | `cat file \| pi -p "翻译"` |
-| `-c, --continue` | 继续上次会话 | `pi -c` |
-| `-l, --list` | 列出所有会话 | `pi -l` |
-| `--delete <id>` | 删除指定会话 | `pi --delete session-xxx` |
-| `--init` | 初始化配置和沙箱 | `pi --init` |
-| `-o, --output` | 输出模式 | `pi -m "hi" -o json` |
-| `--model <id>` | 指定模型 ID | `pi -m "hi" --model gpt-4o` |
-| `--provider <name>` | 指定提供商 | `pi -m "hi" --provider openai` |
-| `-h, --help` | 查看帮助 | `pi -h` |
-
-### TUI Slash 命令
-
-在全屏 TUI 模式下，输入 `/` 开头执行以下命令：
-
-| 命令 | 功能 |
-|------|------|
-| `/help` | 显示帮助信息 |
-| `/model` | 查看当前模型信息 |
-| `/cost` | 查看 Token 使用统计 |
-| `/clear` | 清屏 |
-| `/exit` | 退出程序 |
-
-### 输出模式
-
-| 模式 | 用途 | 示例 |
-|------|------|------|
-| `print`（默认） | 人类可读的流式终端输出 | `pi -m "你好"` |
-| `tui` | 全屏交替屏幕交互模式 | `pi` 或 `pi -i` |
-| `json` | JSONL 事件流，适合程序消费 | `pi -m "hello" -o json \| jq '.type'` |
-| `rpc` | stdin/stdout 协议，供其他语言嵌入 | 参见 RPC 协议文档 |
-
-### 支持的 LLM 提供商
-
-| 提供商 | 默认模型 | 环境变量 | 配置方式 |
-|--------|---------|---------|---------|
-| **DeepSeek** | `deepseek-chat` | `DEEPSEEK_API_KEY` | 默认 |
-| **Anthropic** | `claude-sonnet-4-20250514` | `ANTHROPIC_API_KEY` | `--provider anthropic` |
-| **OpenAI** | `gpt-4o` | `OPENAI_API_KEY` | `--provider openai` |
-
-### 环境变量（优先级高于配置文件）
-
-```
-DEEPSEEK_API_KEY     DeepSeek API 密钥
-ANTHROPIC_API_KEY    Anthropic API 密钥
-OPENAI_API_KEY       OpenAI API 密钥
-```
-
-配置文件路径：`~/.piagent/config.json`（可用 `apiKeys` 字段存储密钥）
-
----
-
-## 🏗 架构
+## 🏗 架构总览
 
 ### 6 层分层设计
 
 ```
 ┌──────────────────────────────────────────────────┐
-│ ⑧ CLI 入口 (src/cli.ts)                          │
-│   参数解析 · 模块组装 · 环境变量读取                 │
+│  🚪 CLI 入口 (src/cli.ts)                        │
 ├──────────────────────────────────────────────────┤
-│ ⑥ 接口层 (src/interface/)                        │
-│   Print 模式 · TUI 交互 · JSON 输出 · RPC 协议     │
+│  🖥️ 接口层 (src/interface/) — 4 种输出模式        │
 ├──────────────────────────────────────────────────┤
-│ ⑤ Agent 层 (src/agent/)                          │
-│   核心循环 · 状态管理 · 消息队列 · 权限控制         │
+│  🧠 Agent 层 (src/agent/) — 核心循环              │
 ├──────────────────────────────────────────────────┤
-│ ④ 扩展层 (src/extension/)                        │
-│   ExtensionAPI · Loader · 插件发现机制             │
+│  🔌 扩展层 (src/extension/) — 插件系统            │
 ├──────────────────────────────────────────────────┤
-│ ③ 工具层 (src/tools/)                            │
-│   ToolRegistry · 7 个内置工具 · 统一接口           │
+│  🔧 工具层 (src/tools/) — 7 个内置工具             │
 ├──────────────────────────────────────────────────┤
-│ ② 会话层 (src/session/)                          │
-│   JSONL 持久化 · 分支对话 · 会话管理 · 上下文压缩   │
+│  📁 会话层 (src/session/) — 持久化与上下文管理      │
 ├──────────────────────────────────────────────────┤
-│ ① AI 层 (src/ai/)                                │
-│   ModelRegistry · Provider 模式 · 3 个 LLM 提供商  │
-│   统一错误码 · 指数退避重试机制                     │
+│  🤖 AI 层 (src/ai/) — 统一 LLM 调用接口           │
 ├──────────────────────────────────────────────────┤
-│ 🐳 沙箱层 (src/sandbox/)                         │
-│   Docker 容器化执行 · 资源限制 · 自动降级回退       │
+│  🐳 沙箱层 (src/sandbox/) — 安全执行环境           │
+│  ⚙️ 配置层 (src/config/) — 分层配置管理            │
 └──────────────────────────────────────────────────┘
 ```
 
-### 核心设计模式
-
-| 模式 | 说明 |
-|------|------|
-| **🔻 依赖漏斗** | 上层依赖下层，下层绝不依赖上层——保证每一层可独立测试和替换 |
-| **📈 类型渐进扩展** | `Tool`（AI 层，基础定义）→ `AgentTool extends Tool`（Agent 层，加 execute），类型能力随层次递增 |
-| **🔌 扩展优先** | 扩展系统是一等公民，不修改内核即可注册自定义工具和命令 |
-| **📡 事件驱动** | Agent 通过 `subscribe`/`emit` 与 UI 解耦，同一 Agent 实例可同时对接 Print、TUI、JSON、RPC |
-| **🛡️ 防御性编程** | 统一 `AppError` 错误码 + `isAppError()` 类型守卫，前端友好提示 |
-
-### 核心流程：Agent Loop
-
+**核心设计原则：依赖漏斗**
 ```
-用户输入
-    │
-    ▼
-┌─────────────────────────┐
-│ 1. 消息转换 & 上下文压缩  │  ← Compactor 阈值控制，保留最近 N 条完整
-└────────┬────────────────┘
-         │
-         ▼
-┌─────────────────────────┐
-│ 2. 调用 LLM 获取响应     │  ← SSE 流式解析，支持 text/tool_call/thinking
-└────────┬────────────────┘
-         │
-    ┌────┴────┐
-    │ 有工具   │
-    │ 调用？   │
-    └────┬────┘
-  是 ↓    ↓ 否 → 检查消息队列 → 有→继续 / 无→结束
-        │
-┌───────┴────────┐
-│ 3. 预检权限     │  ← PermissionManager：三级风险 + TTY 检测
-└───────┬────────┘
-        │
-┌───────┴────────┐
-│ 4. 执行工具     │  ← Docker 沙箱（沙箱层）或本地进程
-│    (并行/串行)  │
-└───────┬────────┘
-        │
-┌───────┴────────┐
-│ 5. 结果送回 LLM │  ← 作为 toolResult 消息继续下一轮
-└───────┬────────┘
-        │
-        └→ 回到步骤 1
+上层依赖下层，下层绝不依赖上层
+         ↓
+  接口层 ──→ 依赖 Agent 层
+  Agent 层 ──→ 依赖 AI 层 + 工具层
+  工具层 ──→ 不依赖任何上层
+  AI 层   ──→ 不依赖任何上层
+         ↓
+保证每一层可独立测试和替换
 ```
-
-### 事件驱动架构
-
-Agent 在处理过程中发射各类事件，接口层通过订阅模式消费：
-
-```
-Agent 实例 ────→ Print 接口（终端输出）
-           ├──→ TUI 渲染器（全屏交互 + Slash 命令）
-           ├──→ JSON 输出（JSONL 事件流）
-           └──→ RPC 协议（进程间通信）
-```
-
-| 事件 | 触发时机 | 用途 |
-|------|---------|------|
-| `agent_start` / `agent_end` | 会话生命周期 | 会话管理、日志记录 |
-| `turn_start` / `turn_end` | 单轮交互 | 进度显示、Token 统计 |
-| `message_start` / `message_update` / `message_end` | 消息流 | 流式增量输出 |
-| `tool_execution_start` / `tool_execution_end` | 工具调用 | 工具执行状态显示 |
-
----
-
-## 🔧 内置工具
-
-| 工具 | 功能 | 实现方式 | 沙箱支持 |
-|------|------|---------|---------|
-| `bash` | 执行 shell 命令 | `child_process.exec` / Docker 容器 | ✅ |
-| `read` | 读取文件内容 | `fs.promises.readFile` | ❌ |
-| `write` | 写入文件内容 | `fs.promises.writeFile` | ❌ |
-| `edit` | 替换文件中的文本 | read → replace → write | ❌ |
-| `grep` | 搜索关键词 | shell `grep -rn` | ❌ |
-| `find` | 按名称查找文件 | shell `find -name` | ❌ |
-| `ls` | 列出目录内容 | `fs.promises.readdir` | ❌ |
-
-### bash 工具安全流程
-
-```text
-LLM 发起 bash 调用
-        │
-        ▼
-┌──────────────────┐
-│ PermissionManager │
-│ 三级风险判定       │
-└────────┬─────────┘
-         │
-   ┌─────┴─────┐
-   ▼           ▼
- SAFE        NORMAL / DANGEROUS
-  │               │
-  ▼               ▼
- 直接放行     TTY 环境?
-  │           │        │
-  │         是        否
-  │           │        │
-  │           ▼        ▼
-  │       用户确认   自动拒绝
-  │           │
-  └─────┬─────┘
-        ▼
-┌──────────────────┐
-│ Docker 可用?      │
-├────────┬─────────┤
-│ 是     │ 否      │
-│  ▼     │ ▼       │
-│ 容器中  │ 本地    │
-│ 执行    │ 执行    │
-└────────┴─────────┘
-```
-
----
-
-## 🛡️ 生产加固
-
-### 权限系统 (`src/agent/permission.ts`)
-
-| 风险等级 | 示例命令 | 处理方式 |
-|---------|---------|---------|
-| 🟢 **SAFE** | `ls`, `cat`, `whoami`, `date` | 直接放行 |
-| 🟡 **NORMAL** | `npm install`, `git status`, `mkdir` | 交互式确认 |
-| 🔴 **DANGEROUS** | `rm -rf`, `sudo`, `drop table`, `shutdown` | 直接拒绝 |
-
-非 TTY 环境（管道、CI）自动拒绝所有 NORMAL/DANGEROUS 命令。
-
-### Docker 沙箱 (`src/sandbox/docker.ts`)
-
-```text
-┌──────────────────────────────────────┐
-│          Docker 容器                  │
-│  ┌────────────────────────────────┐  │
-│  │  Alpine Linux                  │  │
-│  │  bash, coreutils, curl, git    │  │
-│  │  工作目录: /workspace          │  │
-│  └────────────────────────────────┘  │
-│  ┌────────────────────────────────┐  │
-│  │  资源限制                       │  │
-│  │  --network none  (无网络)      │  │
-│  │  --memory 512m  (内存上限)     │  │
-│  │  --cpus 1       (CPU 上限)     │  │
-│  │  --pids-limit 50 (进程上限)    │  │
-│  │  --read-only    (系统只读)     │  │
-│  │  --tmpfs /tmp   (临时目录)     │  │
-│  └────────────────────────────────┘  │
-└──────────────────────────────────────┘
-```
-
-Docker 不可用时自动回退到本地执行，功能不受影响。
-
-### 错误码 (`src/ai/errors.ts`)
-
-统一的 `AppError` 接口，提供人类可读的错误提示：
-
-```text
-[PROVIDER_NOT_FOUND]    不支持的提供商 "xxx"
-  💡 可用: deepseek, anthropic, openai
-
-[AUTH_API_KEY_MISSING]  提供商 "xxx" 的 API 密钥未配置
-  💡 请设置环境变量 XXX_API_KEY
-
-[MODEL_NOT_FOUND]       找不到模型 "xxx"
-  💡 请检查模型名称是否正确
-
-[TOOL_NOT_FOUND]        找不到工具 "xxx"
-[TOOL_EXECUTION_FAILED] 工具执行失败
-[AGENT_ALREADY_STREAMING] 正在处理中，请等待
-```
-
-### 其他加固
-
-| 措施 | 文件 | 说明 |
-|------|------|------|
-| 上下文压缩 | `src/session/compaction.ts` | 超过阈值（默认 50 条）时自动压缩历史，保留最近 N 条完整 |
-| 指数退避重试 | `src/ai/retry.ts` | 1s → 2s → 4s，最多 3 次，处理 429/502/503/504 |
-| JSONL 日志 | `src/config/logger.ts` | access / error / audit 按天轮转，JSONL 格式 |
-| 分层配置 | `src/config/settings.ts` | CLI > 环境变量 > 用户配置 > 项目配置 > 默认值 |
-| 一键初始化 | `src/config/init.ts` | `pi --init` 创建配置、构建沙箱、检查环境 |
 
 ---
 
@@ -428,153 +224,33 @@ Docker 不可用时自动回退到本地执行，功能不受影响。
 
 ```
 piagent/
-├── src/
-│   ├── cli.ts                         # 🚪 CLI 入口（参数解析 + 模块组装）
-│   │
-│   ├── ai/                            # 🤖 AI 层
-│   │   ├── types.ts                   #   核心类型：Tool、AgentMessage、Model
-│   │   ├── errors.ts                  #   AppError 统一错误码体系
-│   │   ├── retry.ts                   #   指数退避重试（fetchWithRetry）
-│   │   ├── registry.ts                #   模型注册表（ModelRegistry）
-│   │   ├── providers/
-│   │   │   ├── anthropic.ts           #   Claude API 连接器
-│   │   │   ├── deepseek.ts            #   DeepSeek API 连接器
-│   │   │   └── openai.ts              #   OpenAI API 连接器
-│   │   └── index.ts
-│   │
-│   ├── agent/                         # 🧠 Agent 层
-│   │   ├── types.ts                   #   AgentTool（Tool + execute）
-│   │   ├── state.ts                   #   状态管理 + ID 生成
-│   │   ├── loop.ts                    #   ⭐ 核心 Agent Loop
-│   │   ├── queue.ts                   #   消息队列（Steer / FollowUp）
-│   │   ├── permission.ts              #   三级权限控制
-│   │   └── index.ts
-│   │
-│   ├── tools/                         # 🔧 工具层
-│   │   ├── registry.ts                #   工具注册表
-│   │   ├── builtin/
-│   │   │   ├── bash.ts                #   shell 命令执行
-│   │   │   ├── read.ts                #   文件读取
-│   │   │   ├── write.ts               #   文件写入
-│   │   │   ├── edit.ts                #   文本替换
-│   │   │   ├── grep.ts                #   关键词搜索
-│   │   │   ├── find.ts                #   文件名查找
-│   │   │   └── ls.ts                  #   目录列表
-│   │   └── index.ts
-│   │
-│   ├── session/                       # 📁 会话层
-│   │   ├── storage.ts                 #   JSONL 文件存储
-│   │   ├── manager.ts                 #   会话 CRUD
-│   │   └── compaction.ts              #   上下文压缩
-│   │
-│   ├── extension/                     # 🔌 扩展层
-│   │   ├── api.ts                     #   ExtensionAPI
-│   │   ├── loader.ts                  #   扩展加载器
-│   │   └── index.ts
-│   │
-│   ├── config/                        # ⚙️ 配置层
-│   │   ├── settings.ts                #   ConfigManager
-│   │   ├── init.ts                    #   pi --init 初始化
-│   │   ├── logger.ts                  #   JSONL 日志
-│   │   └── index.ts
-│   │
-│   ├── sandbox/                       # 🐳 沙箱层
-│   │   ├── docker.ts                  #   DockerSandbox
-│   │   └── index.ts
-│   │
-│   └── interface/                     # 🖥️ 接口层
-│       ├── print.ts                   #   Print 模式
-│       ├── json.ts                    #   JSON 模式
-│       ├── rpc.ts                     #   RPC 模式
-│       ├── tui/
-│       │   ├── index.ts               #   TUI 入口（Alt Screen）
-│       │   ├── editor.ts              #   输入编辑
-│       │   ├── renderer.ts            #   响应渲染
-│       │   ├── commands.ts            #   Slash 命令
-│       │   └── theme.ts               #   ANSI 主题
-│       └── index.ts
-│
-├── tests/                             # ✅ 测试（9 文件 / 49 用例）
-│   └── unit/
-│       ├── ai/     (registry, retry)
-│       ├── agent/  (compactor, loop, permission, queue)
-│       ├── config/ (settings)
-│       ├── extension/ (loader)
-│       └── tools/  (registry)
-│
-├── Dockerfile                         # 🐳 沙箱镜像
-├── .github/workflows/ci.yml           # 🔄 CI（类型检查 + 测试 + 审计）
-├── scripts/audit.sh                   # 🔒 安全审计脚本
-├── pi-agent-architecture.md           # 架构设计文档
-└── README.md
+├── src/                    # 源代码（~3000 行）
+│   ├── cli.ts             # 📍 入口：参数解析 + 模块组装
+│   ├── ai/                # 🤖 统一 LLM 接口
+│   ├── agent/             # 🧠 Agent 核心循环 ⭐
+│   ├── tools/             # 🔧 7 个内置工具
+│   ├── session/           # 📁 会话持久化
+│   ├── extension/         # 🔌 扩展系统
+│   ├── interface/         # 🖥️ 输出模式
+│   ├── config/            # ⚙️ 配置管理
+│   └── sandbox/           # 🐳 Docker 沙箱
+├── docs/                  # 📖 10 章学习教程
+├── tests/                 # ✅ 49 个测试用例
+└── Dockerfile             # 🐳 沙箱镜像
 ```
 
 ---
 
 ## 🛠 开发
 
-### 技术栈
-
-| 模块 | 技术选型 | 选型理由 |
-|------|---------|---------|
-| 语言 | TypeScript 7.x | 类型安全，渐进扩展模式友好 |
-| 运行时 | Node.js 22+ | 内置 fetch、fs、child_process，零 SDK 依赖 |
-| Schema 验证 | @sinclair/typebox | 类型安全的 JSON Schema 生成 |
-| LLM API | 原生 fetch + SSE 解析 | 零第三方 SDK，完全可控 |
-| 测试 | Vitest 4.x | 高速、TypeScript 7.x 兼容 |
-
-### 开发命令
-
 ```bash
-# 编译
-npm run build
-
-# 监听模式
-npm run dev
-
-# 类型检查
-npx tsc --noEmit
-
-# 运行测试
-npm test
-
-# 测试监听
-npm run test:watch
-
-# 安全审计
-npm run audit
+npm run build        # 编译
+npm run dev          # 监听模式
+npx tsc --noEmit     # 类型检查
+npm test             # 测试
+npm run test:watch   # 测试监听
+npm run audit        # 安全审计
 ```
-
-### 开发阶段
-
-| Phase | 内容 | 状态 |
-|-------|------|------|
-| **Phase 1** | MVP：AI 层、Agent Loop、bash 工具、Print 输出 | ✅ 完成 |
-| **Phase 2** | 功能完善：7 个工具、会话持久化、消息队列、TUI | ✅ 完成 |
-| **Phase 3** | 扩展生态：OpenAI Provider、扩展系统、配置管理、JSON/RPC | ✅ 完成 |
-| **Phase 4** | 生产加固：权限系统、上下文压缩、Docker 沙箱、错误码、日志、CI/CD | ✅ 完成 |
-
-### 架构设计原则
-
-| 原则 | 说明 |
-|------|------|
-| **内核极简** | 只做最少的事，其余通过扩展机制实现 |
-| **依赖漏斗** | 下层绝不依赖上层，每层独立可测 |
-| **事件驱动** | 所有交互通过事件流，UI 与逻辑完全解耦 |
-| **消息标准化** | 统一 `AgentMessage` 格式，Provider 差异在内部消化 |
-| **类型渐进扩展** | 基础类型在低层定义，能力随层次递增（Tool → AgentTool） |
-| **扩展优先** | 扩展系统是一等公民，无需修改内核即可添加功能 |
-| **错误即 throw** | 用异常表达失败，配合 `AppError` 提供友好提示 |
-
----
-
-## 🤝 贡献
-
-欢迎通过以下方式参与：
-
-1. **加新工具**：在 `src/tools/builtin/` 下新建文件，遵循 `AgentTool` 接口
-2. **加新模型**：在 `src/ai/providers/` 下新建文件，实现 `ProviderFactory` 接口
-3. **修 Bug**：提交 Issue 或 PR
 
 ---
 
@@ -584,14 +260,15 @@ MIT License
 
 ---
 
-## 🙏 参考
+## 🙏 致谢
 
-- [earendil-works/pi](https://github.com/earendil-works/pi) — 本项目参考其设计哲学与代码结构
-- [Claude Code](https://claude.ai) — Anthropic 的 AI 编程助手
+- [earendil-works/pi](https://github.com/earendil-works/pi) — 设计哲学与架构的重要参考
+- [Claude Code](https://claude.ai) — AI 编程助手的行业标杆
 - [Cursor](https://cursor.sh) — AI-first 代码编辑器
 
 ---
 
 <p align="center">
+  <strong>Learn by building.</strong> 从 pi 开始，理解 AI Coding Agent。<br>
   Built with ❤️ by <a href="https://github.com/KNeegcyao/my-easy-pi">my-easy-pi</a>
 </p>
