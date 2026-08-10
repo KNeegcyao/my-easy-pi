@@ -1,11 +1,18 @@
 // ============================================================
 // TUI Editor — 全屏交互式输入（支持 Slash 命令）
+//
+// 交互流程：
+//   1. 显示 > 提示符等待输入
+//   2. 用户输入文本，显示输入边框
+//   3. 显示 "piagent is thinking..."
+//   4. LLM 流式输出回复内容
+//   5. 回到步骤 1
 // ============================================================
 
 import * as readline from 'readline'
 import type { Agent } from '../../agent/index.js'
-import { printThinking, printPrompt } from './renderer.js'
-import { dim, gray } from './theme.js'
+import { printThinking, printUserInput, printPrompt } from './renderer.js'
+import { dim, gray, green } from './theme.js'
 import { executeCommand } from './commands.js'
 
 export interface EditorOptions {
@@ -15,6 +22,9 @@ export interface EditorOptions {
 
 export function startEditor(options: EditorOptions): void {
   const { agent } = options
+
+  // 显示启动信息 + 输入提示
+  printStartupInfo(agent)
   printPrompt()
 
   const rl = readline.createInterface({
@@ -26,6 +36,9 @@ export function startEditor(options: EditorOptions): void {
   rl.on('line', async (line) => {
     const trimmed = line.trim()
     if (!trimmed) { printPrompt(); return }
+
+    // 显示用户输入的边框
+    printUserInput(trimmed)
 
     // 处理 Slash 命令
     if (trimmed.startsWith('/')) {
@@ -44,7 +57,7 @@ export function startEditor(options: EditorOptions): void {
     // Agent 忙时排入队列
     if (agent.state.isStreaming) {
       agent.followUp(trimmed)
-      process.stdout.write(`\r${dim(gray('→ 已加入队列'))}\n\n`)
+      process.stdout.write(`  ${dim(gray('→ 已加入队列'))}\n\n`)
       printPrompt()
       return
     }
@@ -54,7 +67,8 @@ export function startEditor(options: EditorOptions): void {
     try {
       await agent.prompt(trimmed)
     } catch (error) {
-      process.stdout.write(`\n错误: ${error instanceof Error ? error.message : String(error)}\n`)
+      const errMsg = error instanceof Error ? error.message : String(error)
+      process.stdout.write(`\n  ${green('✗')} 错误: ${errMsg}\n`)
     }
 
     printPrompt()
@@ -62,4 +76,14 @@ export function startEditor(options: EditorOptions): void {
 
   rl.on('close', () => { console.log(''); options.onExit() })
   rl.on('SIGINT', () => rl.close())
+}
+
+/** 显示启动信息 */
+function printStartupInfo(agent: Agent): void {
+  const model = agent.state.model
+  const toolCount = agent.state.tools.length
+  process.stdout.write(
+    `  ${green('piagent')} ${dim(gray('v0.1.0 ·'))} ${dim(gray(`${model.provider}/${model.id}`))}\n` +
+    `  ${dim(gray(`${toolCount} 个工具可用 · 输入 /help 查看帮助`))}\n\n`
+  )
 }

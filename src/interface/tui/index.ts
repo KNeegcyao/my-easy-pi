@@ -8,7 +8,7 @@
 import type { Agent } from '../../agent/index.js'
 import { createTUIRenderer } from './renderer.js'
 import { startEditor } from './editor.js'
-import { green, gray, red, enterAltScreen, exitAltScreen, hideCursor, showCursor } from './theme.js'
+import { enterAltScreen, exitAltScreen, hideCursor, showCursor } from './theme.js'
 import { isAppError } from '../../ai/errors.js'
 
 export function startTUI(agent: Agent): void {
@@ -21,24 +21,21 @@ export function startTUI(agent: Agent): void {
   // 全局错误处理 — 防止未捕获异常导致进程退出
   process.on('uncaughtException', (err) => {
     const msg = isAppError(err) ? `[${err.code}] ${err.message}` : err.message
-    process.stderr.write(`\n  ${red('⚠ ' + msg)}\n`)
+    process.stderr.write(`\n  ⚠ ${msg}\n`)
   })
   process.on('unhandledRejection', (err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err)
-    process.stderr.write(`\n  ${red('⚠ ' + msg)}\n`)
+    process.stderr.write(`\n  ⚠ ${msg}\n`)
   })
 
   process.on('exit', cleanup)
   process.on('SIGINT', () => { cleanup(); process.exit(0) })
   process.on('SIGTERM', () => { cleanup(); process.exit(0) })
 
+  // 创建事件渲染器
   createTUIRenderer(agent)
 
-  const model = agent.state.model
-  process.stdout.write(
-    `  ${green('piagent')} — ${gray(`${model.provider}/${model.id}`)}\n\n`
-  )
-
+  // 启动编辑器（包含启动信息、输入循环）
   startEditor({
     agent,
     onExit: () => { cleanup(); process.exit(0) },
