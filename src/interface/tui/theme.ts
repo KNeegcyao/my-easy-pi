@@ -9,6 +9,7 @@ export function dim(text: string): string { return `\x1b[2m${text}${RESET}` }
 export function green(text: string): string { return `\x1b[32m${text}${RESET}` }
 export function yellow(text: string): string { return `\x1b[33m${text}${RESET}` }
 export function red(text: string): string { return `\x1b[31m${text}${RESET}` }
+export function cyan(text: string): string { return `\x1b[36m${text}${RESET}` }
 export function gray(text: string): string { return `\x1b[90m${text}${RESET}` }
 export function italic(text: string): string { return `\x1b[3m${text}${RESET}` }
 

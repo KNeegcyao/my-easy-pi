@@ -3,10 +3,13 @@
 //
 // 流式输出，适合管道场景：
 //   echo "Hello" | piagent -p "翻译成中文"
+//
+// 自动去除 Markdown 标记，输出纯文本。
 // ============================================================
 
 import { EOL } from 'os'
 import type { Agent, AgentEvent } from '../agent/index.js'
+import { stripMarkdown } from './markdown-renderer.js'
 
 export function createPrintInterface(agent: Agent): void {
   let lastContentLength = 0
@@ -21,7 +24,7 @@ export function createPrintInterface(agent: Agent): void {
         const content = event.message.content
         if (content) {
           const newPart = content.slice(lastContentLength)
-          if (newPart) process.stdout.write(newPart)
+          if (newPart) process.stdout.write(stripMarkdown(newPart))
           lastContentLength = content.length
         }
         break
