@@ -1,24 +1,38 @@
 ---
-对应源码: src/tools/builtin/*.ts, src/tools/registry.ts, src/agent/types.ts, src/cli.ts
-最后更新: 2026-08-08
-适用版本: 0.1.0
+对应源码: src/tools/builtin/web_fetch.ts, src/tools/index.ts, src/cli.ts
+最后更新: 2026-08-10
+适用版本: 0.1.0+
 ---
 
 # 实践：添加一个自定义工具
 
 ## 1. 本节目标
 
-本教程将手把手教你为 piagent 添加一个自定义工具。我们将以 **curl 工具**（让 LLM 可以发送 HTTP 请求）为例，完整演示从创建文件到注册测试的全过程。
+本教程将手把手教你为 piagent 添加一个自定义工具。我们将以项目中真实实现的 **`web_fetch` 工具**（让 LLM 可以直接读取网页内容）为例，完整演示从创建文件到注册测试的全过程。
+
+学完本节，你将能够：
+
+- 理解 `AgentTool` 接口的设计
+- 用 `TypeBox` 定义工具参数 Schema
+- 将一个工具注册到 Agent
+- 让 LLM 在对话中自动调用自定义工具
+
+> 💡 **本教程的代码已实现在项目代码中**，你可以在 `src/tools/builtin/web_fetch.ts` 看到完整源码。我们边看代码边讲解。
+
+---
 
 ## 2. 前置知识
 
 - 熟悉 TypeScript 接口和类型
 - 了解 `@sinclair/typebox` 的基本用法（用于定义参数 Schema）
 - 了解 piagent 的工具注册机制（`ToolRegistry`）
+- 建议先阅读 [工具层概览](../04-tools-layer/README.md)
+
+---
 
 ## 3. 核心概念
 
-### 工具的本质
+### 3.1 工具的本质
 
 在 piagent 中，一个工具就是一个实现了 `AgentTool` 接口的对象：
 
@@ -38,223 +52,264 @@ export interface AgentTool extends Tool {
 
 ```typescript
 export interface Tool {
-  name: string          // 工具名（LLM 调用时用的标识）
+  name: string          // 工具名（LLM 调用时的标识）
   label?: string        // 显示名（UI 展示用）
   description: string   // 描述（LLM 理解工具用途）
-  parameters: JSONSchema // 参数 Schema
+  parameters: JSONSchema // 参数 Schema（LLM 据此生成参数）
   executionMode?: 'parallel' | 'sequential'
 }
 ```
 
-### 工具的工作流程
+**核心设计思想：** 工具接口分为两层——`Tool` 是纯数据定义（AI 层），`AgentTool` 在 `Tool` 基础上添加 `execute` 方法（Agent 层）。这样 AI 层只需要知道工具的"形状"，不需要关心执行逻辑。
 
-1. **LLM 决定调用工具**：LLM 根据 `name`、`description`、`parameters` 决定是否调用该工具，并生成参数
-2. **Agent 执行工具**：Agent 收到 LLM 的 tool_call 指令后，调用工具的 `execute` 方法
-3. **结果返回 LLM**：工具执行结果以 `ToolResult` 的形式返回给 LLM，LLM 据此生成最终回答
+### 3.2 工具的工作流程
 
-## 4. 代码实现
+```
+LLM 生成回复
+    │
+    ├── LLM 判断：需要获取外部信息 → 调用 web_fetch
+    │         │
+    │         ├── LLM 根据 parameters 生成参数
+    │         │   {"url": "https://example.com/api"}
+    │         │
+    │         ▼
+    │    Agent 收到 tool_call 事件
+    │         │
+    │         ├── ToolRegistry.getTool("web_fetch")  ← 查找工具
+    │         │
+    │         ├── tool.execute("tc-1", {url: "..."}, signal)  ← 执行
+    │         │
+    │         └── 执行结果以 ToolResult 返回给 LLM
+    │
+    └── LLM 根据工具结果生成最终回答
+```
 
-### 4.1 创建工具文件
+### 3.3 工具描述的重要性
 
-在 `src/tools/builtin/` 目录下创建 `curl.ts`：
+`description` 字段可能是整个工具定义中**最关键**的部分。LLM 通过 description 来决定是否调用这个工具、以及什么时候调用。一个好的 description 应该：
+
+- **说清楚工具的用途**：LLM 在什么场景下应该想起这个工具
+- **说明参数的作用**：帮助 LLM 正确生成参数
+- **给出使用示例**：复杂的工具可以提供使用模式
+
+---
+
+## 4. 真实案例：web_fetch 工具
+
+### 4.1 需求分析
+
+在日常使用中，Agent 经常需要查阅 GitHub 上的文件、读取在线文档或调用 API。传统的做法是先用 `git clone` 或 `curl`，但这些方式要么太重量级，要么需要手动处理输出。`web_fetch` 工具的目标就是**让 Agent 可以像读本地文件一样读取网页内容**。
+
+### 4.2 完整源码
+
+下面是对应源码 `src/tools/builtin/web_fetch.ts`：
 
 ```typescript
 // ============================================================
-// Curl 工具 — 发送 HTTP 请求
+// Web Fetch 工具
 //
-// 让 LLM 可以获取网页内容、调用 REST API 等。
-// 支持 GET/POST 请求，自定义请求头和超时。
+// 让 LLM 可以直接读取网页内容（支持 raw.githubusercontent.com、
+// GitHub API、文档站点等），无需先 git clone。
+//
+// 使用 Node.js 内置的 fetch API，不依赖第三方库。
+// 只支持 GET 请求，返回纯文本内容。
 // ============================================================
 
 import { Type } from '@sinclair/typebox'
 import type { AgentTool } from '../../agent/types.js'
 
-// 定义 curl 工具
-export const curlTool: AgentTool = {
-  // ── 工具元信息（LLM 会读取这些字段） ──
-  name: 'curl',                                    // 工具名称，LLM 通过此名称调用
-  label: 'HTTP Request',                           // 显示名称，UI 展示用
-  description: '发送 HTTP 请求获取网页内容或调用 REST API',  // 描述，LLM 据此判断何时使用
-
-  // ── 参数 Schema（使用 TypeBox 定义，LLM 据此生成参数） ──
+/** 创建 web_fetch 工具 */
+export const webFetchTool: AgentTool = {
+  // ── 1. 工具元信息 ──
+  name: 'web_fetch',
+  label: 'Web Fetch',
+  description: '读取网页内容，支持 GitHub raw 文件、API 响应、文档页面等',
   parameters: Type.Object({
-    url: Type.String({ description: '请求的 URL 地址' }),           // 必填参数：URL
-    method: Type.Optional(                          // 可选参数：HTTP 方法，默认 GET
-      Type.String({ description: 'HTTP 方法（GET/POST/PUT/DELETE）' }),
-    ),
-    headers: Type.Optional(                         // 可选参数：请求头
-      Type.Record(Type.String(), Type.String(), { description: '请求头键值对' }),
-    ),
-    body: Type.Optional(                            // 可选参数：请求体（POST 时使用）
-      Type.String({ description: '请求体内容（JSON 字符串）' }),
-    ),
-    timeout: Type.Optional(                         // 可选参数：超时时间
-      Type.Number({ description: '超时时间（毫秒），默认 10000' }),
-    ),
+    url: Type.String({ description: '要读取的网页 URL（如 https://raw.githubusercontent.com/xxx/README.md）' }),
   }),
 
-  // ── 工具执行方法 ──
-  async execute(toolCallId, params, signal, onUpdate) {
-    // 1. 提取参数（带类型转换）
+  // ── 2. 工具执行方法 ──
+  async execute(toolCallId, params, signal) {
     const url = params.url as string
-    const method = (params.method as string) || 'GET'
-    const headers = (params.headers as Record<string, string>) || {}
-    const body = params.body as string | undefined
-    const timeout = (params.timeout as number) || 10000
-
-    // 2. 发送进度更新（可选，用于 UI 展示）
-    onUpdate?.({
-      content: [{
-        type: 'text',
-        text: `正在请求: ${method} ${url}`,
-      }],
-    })
-
-    // 3. 构建 fetch 请求参数
-    const fetchOptions: RequestInit = {
-      method,
-      headers: {
-        // 设置默认请求头
-        'User-Agent': 'piagent-curl/1.0',
-        ...headers,
-      },
-      // 支持中断（用户取消操作时自动中止请求）
-      signal,
-    }
-
-    // 如果是 POST/PUT，添加请求体
-    if (body && (method === 'POST' || method === 'PUT')) {
-      fetchOptions.body = body
-    }
 
     try {
-      // 4. 发起 HTTP 请求（使用 AbortSignal 实现超时）
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), timeout)
+      // 2a. 发起 HTTP GET 请求
+      const response = await fetch(url, { signal })
 
-      // 将外部 signal 与超时 signal 结合
-      const combinedSignal = signal
-        ? combineAbortSignals(signal, controller.signal)
-        : controller.signal
+      // 2b. 处理 HTTP 错误
+      if (!response.ok) {
+        return {
+          content: [{
+            type: 'text',
+            text: `HTTP ${response.status}: ${response.statusText}\n${
+              await response.text().catch(() => '(无法读取响应体)')}`,
+          }],
+          isError: true,
+        }
+      }
 
-      const response = await fetch(url, { ...fetchOptions, signal: combinedSignal })
-      clearTimeout(timeoutId)
+      // 2c. 读取响应文本
+      const text = await response.text()
 
-      // 5. 读取响应内容
-      const responseText = await response.text()
-      const contentType = response.headers.get('content-type') || ''
+      // 2d. 内容截断保护（防止返回过多 token）
+      const truncated = text.length > 100_000
+        ? text.slice(0, 100_000) + `\n\n...（内容已截断，共 ${text.length} 字符）`
+        : text
 
-      // 6. 格式化输出
-      const output = [
-        `状态码: ${response.status} ${response.statusText}`,
-        `内容类型: ${contentType}`,
-        `内容长度: ${responseText.length} 字符`,
-        '',
-        responseText.slice(0, 5000),  // 限制输出长度，避免 Token 浪费
-      ].join('\n')
-
-      // 7. 返回执行结果
       return {
-        content: [{ type: 'text', text: output }],
-        details: { status: response.status, contentType, contentLength: responseText.length },
+        content: [{ type: 'text', text: truncated }],
+        details: { url, contentType: response.headers.get('content-type'), size: text.length },
       }
     } catch (error) {
-      // 8. 错误处理（返回错误信息而不是抛出异常）
+      // 2e. 错误处理：返回错误信息而非抛出异常
       const err = error as Error
       return {
-        content: [{ type: 'text', text: `请求失败: ${err.message || String(error)}` }],
-        details: { error: err.message },
+        content: [{ type: 'text', text: `请求失败: ${err.message}` }],
+        isError: true,
       }
     }
   },
 }
+```
 
-// ── 辅助函数：合并两个 AbortSignal ──
-// 当任一 signal 被 abort 时，合并后的 signal 也会被 abort
-function combineAbortSignals(s1: AbortSignal, s2: AbortSignal): AbortSignal {
-  const controller = new AbortController()
+### 4.3 逐行解读
 
-  const onAbort = () => controller.abort()
-  s1.addEventListener('abort', onAbort)
-  s2.addEventListener('abort', onAbort)
+#### 工具元信息（第 14-19 行）
 
-  // 如果任一 signal 已经中止，立即中止
-  if (s1.aborted || s2.aborted) {
-    controller.abort()
-  }
+```typescript
+name: 'web_fetch',            // LLM 调用时的标识（函数名）
+label: 'Web Fetch',            // UI 显示用
+description: '读取网页内容...', // LLM 理解工具用途
+```
 
-  return controller.signal
+- `name` 是 LLM 在生成 tool_call 时使用的标识，LLM 会说"调用 web_fetch"
+- `description` 帮助 LLM 在合适的场景下选择这个工具
+
+#### 参数 Schema（第 20-22 行）
+
+```typescript
+parameters: Type.Object({
+  url: Type.String({ description: '要读取的网页 URL...' }),
+})
+```
+
+这里使用 `@sinclair/typebox` 库来定义参数。TypeBox 是一个类型安全的 Schema 定义库：
+
+- `Type.Object({...})` — 定义一个对象类型的参数
+- `Type.String()` — 定义一个字符串字段
+- `Type.Optional(...)` — 标记可选字段（本例中没有）
+- 每个字段的 `description` 会被 LLM 读取，帮助它理解如何填充参数
+
+TypeBox 会自动生成 JSON Schema，同时能从 TypeScript 编译器中获得类型检查：
+
+```typescript
+// TypeBox 生成的 JSON Schema
+{
+  type: "object",
+  properties: {
+    url: { type: "string", description: "要读取的网页 URL..." }
+  },
+  required: ["url"]
 }
 ```
 
-### 4.2 在统一导出中注册
+#### execute 方法（第 24-55 行）
+
+```typescript
+async execute(toolCallId, params, signal) {
+```
+
+四个参数的作用：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `toolCallId` | `string` | 本次工具调用的唯一 ID，用于关联调用和结果 |
+| `params` | `Record<string, unknown>` | LLM 生成的参数，需要手动断言类型 |
+| `signal` | `AbortSignal` | 取消信号（用户按 Ctrl+C、超时等） |
+| `onUpdate` | `(update) => void` | 可选，用于发送中间进度更新 |
+
+#### 内容截断保护（第 44-47 行）
+
+```typescript
+const truncated = text.length > 100_000
+  ? text.slice(0, 100_000) + `...（内容已截断）`
+  : text
+```
+
+**为什么需要截断？** LLM 的上下文窗口是有限的。如果返回一个包含数百万字符的文件，不仅浪费 token，还可能导致 LLM 超出上下文限制。100K 字符是一个安全阈值。
+
+#### 为什么不抛出异常？（第 50-54 行）
+
+```typescript
+} catch (error) {
+  return {
+    content: [{ type: 'text', text: `请求失败: ${err.message}` }],
+    isError: true,
+  }
+}
+```
+
+这是 piagent 工具设计的一个**重要原则**：
+- **❌ 不要 `throw`**：异常会导致 Agent Loop 中断，LLM 看不到错误信息
+- **✅ 返回 `ToolResult`**：LLM 可以读到错误信息，并决定重试或向用户解释
+
+设置 `isError: true` 可以让 Agent 层知道这次执行失败了，但仍然把结果返回给 LLM。
+
+### 4.4 注册到系统
+
+工具创建好后，需要三步来注册它：
+
+#### 步骤 1：在统一导出中注册
 
 编辑 `src/tools/index.ts`，添加导出：
 
 ```typescript
 // src/tools/index.ts
-export * from './registry.js'
-export { bashTool } from './builtin/bash.js'
-export { readTool } from './builtin/read.js'
-export { writeTool } from './builtin/write.js'
-export { editTool } from './builtin/edit.js'
-export { grepTool } from './builtin/grep.js'
-export { findTool } from './builtin/find.js'
-export { lsTool } from './builtin/ls.js'
-export { curlTool } from './builtin/curl.js'    // ← 新增行
+export { webFetchTool } from './builtin/web_fetch.js'  // ← 新增
 ```
 
-### 4.3 在 CLI 入口注册工具
+#### 步骤 2：在 CLI 入口注册到 Agent
 
-编辑 `src/cli.ts`，在工具注册部分添加 curlTool：
+编辑 `src/cli.ts`：
 
 ```typescript
-// src/cli.ts 的 import 部分
-import { ToolRegistry, bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, curlTool } from './tools/index.js'
+// import 部分（第 3 行）
+import { ..., webFetchTool } from './tools/index.js'
 
-// 工具注册处（约第 140 行）
+// 工具注册处（第 144 行）
 const toolRegistry = new ToolRegistry()
-for (const t of [bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, curlTool]) {
+for (const t of [bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, webFetchTool]) {
   toolRegistry.registerTool(t)
 }
 ```
 
-### 4.4 完整代码解读
+#### 步骤 3：更新系统提示词
 
-让我们逐行分析关键部分：
+在 `src/cli.ts` 的 systemPrompt 中添加工具说明，让 LLM 知道有这个工具可用：
 
-**参数 Schema 定义**：
 ```typescript
-parameters: Type.Object({
-  url: Type.String({ description: '请求的 URL 地址' }),
-  method: Type.Optional(Type.String({ description: 'HTTP 方法' })),
-  // ...
-})
+systemPrompt: `...\n- web_fetch：读取网页内容（用于在线查看 GitHub 文件、文档等）\n...`,
 ```
-- `Type.Object({...})` 定义一个 JSON 对象 Schema
-- `Type.String()` 定义一个字符串类型的字段
-- `Type.Optional(...)` 表示该字段可选
-- `description` 字段会被 LLM 读取，帮助 LLM 理解如何生成参数
 
-**execute 方法**：
-```typescript
-async execute(toolCallId, params, signal, onUpdate) {
-```
-- `toolCallId`：工具调用 ID，用于关联工具调用和结果
-- `params`：LLM 生成的参数，类型为 `Record<string, unknown>`
-- `signal`：`AbortSignal`，用户取消操作时触发
-- `onUpdate`：可选的回调函数，用于发送中间进度更新
+### 4.5 注册流程示意图
 
-**错误处理**：
-```typescript
-} catch (error) {
-  return {
-    content: [{ type: 'text', text: `请求失败: ${err.message}` }],
-  }
-}
 ```
-- 工具执行失败时**不要抛出异常**，而是返回包含错误信息的 `ToolResult`
-- 这样 LLM 可以读到错误信息并决定如何处理（重试或向用户解释）
+┌─────────────────────────────────────────────┐
+│               piagent 启动                   │
+│                                             │
+│  cli.ts — 创建 ToolRegistry                 │
+│    │                                        │
+│    ├── registry.registerTool(webFetchTool)  │ ← 注册工具
+│    │                                        │
+│    ├── agent.state.tools = 工具列表          │ ← 传给 Agent
+│    │                                        │
+│    └── systemPrompt 包含工具说明             │ ← 让 LLM 知道
+│                                             │
+│  LLM: "需要读取网页内容 → 调用 web_fetch"    │
+└─────────────────────────────────────────────┘
+```
+
+---
 
 ## 5. 运行与验证
 
@@ -264,78 +319,104 @@ async execute(toolCallId, params, signal, onUpdate) {
 npm run build
 ```
 
-确保没有编译错误。
+确保没有编译错误。如果有类型错误，检查是否在 `src/tools/index.ts` 中正确导出了 `webFetchTool`。
 
 ### 5.2 验证工具注册
 
-可以通过以下方式验证工具是否成功注册：
-
 ```bash
-# 启动交互模式
-npm start
-```
-
-在交互中，如果 LLM 认为需要获取网页内容，它会自动调用 curl 工具。你也可以在代码中添加调试日志来验证：
-
-```bash
-# 或在代码中临时添加验证
+# 快速验证
 node -e "
 const { ToolRegistry } = require('./dist/tools/registry.js');
-const { curlTool } = require('./dist/tools/builtin/curl.js');
+const { webFetchTool } = require('./dist/tools/builtin/web_fetch.js');
 const registry = new ToolRegistry();
-registry.registerTool(curlTool);
+registry.registerTool(webFetchTool);
 console.log(registry.listTools().map(t => t.name));
-// 输出应包含 'curl'
 "
 ```
 
-### 5.3 测试示例
+预期输出：`[ 'web_fetch' ]`（以及其他注册的工具名称）
 
-你也可以编写一个简单的测试来验证工具的执行：
+### 5.3 在对话中测试
+
+启动 TUI：
+
+```bash
+npx tsx src/cli.ts
+```
+
+然后输入：
+
+```
+你能读取 https://raw.githubusercontent.com/KNeegcyao/my-easy-pi/main/README.md 的内容吗？
+```
+
+观察 Agent 是否会调用 `web_fetch` 工具来读取文件内容。
+
+### 5.4 编写自动化测试
 
 ```typescript
-// tests/unit/tools/curl.test.ts
+// tests/unit/tools/web_fetch.test.ts
 import { describe, test, expect } from 'vitest'
-import { curlTool } from '../../../src/tools/builtin/curl.js'
+import { webFetchTool } from '../../../src/tools/builtin/web_fetch.js'
 
-describe('curlTool', () => {
+describe('webFetchTool', () => {
   test('工具定义正确', () => {
-    expect(curlTool.name).toBe('curl')
-    expect(curlTool.description).toBeTruthy()
-    expect(curlTool.parameters).toBeDefined()
-    expect(curlTool.execute).toBeInstanceOf(Function)
+    expect(webFetchTool.name).toBe('web_fetch')
+    expect(webFetchTool.description).toBeTruthy()
+    expect(webFetchTool.parameters).toBeDefined()
+    expect(webFetchTool.execute).toBeInstanceOf(Function)
   })
 
-  test('参数验证：url 是必填的', () => {
-    // TypeBox 生成的 Schema 应包含 url 字段
-    const schema = curlTool.parameters as any
+  test('参数 Schema 要求 url 字段', () => {
+    const schema = webFetchTool.parameters as any
     expect(schema.properties?.url).toBeDefined()
     expect(schema.required).toContain('url')
   })
 })
 ```
 
+---
+
 ## 6. 小结
 
-通过本教程，你已经学会了如何为 piagent 添加一个自定义工具。整个过程可以概括为：
+### 6.1 添加工具的完整流程
 
-1. **创建工具文件**：实现 `AgentTool` 接口，定义元信息、参数 Schema 和 `execute` 方法
-2. **导出工具**：在 `src/tools/index.ts` 中添加导出
-3. **注册工具**：在 `cli.ts` 中将工具注册到 `ToolRegistry`
-4. **验证**：编译、测试，确保工具可被 LLM 调用
+```
+创建工具文件 (.ts) → 实现 AgentTool 接口
+       ↓
+在 tools/index.ts 中导出
+       ↓
+在 cli.ts 中注册到 ToolRegistry
+       ↓
+在 systemPrompt 中添加说明
+       ↓
+编译 → 验证 → 测试
+```
 
-### 关键要点
+### 6.2 设计要点回顾
 
-- `description` 字段至关重要：LLM 通过它决定何时调用工具
-- 参数 Schema 使用 TypeBox 定义，确保类型安全
-- 工具执行失败时返回 `ToolResult` 而非抛出异常
-- 使用 `onUpdate` 回调可以提供中间进度反馈
+| 要点 | 说明 |
+|------|------|
+| **description 决定调用** | LLM 通过描述决定何时调用工具 |
+| **TypeBox 定义参数** | 类型安全的 Schema 定义，自动生成 JSON Schema |
+| **不抛出异常** | 返回 `ToolResult` 让 LLM 自行处理错误 |
+| **内容截断** | 防止返回过多数据浪费 token |
+| **全局唯一命名** | 工具名在整个项目中必须唯一 |
 
-### 思考题
+### 6.3 延伸思考
 
-1. 如果要实现一个 weather 工具（查询天气），需要哪些参数？参数 Schema 应该如何定义？
-2. 为什么工具的 `execute` 方法不应该抛出异常？如果抛出了异常，Agent 会怎么处理？
-3. 如何让工具支持流式输出（如逐行返回结果）？提示：你看 `onUpdate` 回调。
+- `web_fetch` 只支持 GET 请求。如果要支持 POST（调用 REST API），需要加哪些参数？
+- 如何给 `web_fetch` 添加超时功能？（提示：`AbortSignal` + `setTimeout`）
+- 当前返回纯文本。如果要支持 JSON 响应的结构化提取，应该怎么设计？
+
+### 6.4 思考题
+
+1. 如果要给 `web_fetch` 添加 `headers` 参数（用于设置 Authorization 请求头），参数 Schema 该如何修改？
+2. 假设你发现 LLM 经常在不需要读取网页时也调用了 `web_fetch`，问题可能出在哪里？如何解决？
+3. 当前的实现在内容超长时会截断。如果要让 LLM 能够分页读取完整内容，应该怎么设计？
+4. 对比内置工具和扩展工具（ExtensionAPI）的注册方式有何不同？各自适合什么场景？
+
+---
 
 > ← [上一节](../10-advanced-topics/README.md) · [下一节](./02-adding-new-provider.md) →
 >
