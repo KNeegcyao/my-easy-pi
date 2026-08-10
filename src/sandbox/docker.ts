@@ -6,7 +6,7 @@
 // 安全性：
 //   - 使用 spawn + 参数数组，避免 shell 注入 Docker 命令本身
 //   - 命令内容通过 base64 编码传递给容器，避免 shell 转义问题
-//   - 容器资源受限：--network none --read-only --memory 512m 等
+//   - 容器资源受限：--read-only --memory 512m 等
 //   - Docker 不可用时自动回退到本地执行
 //
 // 使用方式：
@@ -127,7 +127,6 @@ export class DockerSandbox {
 
       const result = await spawnAndCollect('docker', [
         'run', '--rm', '--name', containerName,
-        '--network', 'none',
         '--memory', '512m',
         '--cpus', '1',
         '--pids-limit', '50',
