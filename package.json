@@ -22,6 +22,7 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.34.52"
+    "@sinclair/typebox": "^0.34.52",
+    "marked": "^18.0.9"
   }
 }
