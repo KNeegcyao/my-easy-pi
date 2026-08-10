@@ -16,14 +16,18 @@ function parseArgs(): {
   continue?: boolean; list?: boolean; deleteSession?: string; init?: boolean
 } {
   const args = process.argv.slice(2)
-  const result: any = { output: 'print' }
+  const result: {
+    prompt?: string; message?: string; model?: string
+    provider?: string; tui?: boolean; output?: OutputMode
+    continue?: boolean; list?: boolean; deleteSession?: string; init?: boolean
+  } = { output: 'print' }
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '-p': case '--prompt': result.prompt = args[++i]; break
       case '-m': case '--message': result.message = args[++i]; break
       case '--model': result.model = args[++i]; break
       case '--provider': result.provider = args[++i]; break
-      case '-o': case '--output': result.output = args[++i]; break
+      case '-o': case '--output': result.output = args[++i] as OutputMode; break
       case '-i': case '--tui': result.tui = true; break
       case '-c': case '--continue': result.continue = true; break
       case '-l': case '--list': result.list = true; break
@@ -162,7 +166,7 @@ async function main(): Promise<void> {
     transformContext: async (messages) => compactor.compact(messages),
   })
 
-  if (initialMessages) { agent.state.messages = initialMessages as any }
+  if (initialMessages) { agent.state.messages = initialMessages }
 
   // 自动保存会话 + 自动命名
   let sessionNamed = false
