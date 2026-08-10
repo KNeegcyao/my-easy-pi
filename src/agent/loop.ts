@@ -271,72 +271,83 @@ export class Agent {
       signal: this.abortController?.signal,
     }
 
-    for await (const event of this.state.model.stream(context, streamOptions)) {
-      switch (event.type) {
-        case 'text_delta':
-          content += event.delta
-          // 发送更新事件
-          await this.emit({
-            type: 'message_update',
-            message: { content },
-          })
-          break
-
-        case 'tool_call_start':
-          currentToolCall = { id: event.id, name: event.name }
-          toolCallArgs = ''
-          // 如果 args 已提供且不为空（非流式工具调用，如 Anthropic 的 tool_use）
-          if (event.args && typeof event.args === 'object' && Object.keys(event.args).length > 0) {
-            toolCalls.push({
-              id: event.id,
-              name: event.name,
-              args: event.args,
+    try {
+      for await (const event of this.state.model.stream(context, streamOptions)) {
+        switch (event.type) {
+          case 'text_delta':
+            content += event.delta
+            // 发送更新事件
+            await this.emit({
+              type: 'message_update',
+              message: { content },
             })
-            currentToolCall = null
-          }
-          // tool_execution_start 事件由 executeToolCalls 方法统一发射
-          break
+            break
 
-        case 'tool_call_delta':
-          toolCallArgs += event.delta
-          break
-
-        case 'thinking_delta':
-          // 思考过程暂时忽略，或可以发送为特殊事件
-          break
-
-        case 'error':
-          // 发生错误
-          this.state.errorMessage = event.message
-          await this.emit({
-            type: 'message_update',
-            message: { content: `错误: ${event.message}` },
-          })
-          break
-
-        case 'done':
-          // 完成工具调用（如果还有未完成的流式工具调用）
-          if (currentToolCall && toolCallArgs) {
-            try {
-              const parsed = JSON.parse(toolCallArgs)
-              toolCalls.push({
-                id: currentToolCall.id!,
-                name: currentToolCall.name!,
-                args: parsed,
-              })
-            } catch {
-              toolCalls.push({
-                id: currentToolCall.id!,
-                name: currentToolCall.name!,
-                args: toolCallArgs,
-              })
-            }
-            // 清空缓冲，防止后续 done（如 [DONE]）重复处理
-            currentToolCall = null
+          case 'tool_call_start':
+            currentToolCall = { id: event.id, name: event.name }
             toolCallArgs = ''
-          }
-          break
+            // 如果 args 已提供且不为空（非流式工具调用，如 Anthropic 的 tool_use）
+            if (event.args && typeof event.args === 'object' && Object.keys(event.args).length > 0) {
+              toolCalls.push({
+                id: event.id,
+                name: event.name,
+                args: event.args,
+              })
+              currentToolCall = null
+            }
+            // tool_execution_start 事件由 executeToolCalls 方法统一发射
+            break
+
+          case 'tool_call_delta':
+            toolCallArgs += event.delta
+            break
+
+          case 'thinking_delta':
+            // 思考过程暂时忽略，或可以发送为特殊事件
+            break
+
+          case 'error':
+            // 发生错误
+            this.state.errorMessage = event.message
+            await this.emit({
+              type: 'message_update',
+              message: { content: `错误: ${event.message}` },
+            })
+            break
+
+          case 'done':
+            // 完成工具调用（如果还有未完成的流式工具调用）
+            if (currentToolCall && toolCallArgs) {
+              try {
+                const parsed = JSON.parse(toolCallArgs)
+                toolCalls.push({
+                  id: currentToolCall.id!,
+                  name: currentToolCall.name!,
+                  args: parsed,
+                })
+              } catch {
+                toolCalls.push({
+                  id: currentToolCall.id!,
+                  name: currentToolCall.name!,
+                  args: toolCallArgs,
+                })
+              }
+              // 清空缓冲，防止后续 done（如 [DONE]）重复处理
+              currentToolCall = null
+              toolCallArgs = ''
+            }
+            break
+        }
       }
+    } catch (error) {
+      // 流处理异常：记录并返回已收集的内容（如果有的话）
+      const errMsg = error instanceof Error ? error.message : String(error)
+      this.state.errorMessage = errMsg
+      content += `\n[流处理错误: ${errMsg}]`
+      await this.emit({
+        type: 'message_update',
+        message: { content },
+      })
     }
 
     return { content, toolCalls }
