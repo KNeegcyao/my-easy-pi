@@ -22,54 +22,35 @@ import { bold, dim, gray, cyan, yellow, italic } from './tui/theme.js'
 // ── 纯文本剥离（适合流式增量输出） ──
 
 /**
- * 剥离 Markdown 标记，返回纯文本（适合流式输出）
+ * 剥离 Markdown 标记，返回纯文本
  *
- * 流式场景下 Markdown 标记可能分块到达（如 "**" 先到 "*" 再到 "*"），
- * 正则无法匹配不完整的标记。因此采用两层策略：
- * 1. 先尝试完整正则匹配（能处理完整到达的标记）
- * 2. 再清除残留的单个标记字符（处理分块到达的标记）
+ * ⚠️ 注意：此函数不适合流式场景（Markdown 标记可能分块到达）。
+ * 主要用于 Print 模式的管道输出。
  */
 export function stripMarkdown(markdown: string): string {
   if (!markdown) return ''
 
   let result = markdown
-
-  // ── 第一轮：完整标记匹配 ──
-
-  // 代码块
-  result = result.replace(/```[\s\S]*?```/g, '')
-
-  // 标题标记（行首 #）
-  result = result.replace(/^###\s+/gm, '')
-  result = result.replace(/^##\s+/gm, '')
-  result = result.replace(/^#\s+/gm, '')
-
-  // 引用标记（行首 >）
-  result = result.replace(/^>\s*/gm, '')
-
-  // 列表标记（行首 - 或 *）
-  result = result.replace(/^[\s]*[-*]\s+/gm, '  • ')
-
-  // 分割线
-  result = result.replace(/^-{3,}$/gm, '───')
-
-  // 加粗 **text**
-  result = result.replace(/\*\*(.+?)\*\*/g, '$1')
-
-  // 斜体 *text* （确保不是加粗的一部分）
-  result = result.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
-
-  // 行内代码 `text`
-  result = result.replace(/`([^`]+)`/g, '$1')
-
-  // 链接 [text](url)
-  result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-
-  // ── 第二轮：清除残留的单个标记字符 ──
-  // 处理分块到达时无法匹配的零散标记
-  result = result.replace(/\*/g, '')
-  result = result.replace(/`/g, '')
-  result = result.replace(/[_~]/g, '')
+    // 移除代码块（保留内容）
+    .replace(/```[\s\S]*?```/g, '')
+    // 标题标记（行首 #）
+    .replace(/^###\s+/gm, '')
+    .replace(/^##\s+/gm, '')
+    .replace(/^#\s+/gm, '')
+    // 引用标记（行首 >）
+    .replace(/^>\s*/gm, '')
+    // 列表标记（行首 - 或 *）→ 圆点
+    .replace(/^[\s]*[-*]\s+/gm, '  • ')
+    // 分割线
+    .replace(/^-{3,}$/gm, '───')
+    // 加粗 **text**
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    // 斜体 *text*
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
+    // 行内代码 `text`
+    .replace(/`([^`]+)`/g, '$1')
+    // 链接 [text](url) → text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
 
   return result
 }
