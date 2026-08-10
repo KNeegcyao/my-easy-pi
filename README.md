@@ -40,13 +40,12 @@
 
 piagent 不是一个"开箱即用"的产品，而是一份**从零学习 AI Coding Agent 的渐进式教程**。
 
-| 维度 | piagent | Claude Code / Cursor |
-|------|---------|---------------------|
+| 维度 | piagent | Claude Code |
+|------|---------|-------------|
 | 🎓 **定位** | 学习项目，代码可读 | 生产工具，代码量大 |
 | 📏 **规模** | ~3000 行 TypeScript | 数十万行 |
 | 🧩 **架构** | 6 层分层，每层清晰 | 复杂模块化 |
 | 📖 **文档** | 10 章循序渐进的教程 | 产品文档 |
-| 🔧 **可扩展** | ✅ 扩展系统 | ✅ 插件市场 |
 
 **适合你，如果：**
 - 你想深入理解 AI Coding Agent 的**工作原理**
@@ -55,7 +54,7 @@ piagent 不是一个"开箱即用"的产品，而是一份**从零学习 AI Codi
 - 你想为将来贡献开源项目或开发自己的 Agent 打基础
 
 **不适合你，如果：**
-- 你只需要一个开箱即用的 AI 编程助手 → 请用 [Claude Code](https://claude.ai) 或 [Cursor](https://cursor.sh)
+- 你只需要一个开箱即用的 AI 编程助手 → 请用 [Claude Code](https://claude.ai)
 - 你不想了解底层原理
 
 ---
@@ -264,7 +263,6 @@ MIT License
 
 - [earendil-works/pi](https://github.com/earendil-works/pi) — 设计哲学与架构的重要参考
 - [Claude Code](https://claude.ai) — AI 编程助手的行业标杆
-- [Cursor](https://cursor.sh) — AI-first 代码编辑器
 
 ---
 
