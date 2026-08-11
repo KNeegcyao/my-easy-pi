@@ -3,11 +3,6 @@
 //
 // 渲染器把组件 render(width) 的行数组喂给 ScreenBuffer.present()；
 // 内部做行 diff，只把变化的行写到终端。
-//
-// 阶段 2 时补充实现细节：
-//   - 处理超长行（width 外的行被截，避免 \x1b[J 失败）
-//   - 同宽 Asian throw width 计算
-//   - 与 csi2026 联动，把整次 present 包裹成原子帧
 // ============================================================
 
 export interface RowUpdate {
@@ -22,7 +17,7 @@ export class ScreenBuffer {
   get size(): number { return this.lines.length }
 
   /** 返回当前行数组的快照（只读） */
-  snapshot(): readonly string[] { return [...this.lines] }
+  snapshot(): readonly string[] { return this.lines.slice() }
 
   /** 计算 prev → next 的差异（纯函数，易测试） */
   static diffLines(prev: readonly string[], next: readonly string[]): RowUpdate[] {

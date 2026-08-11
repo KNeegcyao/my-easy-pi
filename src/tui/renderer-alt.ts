@@ -1,11 +1,12 @@
 // ============================================================
-// TuiAltScreen — Alternate-screen 渲染器
+// TuiAltScreen — Alternate-screen 渲染器（Phase 7 完整实现）
 //
 // \x1b[?1049h 进入 alt buffer，应用自管 viewport；
 // 提供完整 constrained layout（VStack/HStack/ScrollView）；
 // 退出时把 transcript 回放到主屏幕，供 grep / tmux copy mode 使用。
 //
-// 阶段 5 实现：Claude Code 式全屏体验。
+// 当前阶段占位：实现 TUI 接口但 requestRender 不做任何渲染，
+// 避免调用方误以为已可用。
 // ============================================================
 
 import type { Component, TUI, OverlayHandle, OverlayOptions } from './component.js'
@@ -31,26 +32,22 @@ export class TuiAltScreen implements TUI {
 
   registerComponent(c: Component): void {
     this.components.push(c)
-    this.requestRender()
   }
 
   unregisterComponent(c: Component): void {
     this.components = this.components.filter(x => x !== c)
-    this.requestRender()
   }
 
   dock(position: 'top' | 'bottom', c: Component): void {
     ;(position === 'top' ? this.dockTop : this.dockBottom).push(c)
-    this.requestRender()
   }
 
   setMain(c: Component): void {
     this.main = c
-    this.requestRender()
   }
 
+  /** Phase 7 实现；当前阶段空转 */
   requestRender(): void {
-    // TODO Phase 5: 布局引擎求值 → 各组件 render(width) → ScreenBuffer.replace → csi2026.frame(write)
     if (!this.started) return
   }
 
@@ -72,6 +69,7 @@ export class TuiAltScreen implements TUI {
     this.started = true
     this.terminal.enterAltScreen()
     this.terminal.hideCursor()
+    this.terminal.clearScreen()
   }
 
   stop(): void {
@@ -79,6 +77,6 @@ export class TuiAltScreen implements TUI {
     this.started = false
     this.terminal.showCursor()
     this.terminal.exitAltScreen()
-    // TODO Phase 5: 退出前把最终 transcript 回放到主屏
+    // TODO Phase 7: 退出前把最终 transcript 回放到主屏
   }
 }

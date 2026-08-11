@@ -36,21 +36,31 @@ export class Terminal {
   get columns(): number { return process.stdout.columns || 80 }
   get rows(): number { return process.stdout.rows || 24 }
 
-  /** 探测终端能力（实现放阶段 2，骨架仅返回保守默认） */
+  /**
+   * 刷新动态能力（列数/行数）。resize 后调用，不必新建 Terminal。
+   */
+  refresh(): void {
+    this.caps.columns = this.columns
+    this.caps.rows = this.rows
+  }
+
+  /**
+   * 探测终端能力（启发式）。
+   * 之后可通过 DA 查询 / OSC 11 探测 / 环境变量进一步精确化。
+   */
   private detect(): TerminalCapabilities {
-    // TODO Phase 2: 通过环境变量、DA 查询、OSC 11 探测等补全
     const isTTY = !!process.stdout.isTTY
     return {
       isTTY,
       columns: this.columns,
       rows: this.rows,
-      syncOutput: false,
-      kittyKeyboard: false,
-      osc11: false,
-      kittyImages: false,
-      iterm2Images: false,
-      bracketedPaste: false,
-      mouse: false,
+      syncOutput: isTTY ? detectSyncOutput() : false,
+      kittyKeyboard: false,   // Phase 5 再做（需 query CSI ? flags）
+      osc11: false,           // Phase 5 再做
+      kittyImages: false,     // Phase 7（仅 alt screen）
+      iterm2Images: false,    // Phase 7
+      bracketedPaste: isTTY,  // 几乎所有当代终端都支持
+      mouse: false,           // Phase 5 再做
     }
   }
 
@@ -75,19 +85,22 @@ export class Terminal {
 
   /** 注册 resize 监听 */
   onResize(listener: (cols: number, rows: number) => void): () => void {
-    const handler = () => listener(this.columns, this.rows)
+    const handler = () => {
+      this.refresh()
+      listener(this.columns, this.rows)
+    }
     process.stdout.on('resize', handler)
     return () => { process.stdout.off('resize', handler) }
   }
 
   /** 写 stdout；实现同步，**不** 自动 flush batch */
   write(data: string): void {
-    process.stdout.write(data)
+    if (process.stdout.writable) process.stdout.write(data)
   }
 
   /** 写 stderr（TUI 错误通道，不会被渲染层捕获） */
   writeErr(data: string): void {
-    process.stderr.write(data)
+    if (process.stderr.writable) process.stderr.write(data)
   }
 
   // ── escape code 便捷方法（供 renderers/overlays 使用）──
@@ -99,4 +112,40 @@ export class Terminal {
   cursorUp(n: number): void { if (n > 0) this.write(`\x1b[${n}A`) }
   clearToEnd(): void { this.write('\x1b[J') }
   clearScreen(): void { this.write('\x1b[2J\x1b[H') }
+}
+
+// ============================================================
+// CSI 2026 终端启发式探测
+// ============================================================
+
+/**
+ * 依据 TERM_PROGRAM / TERM 启发式判断终端是否支持 CSI 2026。
+ * 已知支持: iTerm2, kitty, WezTerm, foot, Alacritty(≥0.13), VSCode(≥0.74)
+ * 已知不符: Apple Terminal（不一致）、tmux（除非 passthrough）
+ *
+ * 用法：
+ *   if (detectSyncOutput()) renderer.wrapWithSyncFrame(...)
+ */
+export function detectSyncOutput(): boolean {
+  const term = process.env.TERM_PROGRAM || ''
+  const termName = process.env.TERM || ''
+
+  // 支持名单
+  if (term === 'iTerm.app') return true
+  if (term === 'kitty') return true
+  if (term === 'WezTerm') return true
+  if (term === 'foot') return true
+  if (term === 'Alacritty') return true
+  if (term === 'vscode') return true
+  if (term === 'Hyper') return true
+
+  // 不支持名单
+  if (term === 'Apple_Terminal') return false
+  if (process.env.TMUX) return false  // tmux 需要 allow-passthrough
+
+  // 未识别：保守 false。宁可不加帧也不要在不支持的终端上刷屏。
+  if (!term && !termName) return false
+  if (termName === 'xterm-256color' || termName === 'xterm') return false
+
+  return false
 }

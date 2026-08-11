@@ -25,6 +25,8 @@ export class Csi2026 {
 
   setSupported(v: boolean): void { this.supported = v }
   get isSupported(): boolean { return this.supported }
+  /** 嵌套层次（调试/断言用） */
+  get frameDepth(): number { return this.depth }
 
   /** 返回帧开始的 ANSI 序列（不支持时为空串） */
   begin(): string {
@@ -48,6 +50,7 @@ export class Csi2026 {
     try {
       return fn()
     } finally {
+      // 即使 fn 抛异常，也必须关帧。否则会卡死终端后续输出。
       const endSeq = this.end()
       if (endSeq) write(endSeq)
     }
