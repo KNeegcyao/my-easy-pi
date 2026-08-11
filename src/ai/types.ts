@@ -168,7 +168,7 @@ export type AgentEvent =
   | { type: 'message_end'; message: AgentMessage }
   | { type: 'tool_execution_start'; toolCallId: string; toolName: string; args: unknown }
   | { type: 'tool_execution_update'; toolCallId: string; partialResult: ToolUpdate }
-  | { type: 'tool_execution_end'; toolCallId: string; result: ToolResult }
+  | { type: 'tool_execution_end'; toolCallId: string; result: ToolResult; isError?: boolean }
   | { type: 'error'; message: string }
 
 export type AgentEventListener = (event: AgentEvent, signal: AbortSignal) => Promise<void> | void

@@ -35,8 +35,20 @@ interface ToolExecArgs {
   args?: Record<string, unknown>
   toolCallId: string
   toolName: string
-  partialResult?: ToolResultLike
-  result?: ToolResultLike
+  partialResult?: { content: unknown[] }   // ToolUpdate.content (ContentBlock[])
+  result?: { content: unknown[] }          // raw ToolResult.content (ContentBlock[])
+  isError?: boolean
+}
+
+/** 把 ContentBlock[]（可能含 text/image/tool_use 块）规整成纯文本字符串 */
+function blocksToText(blocks: unknown): string {
+  if (typeof blocks === 'string') return blocks
+  if (!Array.isArray(blocks)) return ''
+  return blocks
+    .filter((b): b is { type: 'text'; text: string } =>
+      typeof b === 'object' && b !== null && (b as { type?: string }).type === 'text')
+    .map(b => b.text)
+    .join('\n')
 }
 
 export interface StartTUIOptions {
@@ -79,6 +91,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   let loaderInterval: NodeJS.Timeout | null = null
   let stopped = false
   let exitRaw: (() => void) | null = null
+  let confirming = false   // permission confirm 期间：跳过 editor onInput，防 readline+editor 双重消费 stdin
 
   // ── hero（一次性写 scrollback，屏幕顶部） ──
   function printHero(): void {
@@ -159,7 +172,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
           streamTurn.updateContent({ content: msg.content || '' }, false)
         }
         hideLoader()
-        streamTurn = null
+        // 不 null streamTurn：让后续 tool_execution_start 把工具挂到同一回合
+        // （turn_start 会创建新 turn，streamTurn 自然切换）
         screen.requestRender()
         break
       }
@@ -176,34 +190,36 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
 
       case 'tool_execution_update': {
-        const e = event as unknown as ToolExecArgs & { type: string; partialResult?: ToolResultLike }
+        const e = event as unknown as ToolExecArgs & { type: string }
         const tool = pendingTools.get(e.toolCallId)
         if (tool && e.partialResult) {
-          tool.updateResult(e.partialResult, true)
+          // partialResult.content 是 ContentBlock[]，转字符串
+          tool.updateResult(
+            { content: blocksToText(e.partialResult.content), isError: false },
+            true,
+          )
           screen.requestRender()
         }
         break
       }
 
       case 'tool_execution_end': {
-        const e = event as unknown as ToolExecArgs & { type: string; result?: ToolResultLike }
+        const e = event as unknown as ToolExecArgs & { type: string }
         const tool = pendingTools.get(e.toolCallId)
-        if (tool && e.result) {
-          tool.updateResult(e.result, false)
+        if (tool) {
+          const text = e.result ? blocksToText(e.result.content) : ''
+          tool.updateResult(
+            { content: text || (e.isError ? '(工具执行失败)' : ''), isError: e.isError ?? false },
+            false,
+          )
         }
         pendingTools.delete(e.toolCallId)
         screen.requestRender()
         break
       }
 
-      case 'error': {
-        // 直接 addChild 到 chatContainer 末尾，永远留在 scrollback（对齐 pi showExtensionError）
-        hideLoader()
-        chatContainer.addChild(new Text(`  ${red('✗')} ${(event as { message: string }).message}`))
-        chatContainer.addChild(new Spacer(1))
-        screen.requestRender()
-        break
-      }
+      // 注：'error' event 已移除（Phase 4.9）。loop.ts 从不 emit 它，
+      // 真错误走 onSubmit 的 agent.prompt().catch（已处理）。
 
       case 'turn_end': {
         stopLoaderTimer()
@@ -223,10 +239,11 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       return
     }
     if (result.clear) {
-      // /clear：清空 chat history（pi rebuildChatFromMessages 的轻量等价）
+      // /clear：清屏 + 清 LLM 上下文（agent.reset）。sessionId 不变（cli.ts 集成，follow-up）。
       chatContainer.clear()
       pendingTools.clear()
       streamTurn = null
+      agent.reset?.()
       screen.requestRender()
     }
     if (result.output) {
@@ -278,6 +295,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
 
   // ── 输入路径 ──
   const stopInput = terminal.onInput((data) => {
+    // permission confirm 期间 readline 接管 stdin，跳过 editor（防 y/N 污染 editor 状态）
+    if (confirming) return
     editor.handleInput(data)
     screen.requestRender()
   })
@@ -307,8 +326,15 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     for (const l of lines) chatContainer.addChild(new Text(l))
     chatContainer.addChild(new Spacer(1))
     screen.requestRender()
+    // confirming=true：让 editor.onInput 跳过，readline 独占 stdin
+    confirming = true
     // 临时退 raw → readline 问 → 重进
     if (exitRaw) exitRaw()
+    // 收尾：恢复 confirming=false + 重进 raw（单点出口，防异常路径留 stdin 卡非 raw）
+    const finalize = (): void => {
+      confirming = false
+      reenterRaw()
+    }
     return new Promise((resolve) => {
       const rl = readline.createInterface({
         input: process.stdin,
@@ -316,19 +342,19 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       })
       const timeout = setTimeout(() => {
         rl.close()
-        reenterRaw()
+        finalize()
         resolve(false)
       }, 30_000)
       rl.on('line', (line) => {
         clearTimeout(timeout)
         rl.close()
-        reenterRaw()
+        finalize()
         resolve(['y', 'yes'].includes(line.trim().toLowerCase()))
       })
       rl.on('SIGINT', () => {
         clearTimeout(timeout)
         rl.close()
-        reenterRaw()
+        finalize()
         resolve(false)
       })
     })
@@ -339,6 +365,31 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
 
   // ── 启动 ──
   let unsubscribeAgent: (() => void) | null = null
+
+  /** 回放历史消息到 chatContainer（-c 续接）：把 state.messages 重建为可见组件 */
+  function replayHistory(): void {
+    const msgs = (agent.state.messages || []) as ReadonlyArray<{
+      role: string; content: string; isError?: boolean
+    }>
+    for (const m of msgs) {
+      if (m.role === 'user') {
+        chatContainer.addChild(new Text(userPromptLine(m.content)))
+        chatContainer.addChild(new Spacer(1))
+      } else if (m.role === 'assistant') {
+        const turn = new AssistantTurn()
+        turn.updateContent({ content: m.content, stopReason: 'end_turn' }, false)
+        chatContainer.addChild(new Spacer(1))
+        chatContainer.addChild(turn)
+      } else if (m.role === 'toolResult') {
+        const preview = m.content.length > 80 ? m.content.slice(0, 80) + '…' : m.content
+        const prefix = m.isError ? red('✗') : dim(gray('│'))
+        chatContainer.addChild(new Text(`  ${prefix} (tool result) ${preview}`))
+      }
+      // notification/thinking 跳过
+    }
+    streamTurn = null   // 历史回合不连到当前流式指针
+  }
+
   function start(): void {
     if (stopped) return
     process.on('uncaughtException', (err) => {
@@ -359,6 +410,11 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     exitRaw = terminal.enterRawMode()
     terminal.hideCursor()
     unsubscribeAgent = agent.subscribe(handleEvent)
+    // 回放历史（-c 续接）；订阅后调，让首次渲染画上历史
+    if (agent.state.messages && agent.state.messages.length > 0) {
+      replayHistory()
+      screen.requestRender()
+    }
   }
 
   // ── 清理 ──

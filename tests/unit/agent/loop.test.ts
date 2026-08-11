@@ -102,9 +102,9 @@ describe('Agent Loop', () => {
 
     await agent.prompt('帮我执行 ls 命令')
 
-    // 工具被调用
+    // 工具被调用（第 4 参 onUpdate 回调用于流式中间态）
     expect(executeSpy).toHaveBeenCalledTimes(1)
-    expect(executeSpy).toHaveBeenCalledWith('tc-1', { command: 'ls' }, expect.any(AbortSignal))
+    expect(executeSpy).toHaveBeenCalledWith('tc-1', { command: 'ls' }, expect.any(AbortSignal), expect.any(Function))
   })
 
   test('工具执行结束后再调用 LLM', { timeout: 3000 }, async () => {

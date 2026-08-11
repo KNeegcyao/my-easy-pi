@@ -108,13 +108,15 @@ describe('AssistantTurn', () => {
     expect(a).not.toEqual(b)
   })
 
-  it('缓存：相同 width 返回相同引用', () => {
+  it('不缓存：嵌套 tool 变化能向上反映', () => {
+    // AssistantTurn 不缓存自身（与 Container 一致），让子组件变化透传
     const t = new AssistantTurn()
-    t.updateContent({ content: 'hello' }, true)
-    const a = t.render(80)
-    const b = t.render(80)
-    // AssistantTurn 自身缓存（与 Container 不同，AssistantTurn 有 invariant 可缓存）
-    expect(a).toBe(b)
+    t.updateContent({ content: 'msg' }, true)
+    const a = t.render(80).join('')
+    // 加一个 tool 子组件，不应需要手动 invalidate turn 才能看到
+    t.addToolExecution(new Text('tool-line'))
+    const b = t.render(80).join('')
+    expect(b).toContain('tool-line')
   })
 
   it('空内容 + 无 tool → render 返回占位 1 行', () => {

@@ -113,15 +113,13 @@ export class AssistantTurn implements Component {
   }
 
   render(width: number): string[] {
-    if (this.cachedLines && this.cachedForWidth === width) {
-      return this.cachedLines
-    }
+    // 不缓存自身聚合（同 Container）：子组件（如嵌在 toolsContainer 里的 ToolExecution）
+    // 内容变化时无法向上通知 parent 失效缓存，缓存会挡住变化。
+    // 子组件 Markdown/Text/ToolExecution 各自缓存（昂贵部分仍缓存），这里只是
+    // 拼接子 render 结果，开销小。每个 16ms 帧重算一次，可接受。
     const lines = this.outer.render(width)
-    // 空回合（无 content、无 tool）也保留 1 行占位，防止 doRender diff 把它当 "行数=0" 处理
-    // 这与 pi AssistantMessageComponent 有 Spacer + 占位一致（pi 的 updateContent 在无可见内容时不加 Spacer 但 render 仍会出 zone markers）
-    this.cachedLines = lines.length === 0 ? [''] : lines
-    this.cachedForWidth = width
-    return this.cachedLines
+    // 空回合（无 content、无 tool）也保留 1 行占位，防止 doRender 把它当 "行数=0"
+    return lines.length === 0 ? [''] : lines
   }
 }
 

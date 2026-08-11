@@ -107,13 +107,20 @@ export class ToolExecution implements Component {
     return `  ${dim('→')} ${yellow(this.toolName)}${argSuffix}${incomplete}`
   }
 
+  /** 结果最多渲染的行数；超出截断防止读大文件/grep 大输出撑爆屏幕 */
+  private static readonly MAX_RESULT_LINES = 20
+
   private renderResultLines(result: ToolResultLike): string[] {
-    if (result.isError) {
-      return result.content.split('\n').map(line => `  ${red('✗')} ${line}`)
+    const prefix = result.isError ? `  ${red('✗')} ` : `  ${dim(gray('│'))} `
+    const allLines = result.content.split('\n')
+    if (allLines.length <= ToolExecution.MAX_RESULT_LINES) {
+      return allLines.map(line => `${prefix}${line}`)
     }
-    // 正常结果：缩进 + 绿色 → 前缀
-    // 取前几行避免爆炸（pi 也有截断；这里先全量，行长由 markdown wrap 兜底）
-    return result.content.split('\n').map(line => `  ${dim(gray('│'))} ${line}`)
+    // 截断：取前 N 行 + 截断提示尾行
+    const shown = allLines.slice(0, ToolExecution.MAX_RESULT_LINES).map(line => `${prefix}${line}`)
+    const omitted = allLines.length - ToolExecution.MAX_RESULT_LINES
+    shown.push(`  ${dim(gray(`… (${omitted} 行已截断)`))}`)
+    return shown
   }
 
   invalidate(): void {

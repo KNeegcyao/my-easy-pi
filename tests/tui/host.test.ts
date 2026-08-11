@@ -58,9 +58,10 @@ function fakeAgent(): Agent & { emit(e: AgentEvent): void; prompts: string[]; fo
     async prompt(text: string) { prompts.push(text); streaming = true; this.state.isStreaming = true },
     followUp(text: string) { followUps.push(text) },
     emit(e: AgentEvent) { for (const l of listeners) l(e) },
+    reset() { this.state.messages = []; (this as any)._resetCalled = true },
     prompts, followUps,
     get streaming() { return streaming },
-  } as unknown as Agent & { emit(e: AgentEvent): void; prompts: string[]; followUps: string[]; streaming: boolean }
+  } as unknown as Agent & { emit(e: AgentEvent): void; prompts: string[]; followUps: string[]; streaming: boolean; _resetCalled?: boolean }
   return agent
 }
 
@@ -170,14 +171,87 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
     stop()
   })
 
-  it('error 事件 → 错误行进 chat history', async () => {
+  it('tool_execution_end → 工具结果渲染（ContentBlock[] → 字符串）', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
     const stop = startTUI(agent, { terminal: term })
+    agent.emit({ type: 'turn_start' })
+    await sleep(60)
+    agent.emit({ type: 'message_update', message: { content: '让我列出文件' } })
+    await sleep(60)
+    agent.emit({ type: 'message_end', message: { id: '1', parentId: null, role: 'assistant', content: '让我列出文件', createdAt: 0 } } as any)
+    await sleep(60)
+    agent.emit({
+      type: 'tool_execution_start' as any,
+      toolCallId: 'tc1', toolName: 'bash', args: { command: 'ls' },
+    } as any)
+    await sleep(60)
     term.written = []
-    agent.emit({ type: 'error', message: 'something broke' })
+    agent.emit({
+      type: 'tool_execution_end' as any,
+      toolCallId: 'tc1',
+      result: { content: [{ type: 'text', text: 'file1\nfile2' }] },
+      isError: false,
+    } as any)
+    await sleep(60)
+    expect(term.written.join('')).toContain('file1')
+    expect(term.written.join('')).toContain('file2')
+    stop()
+  })
+
+  it('tool_execution_end isError → ✗ 前缀显示失败', async () => {
+    const term = new FakeTerminal()
+    const agent = fakeAgent()
+    const stop = startTUI(agent, { terminal: term })
+    agent.emit({ type: 'turn_start' })
+    await sleep(60)
+    agent.emit({ type: 'message_update', message: { content: '执行命令' } })
+    await sleep(60)
+    agent.emit({ type: 'message_end', message: { id: '1', parentId: null, role: 'assistant', content: '执行命令', createdAt: 0 } } as any)
+    await sleep(60)
+    agent.emit({
+      type: 'tool_execution_start' as any,
+      toolCallId: 'tc1', toolName: 'bash', args: {},
+    } as any)
+    await sleep(60)
+    term.written = []
+    agent.emit({
+      type: 'tool_execution_end' as any,
+      toolCallId: 'tc1',
+      result: { content: [{ type: 'text', text: '失败原因' }] },
+      isError: true,
+    } as any)
+    await sleep(60)
+    expect(term.written.join('')).toContain('✗')
+    expect(term.written.join('')).toContain('失败原因')
+    stop()
+  })
+
+  it('-c 续接：agent.state.messages 预填 → 回放到屏幕', async () => {
+    const term = new FakeTerminal()
+    const agent = fakeAgent()
+    ;(agent.state as any).messages = [
+      { id: '1', parentId: null, role: 'user', content: '之前的问题', createdAt: 0 },
+      { id: '2', parentId: '1', role: 'assistant', content: '之前的回答', createdAt: 1 },
+      { id: '3', parentId: '2', role: 'toolResult', content: '工具输出片段', createdAt: 2 },
+    ]
+    const stop = startTUI(agent, { terminal: term })
+    await sleep(60)
+    const out = term.written.join('')
+    expect(out).toContain('之前的问题')   // user 消息
+    expect(out).toContain('之前的回答')   // assistant 消息
+    expect(out).toContain('工具输出片段') // toolResult 预览
+    stop()
+  })
+
+  it('/clear → 调 agent.reset()（清 LLM 上下文）', async () => {
+    const term = new FakeTerminal()
+    const agent = fakeAgent()
+    const stop = startTUI(agent, { terminal: term })
     await sleep(20)
-    expect(term.written.join('')).toContain('something broke')
+    term.type('/clear\r')
+    await sleep(40)
+    expect((agent as any)._resetCalled).toBe(true)
     stop()
   })
 

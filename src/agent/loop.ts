@@ -435,6 +435,14 @@ export class Agent {
           tc.id,
           tc.args as Record<string, unknown>,
           this.abortController?.signal || new AbortController().signal,
+          (update) => {
+            // 中间态更新（如 bash 沙箱执行中输出），不阻塞执行
+            void this.emit({
+              type: 'tool_execution_update',
+              toolCallId: tc.id,
+              partialResult: update,
+            })
+          },
         )
 
         // 提取文本内容
@@ -453,6 +461,7 @@ export class Agent {
           type: 'tool_execution_end',
           toolCallId: tc.id,
           result,
+          isError: false,
         })
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
@@ -460,6 +469,13 @@ export class Agent {
           content: errorMsg,
           isError: true,
           terminate: false,
+        })
+        // 补 emit tool_execution_end 让 UI 能看到工具失败 + 避免 TUI pendingTools 泄漏
+        await this.emit({
+          type: 'tool_execution_end',
+          toolCallId: tc.id,
+          result: { content: [{ type: 'text' as const, text: errorMsg }] },
+          isError: true,
         })
       }
 

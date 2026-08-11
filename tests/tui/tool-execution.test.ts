@@ -79,12 +79,24 @@ describe('ToolExecution', () => {
     expect(line).not.toContain('=')
   })
 
-  it('多行结果全显示', () => {
+  it('多行结果全显示（≤20 行不截断）', () => {
     const t = new ToolExecution('bash', { command: 'ls' })
     t.updateResult({ content: 'a\nb\nc\nd' }, false)
     const lines = t.render(80)
     // 调用行 + 4 结果行
     expect(lines.length).toBeGreaterThanOrEqual(5)
+  })
+
+  it('结果 > 20 行：截断到 20 行 + 提示尾行', () => {
+    const t = new ToolExecution('bash', { command: 'cat bigfile' })
+    const content = Array.from({ length: 30 }, (_, i) => `line${i}`).join('\n')
+    t.updateResult({ content }, false)
+    const lines = t.render(80)
+    // 调用行 + 20 结果行 + 1 截断提示行
+    expect(lines.length).toBe(1 + 20 + 1)
+    expect(lines[lines.length - 1]).toMatch(/截断/)
+    // line29（第 30 行）不应出现，被截掉
+    expect(lines.join('\n')).not.toContain('line29')
   })
 
   it('hasResult / started getter', () => {
