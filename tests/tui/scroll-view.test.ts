@@ -122,12 +122,13 @@ describe('ScrollView', () => {
     expect(sv.getOffset()).toBe(1)
   })
 
-  it('缓存：相同 width + viewport 返回相同数组', () => {
+  it('不缓存：相同 width+viewport 返回同内容不同引用（同 Container 策略）', () => {
     const sv = new ScrollView({ stickyBottom: false })
     sv.setChild(multiLineText(['a', 'b']))
     const a = sv.render(20, 2)
     const b = sv.render(20, 2)
-    expect(a).toBe(b)
+    expect(a).toEqual(b)
+    expect(a).not.toBe(b)
   })
 
   it('width 变化触发重算', () => {

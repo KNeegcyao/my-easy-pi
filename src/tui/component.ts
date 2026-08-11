@@ -65,6 +65,9 @@ export interface TUI {
   /** 设置主视口组件（alt screen 专用；main screen 等价于 registerComponent） */
   setMain(c: Component): void
 
+  /** alt-screen 专用：挂布局树根（VStack）。main screen 可空实现。Phase 5。 */
+  setLayoutRoot?(root: Component): void
+
   /** 触发一次重渲染（可以高频调用，渲染器内部去抖） */
   requestRender(): void
 

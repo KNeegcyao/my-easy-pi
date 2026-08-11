@@ -374,6 +374,43 @@ describe('Editor — 渲染', () => {
     expect(line).toContain('\x1b[7m \x1b[0m')
   })
 
+  it('单行横向滚动：恒返回 1 行（Phase 5）', () => {
+    const e = new Editor({ prompt: '>' })
+    e.handleInput('a'.repeat(200))   // 远超 20 列
+    const lines = e.render(20)
+    expect(lines.length).toBe(1)
+  })
+
+  it('超宽时光标始终可见（右侧滚动）', () => {
+    const e = new Editor({ prompt: '' })
+    // 输入 abcdefghij（10 字符）；width=5，avail=5
+    e.handleInput('abcdefghij')
+    // cursor 在末尾(10)。窗口应让光标可见
+    const line = e.render(5)[0]
+    // 光标反白空格出现 → 末尾可见
+    expect(line).toContain('\x1b[7m \x1b[0m')
+    // 应只含 5 个可见字符（窗口）+ prompt；不含全 10 个
+    expect(line).not.toContain('abcdefghij')
+  })
+
+  it('超宽但光标在开头：窗口从开头', () => {
+    const e = new Editor({ prompt: '' })
+    e.handleInput('abcdefghij')
+    e.handleInput('\x01')   // Ctrl+A 光标回行首
+    const line = e.render(5)[0]
+    // 光标在 'a'，反白 a
+    expect(line).toContain('\x1b[7ma\x1b[0m')
+    expect(line).toContain('bcde')   // 窗口前 5 字符
+    expect(line).not.toContain('fghij')
+  })
+
+  it('超宽时不换行（dock 高度恒 1 的前提）', () => {
+    const e = new Editor({ prompt: '' })
+    e.handleInput('x'.repeat(500))
+    expect(e.render(10).length).toBe(1)
+    expect(e.render(80).length).toBe(1)
+  })
+
   it('缓存：相同 width 返回相同引用', () => {
     const e = new Editor()
     e.handleInput('hi')

@@ -231,21 +231,11 @@ export class Editor implements Component, Focusable {
   render(width: number): string[] {
     if (this.cachedLines) return this.cachedLines
     const prompt = this.opts.prompt ?? '> '
-    const promptVisible = visibleLen(prompt)
-
-    // 在光标处插入 inverse block 字符
-    const beforeCursor = this.text.slice(0, this.cursorPos)
-    const atCursor = this.text.slice(this.cursorPos, this.cursorPos + 1)
-    const afterCursor = this.text.slice(this.cursorPos + 1)
-    const cursorBlock = atCursor.length > 0
-      ? `\x1b[7m${atCursor}\x1b[0m`         // 反白当前字符
-      : '\x1b[7m \x1b[0m'                    // 反白空格 = 末尾光标
-    const rendered = `${prompt}${beforeCursor}${cursorBlock}${afterCursor}`
-
-    // 简单换行：按可视宽度切（保守，仅按字符）
-    const lines = wrapSimple(rendered, width, promptVisible)
-    this.cachedLines = lines
-    return lines
+    // 单行横向滚动：始终返回 1 行。超宽时只显示光标附近的窗口，
+    // 光标始终可见。这保证 bottomDock 高度恒 1，layout 稳定（Phase 5）。
+    const line = renderSingleLineScroll(prompt, this.text, this.cursorPos, width)
+    this.cachedLines = [line]
+    return this.cachedLines
   }
 
   // ── 输入处理 ──
@@ -470,14 +460,44 @@ function lastCodePoint(s: string): string {
   return cps[cps.length - 1]
 }
 
-/** 简单 wrap：按字符宽度切；保留 ANSI 转义不过滤（Phase 3 简化） */
-function wrapSimple(text: string, width: number, _promptWidth: number): string[] {
-  if (width <= 0) return [text]
-  // 简化：不感知 ANSI 长度，按 .length 切。Phase 5 用 wrapText 替代。
-  if (text.length <= width) return [text]
-  const lines: string[] = []
-  for (let i = 0; i < text.length; i += width) {
-    lines.push(text.slice(i, i + width))
+/**
+ * 单行横向滚动渲染（Phase 5）：恒返回 1 行。
+ * prompt + text + 反白光标。超宽时按"光标居中窗口"裁切，光标始终可见。
+ * 借鉴 pi/常见单行 editor：光标在窗口右侧 1/4 处滚动。
+ */
+function renderSingleLineScroll(prompt: string, text: string, cursorPos: number, width: number): string {
+  const promptW = visibleLen(prompt)
+  const avail = Math.max(1, width - promptW)   // 文本可用列数
+
+  // 关心的是 text 视觉字符（按 code point）；cursorPos 是 code point 序号
+  const chars = Array.from(text)
+  const cursorCp = Math.min(cursorPos, chars.length)   // 光标在第几个 code point
+
+  if (chars.length <= avail) {
+    // 不超宽：直接全量渲染
+    const before = chars.slice(0, cursorCp).join('')
+    const at = chars.slice(cursorCp, cursorCp + 1).join('')
+    const after = chars.slice(cursorCp + 1).join('')
+    const cursorBlock = at ? `\x1b[7m${at}\x1b[0m` : '\x1b[7m \x1b[0m'
+    return `${prompt}${before}${cursorBlock}${after}`
   }
-  return lines
+
+  // 超宽：算可见窗口 [windowStart, windowStart+avail)，含光标
+  // 让光标尽量在窗口右 1/4，留左 3/4 给已输入内容
+  let windowStart = Math.max(0, cursorCp - Math.floor(avail * 0.75))
+  if (windowStart + avail > chars.length) windowStart = Math.max(0, chars.length - avail)
+  if (cursorCp < windowStart) windowStart = cursorCp
+  const windowEnd = windowStart + avail
+  const showChars = chars.slice(windowStart, windowEnd)
+
+  // 在 window 内的光标相对位置
+  const localCursor = cursorCp - windowStart
+  const before = showChars.slice(0, localCursor).join('')
+  const at = showChars.slice(localCursor, localCursor + 1).join('')
+  const after = showChars.slice(localCursor + 1).join('')
+  const cursorBlock = at ? `\x1b[7m${at}\x1b[0m` : '\x1b[7m \x1b[0m'
+
+  // 窗口未在 text 开头时左侧加省略提示（占 1，avail-1 给内容）
+  // 简化 v1：不加省略号，纯裁切（pi 也基本如此，避免占宽）
+  return `${prompt}${before}${cursorBlock}${after}`
 }

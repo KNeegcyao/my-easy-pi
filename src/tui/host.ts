@@ -20,7 +20,10 @@ import type { PermissionManager } from '../agent/index.js'
 import { RiskLevel } from '../agent/index.js'
 import { Terminal } from './terminal.js'
 import { TuiMainScreen } from './renderer-main.js'
+import { TuiAltScreen } from './renderer-alt.js'
 import { Container } from './layout/container.js'
+import { VStack } from './layout/stack.js'
+import { ScrollView } from './layout/scroll-view.js'
 import { AssistantTurn, userPromptLine, mutedLine } from './components/assistant-turn.js'
 import { ToolExecution, type ToolResultLike } from './components/tool-execution.js'
 import { Spacer } from './components/spacer.js'
@@ -56,14 +59,20 @@ export interface StartTUIOptions {
   permission?: PermissionManager
   /** 依赖注入（测试用）；不传则 new Terminal() */
   terminal?: Terminal
+  /** true 用主屏模式（renderer-main，行 diff + 原生 scrollback）；默认 false=alt-screen */
+  useMainScreen?: boolean
 }
 
 /** 启动 TUI；返回 stop 函数 */
 export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   const terminal = options?.terminal ?? new Terminal()
   const permission = options?.permission
+  const useMainScreen = options?.useMainScreen ?? false
 
-  const screen = new TuiMainScreen(terminal)
+  // 渲染器：默认 alt-screen（全屏布局，editor 钉底）；--main-screen 降级
+  const screen = useMainScreen
+    ? new TuiMainScreen(terminal)
+    : new TuiAltScreen(terminal)
 
   // ── 常驻容器（pi 三件套 1: chatContainer） ──
   const chatContainer = new Container()
@@ -402,10 +411,26 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     })
 
     printHero()
-    // 渲染区 = chatContainer + statusContainer + editor(dock)
-    screen.registerComponent(chatContainer)
-    screen.registerComponent(statusContainer)
-    screen.dock('bottom', editor)
+    // 渲染器接线：alt-screen 用 VStack 布局树（chat ScrollView + footer editor），
+    // main-screen 沿用 registerComponent/dock（行 diff + 原生 scrollback）
+    if (useMainScreen) {
+      screen.registerComponent(chatContainer)
+      screen.registerComponent(statusContainer)
+      screen.dock('bottom', editor)
+    } else {
+      // alt: rootStack = VStack([chatScrollView(grow1), bottomDock[status, editor]])
+      const chatScrollView = new ScrollView({ stickyBottom: true })
+      chatScrollView.setChild(chatContainer)
+      const bottomDock = new VStack([
+        { component: statusContainer, grow: 0 },
+        { component: editor, grow: 0, min: 1 },
+      ])
+      const rootStack = new VStack([
+        { component: chatScrollView, grow: 1, min: 1 },
+        { component: bottomDock, grow: 0 },
+      ])
+      ;(screen as TuiAltScreen).setLayoutRoot(rootStack)
+    }
     screen.start()
     exitRaw = terminal.enterRawMode()
     terminal.hideCursor()

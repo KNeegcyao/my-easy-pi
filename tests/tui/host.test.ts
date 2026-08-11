@@ -69,7 +69,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('启动：写 hero', () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     const out = term.written.join('')
     expect(out).toContain('piagent')
     expect(out).toContain('test-model')
@@ -80,7 +80,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('用户键入 + Enter → agent.prompt 被调用，用户消息进 chat history', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     term.written = []
     term.type('hello')
     term.type('\r')
@@ -93,7 +93,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('空输入 Enter → 不 prompt', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     term.written = []
     type: {
       term.type('\r')
@@ -106,7 +106,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('slash /help → 命令输出进 chat history', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     term.written = []
     term.type('/help\r')
     await sleep(20)
@@ -118,7 +118,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('turn_start → 创建 AssistantTurn 并显示 loader', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     term.written = []
     agent.emit({ type: 'turn_start' })
     await sleep(20)
@@ -129,7 +129,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('message_update → markdown 流式渲染（同一 turn 内更新）', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     agent.emit({ type: 'turn_start' })
     await sleep(60)
     term.written = []
@@ -142,7 +142,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('message_end → turn 留在 chat history（不移除）', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     agent.emit({ type: 'turn_start' })
     await sleep(60)
     agent.emit({ type: 'message_update', message: { content: 'final answer' } })
@@ -157,7 +157,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('tool_execution_start → 工具行进 chat history（在 turn 内）', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     agent.emit({ type: 'turn_start' })
     await sleep(60)
     term.written = []
@@ -174,7 +174,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('tool_execution_end → 工具结果渲染（ContentBlock[] → 字符串）', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     agent.emit({ type: 'turn_start' })
     await sleep(60)
     agent.emit({ type: 'message_update', message: { content: '让我列出文件' } })
@@ -202,7 +202,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('tool_execution_end isError → ✗ 前缀显示失败', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     agent.emit({ type: 'turn_start' })
     await sleep(60)
     agent.emit({ type: 'message_update', message: { content: '执行命令' } })
@@ -235,7 +235,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
       { id: '2', parentId: '1', role: 'assistant', content: '之前的回答', createdAt: 1 },
       { id: '3', parentId: '2', role: 'toolResult', content: '工具输出片段', createdAt: 2 },
     ]
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     await sleep(60)
     const out = term.written.join('')
     expect(out).toContain('之前的问题')   // user 消息
@@ -247,7 +247,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('/clear → 调 agent.reset()（清 LLM 上下文）', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     await sleep(20)
     term.type('/clear\r')
     await sleep(40)
@@ -258,7 +258,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('多回合：第二次 turn_start 不会抹掉第一回合内容', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     agent.emit({ type: 'turn_start' })
     await sleep(20)
     agent.emit({ type: 'message_update', message: { content: 'first reply' } })
@@ -281,7 +281,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('历史 ↑：提交后能调回', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     term.type('first message\r')
     await sleep(20)
     term.written = []
@@ -294,7 +294,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('agent streaming 时提交 → followUp 队列', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     agent.state.isStreaming = true
     term.type('queued\r')
     await sleep(20)
@@ -306,7 +306,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
   it('stop：清理不抛错', () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
-    const stop = startTUI(agent, { terminal: term })
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     expect(() => stop()).not.toThrow()
   })
 })

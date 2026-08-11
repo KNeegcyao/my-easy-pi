@@ -22,11 +22,10 @@ export class ScrollView implements Component {
   private offset = 0
   /** 是否钉在底部（跟随新内容）；undefined=未设定 */
   private pinnedBottom: boolean | undefined = undefined
-  private cachedForWidth: number | null = null
-  private cachedLines: string[] | null = null
-  private cachedViewport: number | null = null
   /** 上一次渲染时已知的内容总行数（用于 stickyBottom 跟随） */
   private lastTotalLines = 0
+  // 注：ScrollView 不缓存聚合（同 Container/VStack 策略）—— child 内容变化
+  // 无法向上通知 parent 失效缓存，缓存会挡住流式更新。offset 作为状态保留。
 
   constructor(opts: ScrollViewOptions = {}) {
     this.opts = {
@@ -76,22 +75,11 @@ export class ScrollView implements Component {
   get isPinnedBottom(): boolean { return this.pinnedBottom === true }
 
   invalidate(): void {
-    this.cachedLines = null
-    this.cachedForWidth = null
-    this.cachedViewport = null
     if (this.child?.invalidate) this.child.invalidate()
   }
 
   render(width: number, explicitViewport?: number): string[] {
     const viewport = explicitViewport ?? this.opts.height
-    if (
-      this.cachedLines &&
-      this.cachedForWidth === width &&
-      this.cachedViewport === viewport
-    ) {
-      return this.cachedLines
-    }
-
     const allLines = this.child ? this.child.render(width) : []
     const total = allLines.length
     this.lastTotalLines = total
@@ -100,26 +88,18 @@ export class ScrollView implements Component {
     if (this.opts.stickyBottom && this.pinnedBottom && viewport > 0) {
       this.offset = Math.max(0, total - viewport)
     } else if (this.opts.stickyBottom && this.pinnedBottom === undefined) {
-      // 首次未显式设定：默认 pinned（与 stickyBottom 一致）
       this.pinnedBottom = true
       this.offset = Math.max(0, total - viewport)
     }
 
-    // clamp offset 到合法范围
     const maxOffset = Math.max(0, total - Math.max(0, viewport))
     if (this.offset > maxOffset) this.offset = maxOffset
 
     if (viewport <= 0) {
-      this.cachedLines = allLines.slice()
-    } else {
-      this.cachedLines = allLines.slice(this.offset, this.offset + viewport)
-      while (this.cachedLines.length < viewport) {
-        this.cachedLines.push('')
-      }
+      return allLines.slice()
     }
-
-    this.cachedForWidth = width
-    this.cachedViewport = viewport
-    return this.cachedLines
+    const lines = allLines.slice(this.offset, this.offset + viewport)
+    while (lines.length < viewport) lines.push('')
+    return lines
   }
 }

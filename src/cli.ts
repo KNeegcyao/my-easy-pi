@@ -16,12 +16,14 @@ function parseArgs(): {
   prompt?: string; message?: string; model?: string
   provider?: string; tui?: boolean; output?: OutputMode
   continue?: boolean; list?: boolean; deleteSession?: string; init?: boolean
+  mainScreen?: boolean
 } {
   const args = process.argv.slice(2)
   const result: {
     prompt?: string; message?: string; model?: string
     provider?: string; tui?: boolean; output?: OutputMode
     continue?: boolean; list?: boolean; deleteSession?: string; init?: boolean
+    mainScreen?: boolean
   } = { output: 'print' }
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -35,6 +37,7 @@ function parseArgs(): {
       case '-l': case '--list': result.list = true; break
       case '--delete': result.deleteSession = args[++i]; break
       case '--init': result.init = true; break
+      case '--main-screen': result.mainScreen = true; break
       case '-h': case '--help': printHelp(); process.exit(0)
     }
   }
@@ -56,7 +59,8 @@ piagent — 简易 AI Coding Agent
 选项:
   -p, --prompt    系统提示或指令
   -m, --message   直接输入消息
-  -i, --tui       交互式对话模式
+  -i, --tui       交互式对话模式（默认 alt-screen 全屏；加 --main-screen 降级）
+  --main-screen   用主屏渲染器（行 diff + 原生 scrollback，非全屏）降级路径
   -o, --output    输出模式: print | json | rpc (默认: print)
   -c, --continue  继续上次会话
   -l, --list      列出所有会话
@@ -222,7 +226,7 @@ async function main(): Promise<void> {
   })
 
   // 启动界面
-  if (args.tui) { startTUI(agent, { permission }) }
+  if (args.tui) { startTUI(agent, { permission, useMainScreen: args.mainScreen }) }
   else if (args.output === 'json') {
     createJSONInterface(agent)
     try { await agent.prompt(userMessage!) } catch (e) {
