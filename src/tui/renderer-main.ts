@@ -320,30 +320,9 @@ export class TuiMainScreen implements TUI {
     if (this.started) this.requestRender()
   }
 
-  /**
-   * 把若干行"提交"到 transcript 区（一次性写，进原生 scrollback，不参与 diff）。
-   * 用于：hero / 用户消息行 / 命令输出 / 工具回显 / 错误行。
-   * 流式 markdown 不走这里（它进渲染区，完成后自然留 scrollback）。
-   */
-  commitTranscript(lines: string[]): void {
-    // 1. 清当前渲染区残留（用 previousLines 上移 + clearToEnd）
-    if (this.previousLines.length > 0) {
-      const lineDiff = this.hardwareCursorRow - this.previousViewportTop
-      let buf = ''
-      if (lineDiff > 0) buf += `\x1b[${lineDiff}A`
-      buf += '\r\x1b[J'
-      this.terminal.write(buf)
-      this.previousLines = []
-      this.previousViewportTop = 0
-      this.hardwareCursorRow = 0
-    }
-    // 2. 逐行写 transcript
-    for (const line of lines) {
-      this.terminal.write(line + '\n')
-    }
-    // 3. 触发重画渲染区（立即，不经节流，保证 transcript 后立刻显示 Editor）
-    if (this.started) this.renderNow()
-  }
+  // commitTranscript 已移除（Phase 4.7）—— pi 没有"transcript 区 vs 渲染区"二分，
+  // 所有历史（用户消息、工具、错误、命令输出）一律走 chatContainer.addChild，
+  // 由 doRender 统一 diff 渲染。外部如需追加内容，请通过 Chat 等常驻 Container 操作。
 
   /** 测试用 */
   get renderedLineCount(): number { return this.previousLines.length }

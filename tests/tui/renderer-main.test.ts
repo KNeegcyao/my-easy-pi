@@ -187,45 +187,6 @@ describe('TuiMainScreen — diff 限范围 + 纯追加（核心 pi 行为）', (
   })
 })
 
-describe('TuiMainScreen — commitTranscript', () => {
-  it('commitTranscript 写出 transcript 行 + 重画渲染区', () => {
-    const term = new FakeTerminal()
-    const screen = new TuiMainScreen(term)
-    screen.registerComponent(new Text('render-area'))
-    screen.start()
-    term.written = []
-
-    screen.commitTranscript(['transcript-line-1', 'transcript-line-2'])
-    const out = term.written.join('')
-    expect(out).toContain('transcript-line-1')
-    expect(out).toContain('transcript-line-2')
-    // commit 后渲染区重画（Editor/loader 等）
-    expect(out).toContain('render-area')
-    screen.dispose()
-  })
-
-  it('commitTranscript 空：不抛错', () => {
-    const term = new FakeTerminal()
-    const screen = new TuiMainScreen(term)
-    screen.start()
-    term.written = []
-    expect(() => screen.commitTranscript([])).not.toThrow()
-    screen.dispose()
-  })
-
-  it('commitTranscript 后渲染区留在新位置', () => {
-    const term = new FakeTerminal()
-    const screen = new TuiMainScreen(term)
-    screen.registerComponent(new Text('after'))
-    screen.start()
-    term.written = []
-    screen.commitTranscript(['committed'])
-    expect(term.written.join('')).toContain('after')
-    expect(screen.renderedLineCount).toBeGreaterThan(0)
-    screen.dispose()
-  })
-})
-
 describe('TuiMainScreen — 视口推滚（长输出）', () => {
   it('渲染区超过终端高度时产生 \\r\\n 推滚（进 scrollback）', () => {
     // rows=5 模拟小终端
