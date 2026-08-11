@@ -4,7 +4,8 @@ import { ModelRegistry, AnthropicProvider, DeepSeekProvider, OpenAIProvider } fr
 import { ToolRegistry, bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, webFetchTool } from './tools/index.js'
 import { Agent, PermissionManager, type ConfirmFn, RiskLevel } from './agent/index.js'
 import { isAppError, AUTH_API_KEY_MISSING, PROVIDER_NOT_FOUND, MODEL_NOT_FOUND } from './ai/errors.js'
-import { createPrintInterface, createJSONInterface, startTUI, startRPC } from './interface/index.js'
+import { createPrintInterface, createJSONInterface, startRPC } from './interface/index.js'
+import { startTUI } from './tui/index.js'
 import { ConfigManager, runInit } from './config/index.js'
 import { SessionManager, Compactor } from './session/index.js'
 import { recordTokenUsage } from './interface/tui/commands.js'
@@ -221,7 +222,7 @@ async function main(): Promise<void> {
   })
 
   // 启动界面
-  if (args.tui) { startTUI(agent) }
+  if (args.tui) { startTUI(agent, { permission }) }
   else if (args.output === 'json') {
     createJSONInterface(agent)
     try { await agent.prompt(userMessage!) } catch (e) {

@@ -7,6 +7,10 @@
 //   3. 显示 "piagent is thinking..."
 //   4. LLM 流式输出回复内容
 //   5. 回到步骤 1
+//
+// @deprecated Phase 4 起改用 src/tui/components/editor.ts (Editor + parseKeys)。
+// 旧实现基于 node readline；新实现基于 raw mode + parseKeys，按 code point
+// 移动光标、支持反白光标块渲染与历史浏览。本文件保留作参考。
 // ============================================================
 
 import * as readline from 'readline'

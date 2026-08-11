@@ -173,6 +173,38 @@ export class TuiMainScreen implements TUI {
     // 上层典型用法：term.onResize(() => screen.onResize()); screen.requestRender()
   }
 
+  /**
+   * 把若干行"提交"到 transcript 区（一次性写出，进原生 scrollback，不参与 diff）。
+   *
+   * 语义（Phase 4 核心）：
+   *   1. 先清当前渲染区残留（cursorUp + clearToEnd），让 transcript 紧接已提交内容
+   *   2. 逐行写 line + '\n'（含最后一行——为渲染区让位）
+   *   3. 重置渲染区起点（lastRenderedLineCount=0, buffer.clear）
+   *   4. 触发一次 requestRender 重画渲染区（Editor/loader 等）
+   *
+   * 用于：hero / 用户消息行 / 命令输出 / 已完成的 assistant 消息 / 工具回显 / 错误。
+   */
+  commitTranscript(lines: string[]): void {
+    const write = (s: string) => this.terminal.write(s)
+
+    // 1. 清当前渲染区残留
+    if (this.lastRenderedLineCount > 0) {
+      write(`\x1b[${this.lastRenderedLineCount}A`)
+      write('\r')
+      write('\x1b[J')   // clearToEnd：清光标到屏幕尾
+      this.lastRenderedLineCount = 0
+      this.buffer.clear()
+    }
+
+    // 2. 逐行写 transcript（每行末尾 \n，包括最后一行为渲染区让位）
+    for (const line of lines) {
+      write(line + '\n')
+    }
+
+    // 3. 渲染区起点现已在新行；4. 触发重绘（仅在已 start 时）
+    if (this.started) this.requestRender()
+  }
+
   /** 测试用：当前渲染区行数 */
   get renderedLineCount(): number { return this.lastRenderedLineCount }
 }

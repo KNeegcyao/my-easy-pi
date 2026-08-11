@@ -17,6 +17,8 @@ import { green, yellow, cyan, dim, gray } from './theme.js'
 export interface CommandResult {
   handled: boolean
   output: string
+  /** /clear：要求 host 重启渲染区（不直接写 stdout） */
+  clear?: boolean
 }
 
 export interface TokenStats {
@@ -122,8 +124,9 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
     }
 
     case '/clear':
-      process.stdout.write('\x1b[2J\x1b[H')
-      return { handled: true, output: '' }
+      // 不直接写 stdout（docs 约束：命令不直接操作终端）。
+      // host 见 clear 标志后会重启渲染区。
+      return { handled: true, output: '', clear: true }
 
     case '/exit':
     case '/quit':

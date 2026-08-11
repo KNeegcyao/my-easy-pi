@@ -13,6 +13,7 @@ export { Csi2026 } from './csi2026.js'
 
 export { TuiMainScreen } from './renderer-main.js'
 export { TuiAltScreen } from './renderer-alt.js'
+export { startTUI, type StartTUIOptions } from './host.js'
 
 export * from './layout/index.js'
 export * from './components/index.js'

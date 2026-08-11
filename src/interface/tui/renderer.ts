@@ -5,6 +5,11 @@
 //   每次 message_update 收到完整内容，用 marked 重新解析，
 //   计算出新的行数。如果行数变化，用 ANSI 移动光标覆盖旧内容。
 //   这解决了流式分块导致的 Markdown 标记不完整问题。
+//
+// @deprecated Phase 4 起改用 src/tui/renderer-main.ts (TuiMainScreen)。
+// 新实现用 ScreenBuffer 行 diff + CSI 2026 帧封 + commitTranscript 二元划分
+// （transcript 区 vs 渲染区），从源头 wrap 超宽行而非 physicalRows 补救。
+// 本文件保留作参考。
 // ============================================================
 
 import type { Agent, AgentEvent } from '../../agent/index.js'

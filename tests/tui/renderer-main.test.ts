@@ -152,4 +152,55 @@ describe('TuiMainScreen', () => {
     s.stop()
     s.dispose()
   })
+
+  it('commitTranscript：渲染区有内容时先清再写 transcript', () => {
+    screen.registerComponent(new Text('render-area'))
+    screen.start()
+    screen.requestRender()
+    term.written = []  // 清掉启动输出
+
+    screen.commitTranscript(['transcript-line-1', 'transcript-line-2'])
+    const out = term.written.join('')
+    // 清渲染区：cursorUp（\x1b[NA）+ clearToEnd（\x1b[J）
+    expect(out).toMatch(/\x1b\[\d*A/)   // cursorUp
+    expect(out).toContain('\x1b[J')     // clearToEnd
+    // transcript 行被写出
+    expect(out).toContain('transcript-line-1')
+    expect(out).toContain('transcript-line-2')
+    screen.stop()
+    screen.dispose()
+  })
+
+  it('commitTranscript：无渲染区时直接写 transcript（不 cursorUp）', () => {
+    screen.start()
+    term.written = []
+    screen.commitTranscript(['only-transcript'])
+    const out = term.written.join('')
+    expect(out).toContain('only-transcript')
+    // 没有渲染区要清，不应有 cursorUp（\x1b[NA）
+    expect(out).not.toMatch(/\x1b\[\d+A/)
+    screen.stop()
+    screen.dispose()
+  })
+
+  it('commitTranscript：内部 requestRender 在新行重画渲染区', () => {
+    screen.registerComponent(new Text('after'))
+    screen.start()
+    term.written = []
+    screen.commitTranscript(['committed'])
+    // commitTranscript 内部已 requestRender，'after' 应在同次输出里
+    const out = term.written.join('')
+    expect(out).toContain('committed')
+    expect(out).toContain('after')
+    screen.stop()
+    screen.dispose()
+  })
+
+  it('commitTranscript 空行：仍正确推进（写一个 \\n）', () => {
+    screen.start()
+    term.written = []
+    expect(() => screen.commitTranscript([])).not.toThrow()
+    screen.stop()
+    screen.dispose()
+  })
 })

@@ -1,5 +1,9 @@
 // ============================================================
 // theme — 终端主题（零依赖，纯 ANSI）
+//
+// @deprecated Phase 4 起新 TUI 改用 src/tui/ansi.ts（同名函数 + CSI 工具）。
+// 本文件仍被 interface/tui/{editor,renderer,commands}.ts 及
+// interface/markdown-renderer.ts 使用，保留不删。
 // ============================================================
 
 const RESET = '\x1b[0m'

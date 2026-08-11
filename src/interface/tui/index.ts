@@ -4,9 +4,10 @@
 // 类似 Claude Code 的全屏交互体验。
 // 包含全局错误处理，防止意外退出。
 //
-// @deprecated (过渡期内保留)
-//   此实现将在 Phase 7 被 `src/tui/` + `src/interface/tui/interactive-mode.ts` 替换。
-//   设计依据见 docs/tui-strategy.md。
+// @deprecated Phase 4 起，-i 模式默认改用 src/tui/host.ts (startTUI)。
+//   本文件保留作旧实现参考，不再被 cli.ts 引用。
+//   新实现：src/tui/ 组件框架 + host.ts 事件接入（raw mode + parseKeys +
+//   CSI 2026 + commitTranscript 二元划分）。设计依据见 docs/tui-strategy.md。
 // ============================================================
 
 import type { Agent } from '../../agent/index.js'
