@@ -224,9 +224,15 @@ export class TuiMainScreen implements TUI {
 
     let buf = this.frame.isSupported ? '\x1b[?2026h' : ''
 
-    // 视口推滚：纯追加且新行超出视口底部 → 用 \r\n 把视口下推
+    // 视口推滚：新内容超出视口底部 → 滚动让底部可见
     const moveTargetRow = appendStart ? firstChanged - 1 : firstChanged
     if (moveTargetRow > prevViewportBottom) {
+      // 先 \x1b[B 把光标移到视口最底行；terminal 仅在光标位于末行时
+      // 才会把后续 \r\n 推进 scrollback。否则 \r\n 只是下移光标、不滚动
+      // → editor 等内容被写在错误行、旧帧残留成重复（pi tui-main-screen.ts:394-405）
+      const curRow = Math.max(0, Math.min(height - 1, this.hardwareCursorRow - this.previousViewportTop))
+      const moveToBottom = height - 1 - curRow
+      if (moveToBottom > 0) buf += `\x1b[${moveToBottom}B`
       const scroll = moveTargetRow - prevViewportBottom
       buf += '\r\n'.repeat(scroll)
       this.previousViewportTop += scroll
@@ -234,9 +240,17 @@ export class TuiMainScreen implements TUI {
       this.hardwareCursorRow = moveTargetRow
     }
 
-    // 移光标到 moveTargetRow
+    // 变化行已在视口上方（scrollback 里）→ scrollback 不可变（首次打印时定形），
+    // 只重画视口内可见的变化行，不全量重画（避免流式期间每帧 clear 引起闪烁 +
+    // scrollback 被反复刷写产生重复文本）
+    const effectiveFirst = Math.max(firstChanged, viewportTop)
+    // 重算 moveTargetRow（基于 clip 后的起点；appendStart 不会在此触发，
+    // 因 appendStart 要求 firstChanged===previousLines.length，那是底部不是上方）
+    const effectiveMoveTarget = appendStart ? firstChanged - 1 : effectiveFirst
+
+    // 移光标到 effectiveMoveTarget
     const currentScreenRow = this.hardwareCursorRow - this.previousViewportTop
-    const targetScreenRow = moveTargetRow - viewportTop
+    const targetScreenRow = effectiveMoveTarget - viewportTop
     const lineDiff = targetScreenRow - currentScreenRow
     if (lineDiff > 0) buf += `\x1b[${lineDiff}B`
     else if (lineDiff < 0) buf += `\x1b[${-lineDiff}A`
@@ -244,10 +258,10 @@ export class TuiMainScreen implements TUI {
     // 纯追加：\r\n 进新行；行内变更：\r 回列首
     buf += appendStart ? '\r\n' : '\r'
 
-    // 只写 firstChanged..lastChanged
+    // 只写 effectiveFirst..lastChanged（视口内变化行）
     const renderEnd = Math.min(lastChanged, newLines.length - 1)
-    for (let i = firstChanged; i <= renderEnd; i++) {
-      if (i > firstChanged) buf += '\r\n'
+    for (let i = effectiveFirst; i <= renderEnd; i++) {
+      if (i > effectiveFirst) buf += '\r\n'
       buf += '\x1b[2K'
       buf += newLines[i]
     }
