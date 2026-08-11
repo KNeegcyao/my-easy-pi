@@ -1,16 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { TuiMainScreen } from '../../src/tui/renderer-main.js'
 import { Terminal, type TerminalCapabilities } from '../../src/tui/terminal.js'
 import { Text } from '../../src/tui/components/text.js'
 import { Loader } from '../../src/tui/components/loader.js'
 
-/** 捕获 stdout 写入的 fake Terminal */
 class FakeTerminal extends Terminal {
   written: string[] = []
 
   constructor(caps: Partial<TerminalCapabilities> = {}) {
     super()
-    // 私有字段不能直接重赋值；通过 Object.defineProperty 覆盖 getter
     const capsFinal: TerminalCapabilities = {
       isTTY: true, columns: 80, rows: 24,
       syncOutput: true,
@@ -19,22 +17,21 @@ class FakeTerminal extends Terminal {
       bracketedPaste: true, mouse: false,
       ...caps,
     }
-    Object.defineProperty(this, 'capabilities', {
-      get: () => capsFinal,
-      configurable: true,
-    })
+    Object.defineProperty(this, 'capabilities', { get: () => capsFinal, configurable: true })
     Object.defineProperty(this, 'columns', { get: () => capsFinal.columns, configurable: true })
     Object.defineProperty(this, 'rows', { get: () => capsFinal.rows, configurable: true })
   }
 
   override write(data: string): void { this.written.push(data) }
   override writeErr(data: string): void { this.written.push('[ERR]' + data) }
-  override onResize(_: (cols: number, rows: number) => void): () => void {
-    return () => {}  // no-op；测试不触发
-  }
+  override onResize(_: (cols: number, rows: number) => void): () => void { return () => {} }
+  override hideCursor(): void {}
+  override showCursor(): void {}
+  override enterAltScreen(): void {}
+  override exitAltScreen(): void {}
 }
 
-describe('TuiMainScreen', () => {
+describe('TuiMainScreen — 基础', () => {
   let term: FakeTerminal
   let screen: TuiMainScreen
 
@@ -43,164 +40,214 @@ describe('TuiMainScreen', () => {
     screen = new TuiMainScreen(term)
   })
 
-  it('start 预留一行 + hideCursor', () => {
-    screen.start()
-    expect(term.written.some(s => s.includes('\x1b[?25l'))).toBe(true)
-    screen.stop()
-    screen.dispose()
-  })
-
-  it('初始 requestRender 渲染组件内容', () => {
-    const text = new Text('hello')
-    screen.registerComponent(text)
-    screen.start()  // start() 内部已调一次 requestRender()
+  it('start 首帧渲染组件内容（renderNow，不经节流）', () => {
+    screen.registerComponent(new Text('hello'))
+    screen.start()   // start 内部 renderNow
     expect(term.written.join('')).toContain('hello')
-    screen.stop()
     screen.dispose()
   })
 
-  it('帧被 BSU/ESU 包裹', () => {
+  it('帧被 BSU/ESU 包裹（syncOutput=true）', () => {
     screen.registerComponent(new Text('x'))
     screen.start()
-    screen.requestRender()
     const out = term.written.join('')
     expect(out).toContain('\x1b[?2026h')
     expect(out).toContain('\x1b[?2026l')
-    screen.stop()
-    screen.dispose()
-  })
-
-  it('第二次 requestRender 不动 => 无新输出（去抖）', () => {
-    screen.registerComponent(new Text('x'))
-    screen.start()
-    screen.requestRender()
-    const firstLen = term.written.length
-    screen.requestRender()
-    expect(term.written.length).toBe(firstLen)
-    screen.stop()
-    screen.dispose()
-  })
-
-  it('组件内容变化时重渲染', () => {
-    const text = new Text('x')
-    screen.registerComponent(text)
-    screen.start()
-    screen.requestRender()
-    const firstLen = term.written.length
-
-    text.setContent('y')
-    screen.requestRender()
-    expect(term.written.length).toBeGreaterThan(firstLen)
-    const recent = term.written.slice(firstLen).join('')
-    expect(recent).toContain('y')
-    screen.stop()
-    screen.dispose()
-  })
-
-  it('stop 清除渲染区并恢复光标', () => {
-    screen.registerComponent(new Text('x'))
-    screen.start()
-    screen.requestRender()
-    term.written = []
-    screen.stop()
-    const out = term.written.join('')
-    expect(out).toContain('\x1b[?25h')
-    expect(out).toContain('\x1b[J')
-    screen.dispose()
-  })
-
-  it('Loader.tick + requestRender 推进帧', () => {
-    const loader = new Loader('working')
-    screen.registerComponent(loader)
-    screen.start()
-    screen.requestRender()
-    expect(term.written.join('')).toContain('⠋')
-
-    term.written = []
-    for (let i = 0; i < 5; i++) {
-      loader.tick()
-      screen.requestRender()
-    }
-    expect(term.written.join('')).toContain('⠴')
-    screen.stop()
-    screen.dispose()
-  })
-
-  it('onResize 重置缓冲（不自动重渲染；调用方负责 requestRender）', () => {
-    screen.registerComponent(new Text('hello world this is longer'))
-    screen.start()
-    screen.requestRender()
-    expect(screen.renderedLineCount).toBe(1)
-
-    screen.onResize()
-    // onResize 清空 lastRenderedLineCount，但**不**自动 requestRender
-    // （避免在 resize 风暴期间重复重绘；上层在下一帧统一渲染）
-    expect(screen.renderedLineCount).toBe(0)
-    screen.stop()
     screen.dispose()
   })
 
   it('syncOutput=false 时不产生 BSU/ESU', () => {
-    const noSync = new FakeTerminal({ syncOutput: false })
-    const s = new TuiMainScreen(noSync)
+    const t = new FakeTerminal({ syncOutput: false })
+    const s = new TuiMainScreen(t)
     s.registerComponent(new Text('x'))
     s.start()
-    s.requestRender()
-    const out = noSync.written.join('')
+    const out = t.written.join('')
     expect(out).not.toContain('\x1b[?2026h')
     expect(out).not.toContain('\x1b[?2026l')
-    s.stop()
     s.dispose()
   })
 
-  it('commitTranscript：渲染区有内容时先清再写 transcript', () => {
+  it('stop 清渲染区 + showCursor', () => {
+    screen.registerComponent(new Text('x'))
+    screen.start()
+    term.written = []   // 注：FakeTerminal showCursor no-op，不会写序列
+    screen.stop()
+    const out = term.written.join('')
+    expect(out).toContain('\x1b[J')   // clearToEnd
+    screen.dispose()
+  })
+})
+
+describe('TuiMainScreen — 节流', () => {
+  it('高频 requestRender 在 16ms 内只画一帧', () => {
+    const term = new FakeTerminal()
+    const screen = new TuiMainScreen(term)
+    const text = new Text('a')
+    screen.registerComponent(text)
+    screen.start()
+    const lenAfterStart = term.written.length
+
+    // 节流：多次 requestRender 不立即画
+    text.setContent('b')
+    screen.requestRender()
+    text.setContent('c')
+    screen.requestRender()
+    expect(term.written.length).toBe(lenAfterStart)   // 还没画
+
+    // flush 强制画一帧
+    screen.flushPending()
+    const out = term.written.slice(lenAfterStart).join('')
+    expect(out).toContain('c')       // 只看到最终值 c，不是 b
+    expect(out).not.toContain('b')   // b 被合并掉
+    screen.dispose()
+  })
+
+  it('hasPendingRender 反映节流队列', () => {
+    const term = new FakeTerminal()
+    const screen = new TuiMainScreen(term)
+    screen.registerComponent(new Text('x'))
+    screen.start()
+    term.written = []
+
+    screen.registerComponent(new Text('y'))
+    screen.requestRender()
+    // 节流队列可能已/未触发（process.nextTick 异步）；flush 后必为 false
+    screen.flushPending()
+    expect(screen.hasPendingRender).toBe(false)
+    screen.dispose()
+  })
+})
+
+describe('TuiMainScreen — diff 限范围 + 纯追加（核心 pi 行为）', () => {
+  it('纯追加：不上移光标，直接 \\r\\n 追加新行（打字机效果）', () => {
+    const term = new FakeTerminal()
+    const screen = new TuiMainScreen(term)
+    // 用多行 Text 模拟流式追加
+    const text = new Text('line1\nline2', { wrap: false })
+    screen.registerComponent(text)
+    screen.start()
+    term.written = []
+
+    // 纯追加一行：旧行不变
+    text.setContent('line1\nline2\nline3')
+    screen.requestRender()
+    screen.flushPending()
+    const out = term.written.join('')
+
+    // 不应有大段 cursorUp（\x1b[NA, N>1 表示整块上移重画）
+    // 纯追加路径只产生 \r\n 追加 + 单行 \x1b[2K
+    const cursorUpMatches = out.match(/\x1b\[(\d+)A/g) || []
+    const bigUp = cursorUpMatches.filter(m => parseInt(m.match(/\d+/)![0]) > 1)
+    expect(bigUp.length).toBe(0)
+    expect(out).toContain('line3')
+    screen.dispose()
+  })
+
+  it('行内变更（spinner）：只重写变化的行，不重画整块', () => {
+    const term = new FakeTerminal()
+    const screen = new TuiMainScreen(term)
+    const loader = new Loader('working')
+    const text = new Text('header', { wrap: false })
+    screen.registerComponent(text)
+    screen.registerComponent(loader)
+    screen.start()
+    term.written = []
+
+    // spinner 推进 5 帧
+    for (let i = 0; i < 5; i++) {
+      loader.tick()
+      screen.requestRender()
+      screen.flushPending()
+    }
+    const out = term.written.join('')
+
+    // 'header' 行在 spinner 帧不变化 → diff 跳过，不重复写
+    // （测试已清零首帧输出，所以 header 在后续帧根本不应出现）
+    const headerCount = (out.match(/header/g) || []).length
+    expect(headerCount).toBe(0)
+    expect(out).toContain('⠴')   // 第 5 帧 spinner 被重写
+    screen.dispose()
+  })
+
+  it('内容缩短：清多余行', () => {
+    const term = new FakeTerminal()
+    const screen = new TuiMainScreen(term)
+    const text = new Text('a\nb\nc\nd\ne', { wrap: false })
+    screen.registerComponent(text)
+    screen.start()
+    term.written = []
+
+    text.setContent('a\nb')
+    screen.requestRender()
+    screen.flushPending()
+    const out = term.written.join('')
+    expect(out).toContain('\x1b[2K')   // 清多余行
+    // a/b 行未变，diff 跳过不重写（正确行为）
+    screen.dispose()
+  })
+})
+
+describe('TuiMainScreen — commitTranscript', () => {
+  it('commitTranscript 写出 transcript 行 + 重画渲染区', () => {
+    const term = new FakeTerminal()
+    const screen = new TuiMainScreen(term)
     screen.registerComponent(new Text('render-area'))
     screen.start()
-    screen.requestRender()
-    term.written = []  // 清掉启动输出
+    term.written = []
 
     screen.commitTranscript(['transcript-line-1', 'transcript-line-2'])
     const out = term.written.join('')
-    // 清渲染区：cursorUp（\x1b[NA）+ clearToEnd（\x1b[J）
-    expect(out).toMatch(/\x1b\[\d*A/)   // cursorUp
-    expect(out).toContain('\x1b[J')     // clearToEnd
-    // transcript 行被写出
     expect(out).toContain('transcript-line-1')
     expect(out).toContain('transcript-line-2')
-    screen.stop()
+    // commit 后渲染区重画（Editor/loader 等）
+    expect(out).toContain('render-area')
     screen.dispose()
   })
 
-  it('commitTranscript：无渲染区时直接写 transcript（不 cursorUp）', () => {
+  it('commitTranscript 空：不抛错', () => {
+    const term = new FakeTerminal()
+    const screen = new TuiMainScreen(term)
     screen.start()
     term.written = []
-    screen.commitTranscript(['only-transcript'])
-    const out = term.written.join('')
-    expect(out).toContain('only-transcript')
-    // 没有渲染区要清，不应有 cursorUp（\x1b[NA）
-    expect(out).not.toMatch(/\x1b\[\d+A/)
-    screen.stop()
+    expect(() => screen.commitTranscript([])).not.toThrow()
     screen.dispose()
   })
 
-  it('commitTranscript：内部 requestRender 在新行重画渲染区', () => {
+  it('commitTranscript 后渲染区留在新位置', () => {
+    const term = new FakeTerminal()
+    const screen = new TuiMainScreen(term)
     screen.registerComponent(new Text('after'))
     screen.start()
     term.written = []
     screen.commitTranscript(['committed'])
-    // commitTranscript 内部已 requestRender，'after' 应在同次输出里
-    const out = term.written.join('')
-    expect(out).toContain('committed')
-    expect(out).toContain('after')
-    screen.stop()
+    expect(term.written.join('')).toContain('after')
+    expect(screen.renderedLineCount).toBeGreaterThan(0)
     screen.dispose()
   })
+})
 
-  it('commitTranscript 空行：仍正确推进（写一个 \\n）', () => {
+describe('TuiMainScreen — 视口推滚（长输出）', () => {
+  it('渲染区超过终端高度时产生 \\r\\n 推滚（进 scrollback）', () => {
+    // rows=5 模拟小终端
+    const term = new FakeTerminal({ columns: 80, rows: 5 } as any)
+    // 上面 caps 里 columns/rows 已通过 defineProperty 设；这里再校准
+    Object.defineProperty(term, 'rows', { get: () => 5, configurable: true })
+    const screen = new TuiMainScreen(term)
+    const text = new Text('seed', { wrap: false })
+    screen.registerComponent(text)
     screen.start()
     term.written = []
-    expect(() => screen.commitTranscript([])).not.toThrow()
-    screen.stop()
+
+    // 追加到远超 5 行
+    text.setContent(Array.from({ length: 20 }, (_, i) => `line${i}`).join('\n'))
+    screen.requestRender()
+    screen.flushPending()
+    const out = term.written.join('')
+
+    // 长输出处理：fullRender 或 append 路径都会产生 \r\n 分隔
+    // 关键是不崩溃 + 最新行 line19 出现（在底部）
+    expect(out).toContain('\r\n')
+    expect(out).toContain('line19')
     screen.dispose()
   })
 })

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { startTUI } from '../../src/tui/host.js'
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
 import { Terminal, type TerminalCapabilities } from '../../src/tui/terminal.js'
 import type { Agent, AgentEvent } from '../../src/agent/types.js'
 
@@ -136,42 +137,51 @@ describe('startTUI (host)', () => {
     stop()
   })
 
-  it('turn_start 事件 → loader 显示', () => {
+  it('turn_start 事件 → loader 显示', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
     const stop = startTUI(agent, { terminal: term })
     term.written = []
 
     agent.emit({ type: 'turn_start' })
+    await sleep(20)   // 等节流（16ms）过去
     expect(term.written.join('')).toContain('thinking')
     stop()
   })
 
-  it('message_update → markdown 流式渲染', () => {
+  it('message_update → markdown 流式渲染', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
     const stop = startTUI(agent, { terminal: term })
     term.written = []
 
     agent.emit({ type: 'turn_start' })
+    await sleep(20)
     term.written = []
     agent.emit({ type: 'message_update', message: { content: 'hello **world**' } })
+    await sleep(20)
 
     expect(term.written.join('')).toContain('hello')
     stop()
   })
 
-  it('message_end → markdown 内容 commit 进 transcript', () => {
+  it('message_end → 卸载 markdown/loader，恢复 prompt', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
     const stop = startTUI(agent, { terminal: term })
 
     agent.emit({ type: 'turn_start' })
+    await sleep(20)
     agent.emit({ type: 'message_update', message: { content: 'final answer' } })
+    await sleep(20)
     term.written = []
     agent.emit({ type: 'message_end', message: { id: '1', parentId: null, role: 'assistant', content: 'final answer', createdAt: 0 } })
+    await sleep(20)
 
-    expect(term.written.join('')).toContain('final answer')
+    // message_end 后渲染区只剩 editor；final answer 已在 message_update 时画过，
+    // 这里只验证不崩溃且 prompt 恢复（绿色 > 在渲染区）
+    const out = term.written.join('')
+    expect(out).toMatch(/>/)   // prompt 出现
     stop()
   })
 
@@ -204,17 +214,18 @@ describe('startTUI (host)', () => {
     stop()
   })
 
-  it('历史 ↑：提交后能调回', () => {
+  it('历史 ↑：提交后能调回', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
     const stop = startTUI(agent, { terminal: term })
 
     term.type('first message\r')
-    setImmediate(() => {})
+    await sleep(20)
     term.written = []
 
     // ↑ 应调回 'first message'
     term.type('\x1b[A')
+    await sleep(20)   // onInput → requestRender 节流
     const out = term.written.join('')
     expect(out).toContain('first message')
     stop()

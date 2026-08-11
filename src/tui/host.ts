@@ -135,10 +135,9 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
 
       case 'message_end': {
-        // 把最终 markdown 内容提交进 transcript（不可变）
-        if (markdown.getSource()) {
-          screen.commitTranscript(markdown.render(width()))
-        }
+        // pi 贴底策略：流式期间 markdown 行已通过渲染区 diff 推进原生 scrollback，
+        // 最终内容已留在 scrollback 里。这里不重复 commitTranscript，
+        // 只卸载组件、恢复 prompt。
         hideMarkdown()
         hideLoader()
         screen.requestRender()
