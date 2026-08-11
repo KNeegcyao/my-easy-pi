@@ -38,4 +38,48 @@ describe('PermissionManager', () => {
     pm.clearApproved()
     expect(pm['approved'].has('test-command')).toBe(false)
   })
+
+  test('复合只读命令（cd X && find Y）放行', async () => {
+    const pm = new PermissionManager()
+    const r = await pm.check(createContext('bash', 'cd /tmp && find . -type d | sort'))
+    expect(r).toBeUndefined()   // 各段全 safe → 不拦截
+  })
+
+  test('for 循环只读体放行（for d in ...; do echo $d; done）', async () => {
+    const pm = new PermissionManager()
+    const r = await pm.check(createContext('bash', 'for d in agent ai config; do echo $d; done'))
+    expect(r).toBeUndefined()
+  })
+
+  test('复合命令含危险段被拦（cd X && rm -rf Y）', async () => {
+    const pm = new PermissionManager()
+    const r = await pm.check(createContext('bash', 'cd /tmp && rm -rf /'))
+    expect(r).toBeDefined()
+    expect(r?.block).toBe(true)
+  })
+
+  test('for 循环危险体被拦（do rm -rf $d）', async () => {
+    const pm = new PermissionManager()
+    const r = await pm.check(createContext('bash', 'for d in .; do rm -rf $d; done'))
+    expect(r).toBeDefined()
+    expect(r?.block).toBe(true)
+  })
+
+  test('管道只读命令放行（ls -la | grep foo | wc -l）', async () => {
+    const pm = new PermissionManager()
+    const r = await pm.check(createContext('bash', 'ls -la | grep foo | wc -l'))
+    expect(r).toBeUndefined()
+  })
+
+  test('cat 大文件读仍 safe（只读）', async () => {
+    const pm = new PermissionManager()
+    const r = await pm.check(createContext('bash', 'cat README.md | head -50'))
+    expect(r).toBeUndefined()
+  })
+
+  test('head -N 读文件 safe', async () => {
+    const pm = new PermissionManager()
+    const r = await pm.check(createContext('bash', 'head -30 src/cli.ts'))
+    expect(r).toBeUndefined()
+  })
 })

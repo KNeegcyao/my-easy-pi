@@ -123,34 +123,60 @@ export class PermissionManager {
   /** 评估命令的风险等级 */
   private evaluateRisk(command: string): RiskLevel {
     const trimmed = command.trim()
-
-    // 🛡️ 检测多行注入：如果命令包含换行符，LLM 可能在绕过检查
-    if (trimmed.includes('\n')) {
-      const lines = trimmed.split('\n').filter(l => l.trim())
-      let maxRisk = RiskLevel.SAFE
-      for (const line of lines) {
-        const lineRisk = this.evaluateSingleCommand(line.trim())
-        if (lineRisk === RiskLevel.DANGEROUS) return RiskLevel.DANGEROUS
-        if (lineRisk === RiskLevel.NORMAL) maxRisk = RiskLevel.NORMAL
-      }
-      return maxRisk
+    // 把复合命令（含换行 / && / || / ; / |）拆成段，逐段评估后聚合：
+    //   ANY 段 DANGEROUS → DANGEROUS；ANY 段 NORMAL → NORMAL；全 SAFE → SAFE
+    // 这样 `cd X && find Y` / `for d in ...; do echo $d; done` 不再被误判 NORMAL
+    const segments = this.splitCompound(trimmed)
+    let maxRisk = RiskLevel.SAFE
+    for (const seg of segments) {
+      const r = this.evaluateSegment(seg)
+      if (r === RiskLevel.DANGEROUS) return RiskLevel.DANGEROUS
+      if (r === RiskLevel.NORMAL) maxRisk = RiskLevel.NORMAL
     }
-
-    return this.evaluateSingleCommand(trimmed)
+    return maxRisk
   }
 
-  private evaluateSingleCommand(command: string): RiskLevel {
-    const safeCommands = ['ls', 'cat', 'head', 'tail', 'echo', 'pwd', 'whoami',
-      'date', 'which', 'type', 'wc', 'sort', 'uniq', 'grep',
-      'find', 'diff', 'git status']
-    if (safeCommands.some(c => command.startsWith(c))) {
-      return RiskLevel.SAFE
-    }
+  /**
+   * 拆分复合命令为单命令段。
+   * 按 && / || / ; / | 分割（naive，不解析引号——保守：引号内的分隔符
+   * 被误切只会导致 false-positive 确认，不会放过危险命令）。
+   */
+  private splitCompound(cmd: string): string[] {
+    return cmd
+      .split(/&&|\|\||;|\||\n/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+  }
+
+  /** 评估单段命令的风险（按 token 剥离控制流关键字后看真正命令） */
+  private evaluateSegment(seg: string): RiskLevel {
+    // 按 token 剥离前导控制流关键字/括号（只在独立 token 时剥，避免 done→ne 这类误切）
+    const drop = new Set(['do', 'then', 'else', '(', ')', '{'])
+    const tokens = seg.trim().split(/\s+/)
+    let i = 0
+    while (i < tokens.length && drop.has(tokens[i])) i++
+    const s = tokens.slice(i).join(' ')
+    if (!s) return RiskLevel.SAFE   // 空段（如 ; 尾巴 / 纯关键字）
+
+    // 先查危险规则（最关键，不能被 safe 列表遮蔽）
     for (const rule of this.rules) {
-      if (rule.pattern instanceof RegExp) {
-        if (rule.pattern.test(command)) return rule.risk
+      if (rule.pattern instanceof RegExp && rule.pattern.test(s)) {
+        return rule.risk
       }
     }
+
+    // 只读/无害命令白名单：覆盖 ls/cat/head/find/grep/cd/echo/for-done 结构等
+    const safeCommands = [
+      'ls', 'cat', 'head', 'tail', 'echo', 'pwd', 'whoami', 'date',
+      'which', 'type', 'wc', 'sort', 'uniq', 'grep', 'find', 'diff',
+      'git status', 'cd', 'printf', 'env', 'basename', 'dirname',
+      'seq', 'true', 'false', 'test', '[', 'for', 'done', 'fi',
+      'declare', 'local', 'export', 'unset',
+    ]
+    const isSafe = safeCommands.some(c =>
+      s === c || s.startsWith(c + ' ') || (c.length > 1 && s.startsWith(c + '\t')),
+    )
+    if (isSafe) return RiskLevel.SAFE
     return RiskLevel.NORMAL
   }
 
