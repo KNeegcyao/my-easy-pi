@@ -83,8 +83,8 @@ class OpenAIModel implements Model {
       return
     }
 
-    const { events } = await readSSEStream(response, convertOpenAIEvent, options?.signal)
-    for (const event of events) {
+    // 边读边转发：每收到一个 network chunk 就 yield
+    for await (const event of readSSEStream(response, convertOpenAIEvent, options?.signal)) {
       yield event
     }
   }

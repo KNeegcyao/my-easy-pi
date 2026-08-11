@@ -3,6 +3,12 @@
 //
 // 从 fetch Response 中读取 SSE 流，按行解析 'data:' 前缀。
 // 所有 LLM Provider 共享此模块。
+//
+// **重要**：readSSEStream 是 async generator——**逐 chunk 边读边 yield**，
+// 决不缓冲整个响应。这是 TUI 打字机效果的前提：每收到一个 network chunk
+// 就立刻把其中的 LLMEvent yield 给上层，让 Agent 的 processLLMStream 在
+// 网络到达时就 emit message_update，TUI 的 16ms 节流才能把同帧内的多个
+// delta 合并成一帧增量渲染。
 // ============================================================
 
 import type { LLMEvent } from './types.js'
@@ -14,30 +20,38 @@ import type { LLMEvent } from './types.js'
 export type SSECallback = (data: Record<string, unknown>) => LLMEvent | null
 
 /**
- * 从 fetch Response 中读取 SSE 流
+ * 从 fetch Response 中读取 SSE 流，**边读边 yield**。
+ *
+ * 不再返回 `{ events, usage }` 聚合数组——旧实现先 await 完整流再 return
+ * 全部事件，把流式变成了批量，导致 TUI 整块跳出。
+ *
+ * usage（如果 convertEvent 把它挂在 done event 上）会随 done event 一起
+ * yield；上层（Agent.processLLMStream）已从 done event 提取 usage。
  *
  * @param response - fetch 返回的 Response 对象
  * @param convertEvent - 将解析后的 JSON 数据转换为 LLMEvent
- * @param signal - 可选的 AbortSignal
- * @returns AsyncIterable<LLMEvent>
+ * @param signal - 可选的 AbortSignal；fetch 本身已挂此 signal，这里
+ *                 额外在每次 read 前检查 aborted 以加速退出
  */
-export async function readSSEStream(
+export async function* readSSEStream(
   response: Response,
   convertEvent: SSECallback,
   signal?: AbortSignal,
-): Promise<{ events: LLMEvent[]; usage?: Record<string, number> }> {
+): AsyncGenerator<LLMEvent, void, void> {
   const reader = response.body?.getReader()
   if (!reader) {
-    return { events: [{ type: 'error', message: 'No response body' }] }
+    yield { type: 'error', message: 'No response body' }
+    return
   }
 
   const decoder = new TextDecoder()
   let buffer = ''
-  const events: LLMEvent[] = []
-  let usage: Record<string, number> | undefined
 
   try {
     while (true) {
+      // abort 加速退出（fetch 自身已 abort，但 reader.read 可能还在 pending）
+      if (signal?.aborted) break
+
       const { done, value } = await reader.read()
       if (done) break
 
@@ -45,28 +59,21 @@ export async function readSSEStream(
       const lines = buffer.split('\n')
       buffer = lines.pop() || ''
 
+      // 每读到一个 chunk 就立刻解析并 yield——不缓冲
       for (const line of lines) {
         const event = parseSSELine(line, convertEvent)
-        if (event) {
-          // 捕获 usage 信息（非标准事件，部分 Provider 携带）
-          if (event.type === 'done' && (event as any).usage) {
-            usage = (event as any).usage
-          }
-          events.push(event)
-        }
+        if (event) yield event
       }
     }
 
-    // 处理缓冲区剩余内容
-    if (buffer.trim()) {
+    // 流尾残留：读完最后一块后再 yield
+    if (buffer.trim() && !signal?.aborted) {
       const event = parseSSELine(buffer.trim(), convertEvent)
-      if (event) events.push(event)
+      if (event) yield event
     }
   } finally {
     try { reader.releaseLock() } catch { /* ignore */ }
   }
-
-  return { events, usage }
 }
 
 /**

@@ -87,9 +87,9 @@ class AnthropicModel implements Model {
     }
 
     // 使用共享 SSE 读取器，传入 Anthropic 特有的事件转换函数
+    // 边读边转发：每收到一个 network chunk 就 yield
     const convertEvent: SSECallback = (data) => this.convertAnthropicEvent(data)
-    const { events } = await readSSEStream(response, convertEvent, options?.signal)
-    for (const event of events) {
+    for await (const event of readSSEStream(response, convertEvent, options?.signal)) {
       yield event
     }
   }
