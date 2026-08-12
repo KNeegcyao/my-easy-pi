@@ -49,46 +49,41 @@ export class Markdown implements Component {
 }
 
 /**
- * 判断一行是否为 markdown 表格行（含 │ 分隔符）。
- * 表格行不 wrapText：wrapText 会在 80 列处按字符切，破坏 │ 对齐。
+ * 判断一行是否为 markdown 表格行。
+ * marked renderToLines 输出**半角 `|` 分隔**（interface/markdown-renderer.ts
+ * 的 table 分支用 `' | '` join），所以这里必须认半角 `|`，不只是全角 `│`。
+ *
+ * 表格行不 wrapText：wrapText 会在 80 列处按字符切，破坏 | 对齐。
  * 超宽的表格行原样输出，由 alt-screen 终端可视截断（不破坏结构）。
  */
 export function isTableLine(line: string): boolean {
-  // 去掉 ANSI 再判；表格行特征：│ 出现 ≥2 次，或 |---| 分隔行
+  // 去掉 ANSI 再判
   const plain = line.replace(/\x1b\[[0-9;]*m/g, '')
-  const pipeCount = (plain.match(/│/g) || []).length
-  if (pipeCount >= 2) return true
-  // 分隔行 |---|---|
+  // 全角 │ ≥2 次（备用：若 markdown-renderer 改全角则也覆盖）
+  if (((plain.match(/│/g) || []).length) >= 2) return true
+  // 半角 | ≥2 次（marked table 输出的实际形态：'| cell | cell |'）
+  if (((plain.match(/\|/g) || []).length) >= 2) return true
+  // 分隔行 |---|---|（前缀 |- 或 |:）——归入半角 ≥2 分支已覆盖，单独留作清晰
   if (/^\s*\|[\s\-:|]+\|\s*$/.test(plain)) return true
   return false
 }
 
 /**
  * 流式 markdown 源文 sanitize（Phase 5）：
- *   1. 未闭合代码围栏（``` 出现次数为奇数）→ 末尾补一个 ```
- *      防止 marked 把后续文档当代码块渲染
- *   2. 末行是半截表格行（以 | 开头但不以 | 结尾）→ 删该行
- *      防止流式 partial 表格渲染成残片
- * 这是 pi 的 markdown-transform 流式 trim 的最小子集。
+ *   未闭合代码围栏（``` 出现次数为奇数）→ 末尾补一个 ```
+ *   防止 marked 把后续文档当代码块渲染。
+ *
+ * 注意：**不删半截表格行**。流式 partial 表格让 marked 自己渲染就好——
+ * 删半截行会让表格在流式期间消失/重现闪烁，比不删更糟。pi 的 markdown-transform
+ * 也只 trim 未闭合围栏，从不删表格行。
  */
 export function sanitizeStreamingMarkdown(source: string): string {
   if (!source) return source
   let s = source
-  // 1. 未闭合代码围栏
   const fenceMatches = s.match(/```/g)
   const fenceCount = fenceMatches ? fenceMatches.length : 0
   if (fenceCount % 2 === 1) {
     s = s + '\n```'
-  }
-  // 2. 半截表格行：末行以 | 开头但无收尾 |
-  const lines = s.split('\n')
-  const last = lines[lines.length - 1]
-  if (last && last.trimStart().startsWith('|') && !/\|\s*$/.test(last.trimEnd())) {
-    // 仅当该行像表格数据行（含 | 但没收尾）才删；避免误删普通列表项
-    if ((last.match(/\|/g) || []).length >= 1 && !last.trimStart().startsWith('|-')) {
-      lines.pop()
-      s = lines.join('\n')
-    }
   }
   return s
 }

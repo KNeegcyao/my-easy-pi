@@ -19,12 +19,11 @@ describe('sanitizeStreamingMarkdown', () => {
     expect(out.split('```').length % 2).toBe(1)   // 现在偶数对
   })
 
-  it('半截表格行被删（以 | 开头无收尾 |）', () => {
+  it('半截表格行不删（pi 策略：让 marked 自己渲染，删了会闪烁）', () => {
     const s = '| 模块 | 功能 |\n| --- | --- |\n| agent | 循环\n| tools | 工具'
     const out = sanitizeStreamingMarkdown(s)
-    // 最后一行 '| tools | 工具' 无收尾 |，被删
-    expect(out).not.toMatch(/\| tools \| 工具$/)
-    // 前面的完整行不动
+    // 不删半截行——流式期间表格逐步生长，删了会消失/重现闪烁
+    expect(out).toContain('| tools | 工具')
     expect(out).toContain('| agent | 循环')
   })
 
