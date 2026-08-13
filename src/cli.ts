@@ -3,39 +3,48 @@ import * as readline from 'node:readline'
 import { ModelRegistry, AnthropicProvider, DeepSeekProvider, OpenAIProvider } from './ai/index.js'
 import { ToolRegistry, bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, webFetchTool } from './tools/index.js'
 import { Agent, PermissionManager, type ConfirmFn, RiskLevel } from './agent/index.js'
-import { isAppError, AUTH_API_KEY_MISSING, PROVIDER_NOT_FOUND, MODEL_NOT_FOUND } from './ai/errors.js'
+import { isAppError, AUTH_API_KEY_MISSING, PROVIDER_NOT_FOUND, MODEL_NOT_FOUND, type AppError } from './ai/errors.js'
 import { createPrintInterface, createJSONInterface, startRPC } from './interface/index.js'
 import { startTUI } from './tui/index.js'
 import { ConfigManager, runInit } from './config/index.js'
 import { SessionManager, Compactor } from './session/index.js'
 import { recordTokenUsage } from './interface/tui/commands.js'
+import type { Model } from './ai/types.js'
+import type { AgentTool } from './agent/types.js'
+import type { AgentMessage } from './ai/types.js'
 
 type OutputMode = 'print' | 'json' | 'rpc'
 
-function parseArgs(): {
-  prompt?: string; message?: string; model?: string
-  provider?: string; tui?: boolean; output?: OutputMode
-  continue?: boolean; list?: boolean; deleteSession?: string; init?: boolean
+export interface ParsedArgs {
+  prompt?: string
+  message?: string
+  model?: string
+  provider?: string
+  tui?: boolean
+  output?: OutputMode
+  continue?: boolean
+  list?: boolean
+  deleteSession?: string
+  init?: boolean
   mainScreen?: boolean
-} {
-  const args = process.argv.slice(2)
-  const result: {
-    prompt?: string; message?: string; model?: string
-    provider?: string; tui?: boolean; output?: OutputMode
-    continue?: boolean; list?: boolean; deleteSession?: string; init?: boolean
-    mainScreen?: boolean
-  } = { output: 'print' }
-  for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
-      case '-p': case '--prompt': result.prompt = args[++i]; break
-      case '-m': case '--message': result.message = args[++i]; break
-      case '--model': result.model = args[++i]; break
-      case '--provider': result.provider = args[++i]; break
-      case '-o': case '--output': result.output = args[++i] as OutputMode; break
+}
+
+// ============================================================
+// parseArgs — CLI 参数解析（纯函数）
+// ============================================================
+export function parseArgs(argv: string[] = process.argv.slice(2)): ParsedArgs {
+  const result: ParsedArgs = { output: 'print' }
+  for (let i = 0; i < argv.length; i++) {
+    switch (argv[i]) {
+      case '-p': case '--prompt': result.prompt = argv[++i]; break
+      case '-m': case '--message': result.message = argv[++i]; break
+      case '--model': result.model = argv[++i]; break
+      case '--provider': result.provider = argv[++i]; break
+      case '-o': case '--output': result.output = argv[++i] as OutputMode; break
       case '-i': case '--tui': result.tui = true; break
       case '-c': case '--continue': result.continue = true; break
       case '-l': case '--list': result.list = true; break
-      case '--delete': result.deleteSession = args[++i]; break
+      case '--delete': result.deleteSession = argv[++i]; break
       case '--init': result.init = true; break
       case '--main-screen': result.mainScreen = true; break
       case '-h': case '--help': printHelp(); process.exit(0)
@@ -80,6 +89,171 @@ piagent — 简易 AI Coding Agent
   `)
 }
 
+// ============================================================
+// 几个职责单一的纯/半纯函数，供 main 编排 + 独立单测
+// ============================================================
+
+/** 装配内置 ToolRegistry（8 个工具） */
+export function buildTools(): ToolRegistry {
+  const registry = new ToolRegistry()
+  for (const t of [bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, webFetchTool]) {
+    registry.registerTool(t)
+  }
+  return registry
+}
+
+/**
+ * 解析 provider + model + apiKey，返回 Model 或错误。
+ * 在 main 中**先于**其余装配调用：让 provider/model/key 三类错误都在此一处可达，
+ * 避免先前 getApiKey 抢先挡住 PROVIDER_NOT_FOUND（死路径）。
+ * 成功返回 { model, provider }；任一无效返回 { error }。
+ */
+export function buildModel(
+  provider: string,
+  modelId: string,
+  apiKey?: string,
+): { model: Model; provider: string } | { error: AppError } {
+  // 1) provider 校验（先于 key，让 PROVIDER_NOT_FOUND 在 main 真实可达）
+  const knownProviders = ['anthropic', 'deepseek', 'openai']
+  if (!knownProviders.includes(provider)) {
+    return { error: PROVIDER_NOT_FOUND(provider) }
+  }
+  // 2) apiKey 校验
+  if (!apiKey) {
+    return { error: AUTH_API_KEY_MISSING(provider) }
+  }
+  // 3) model 校验
+  const registry = new ModelRegistry()
+  registry.setProvider('anthropic', AnthropicProvider)
+  registry.setProvider('deepseek', DeepSeekProvider)
+  registry.setProvider('openai', OpenAIProvider)
+  const model = registry.getModel(provider, modelId, { apiKey })
+  if (!model) {
+    return { error: MODEL_NOT_FOUND(modelId, provider) }
+  }
+  return { model, provider }
+}
+
+/** 构建 confirm 回调：交互式 TTY 才提供，否则 undefined（PermissionManager 走 fail-closed） */
+export function buildConfirmFn(isTTY: boolean = process.stdin.isTTY ?? false): ConfirmFn | undefined {
+  if (!isTTY) return undefined
+  return async ({ command, risk }) => {
+    const riskLabel = risk === RiskLevel.DANGEROUS ? '🔴 高风险' : '🟡 普通风险'
+    return new Promise<boolean>((resolve) => {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stderr })
+      process.stderr.write(`\n${'='.repeat(50)}\n`)
+      process.stderr.write(`${riskLabel} 操作需要确认\n`)
+      process.stderr.write(`命令: ${command}\n`)
+      process.stderr.write(`${'='.repeat(50)}\n`)
+      process.stderr.write('是否允许执行？(y/N) ')
+      const timeout = setTimeout(() => { rl.close(); resolve(false) }, 30_000)
+      rl.on('line', (line) => {
+        clearTimeout(timeout); rl.close()
+        resolve(['y', 'yes'].includes(line.trim().toLowerCase()))
+      })
+      rl.on('SIGINT', () => { clearTimeout(timeout); rl.close(); resolve(false) })
+    })
+  }
+}
+
+/** 装配 Agent：注入 system prompt + 权限钩子 + 上下文压缩 */
+export function buildAgent(opts: {
+  model: Model
+  tools: AgentTool[]
+  permission: PermissionManager
+  compactor: Compactor
+}): Agent {
+  const { model, tools, permission, compactor } = opts
+  return new Agent({
+    systemPrompt: '你是 piagent — 一个 AI 编程助手。\n\n你有以下工具可用：\n- bash：执行 shell 命令\n- read：读取文件内容\n- write：写入文件内容\n- edit：替换文件中的文本\n- grep：在文件中搜索关键词\n- find：查找文件名\n- ls：列出目录内容\n- web_fetch：读取网页内容（用于在线查看 GitHub 文件、文档等）\n\n请用中文回答用户的问题。保持回答简洁、准确，不要回复冗余的模型元信息。',
+    model,
+    tools,
+    beforeToolCall: (ctx) => permission.check(ctx),
+    transformContext: async (messages) => compactor.compact(messages),
+  })
+}
+
+/** 挂载会话自动持久化：每条非 notification 消息落盘 + 首条用户消息命名会话 + token 记账 */
+export function setupSessionPersistence(agent: Agent, sessionManager: SessionManager, sessionId: string): void {
+  let sessionNamed = false
+  agent.subscribe(async (event) => {
+    if (event.type === 'message_end' && event.message.role !== 'notification') {
+      await sessionManager.saveMessage(sessionId, event.message)
+
+      // 第一条用户消息自动命名会话
+      if (!sessionNamed && event.message.role === 'user' && event.message.content) {
+        const name = event.message.content.slice(0, 40) + (event.message.content.length > 40 ? '...' : '')
+        await sessionManager.renameSession(sessionId, name)
+        sessionNamed = true
+      }
+    }
+    if (event.type === 'turn_end') {
+      const usage = event.usage
+      if (usage && (usage.promptTokens != null || usage.completionTokens != null)) {
+        recordTokenUsage(usage.promptTokens ?? 0, usage.completionTokens ?? 0)
+      } else {
+        // Provider 未返回 usage：不造假。counter 仍加 1 表示一次完整调用，tokens 显示 N/A。
+        recordTokenUsage(0, 0)
+      }
+    }
+  })
+}
+
+/** 从 args + stdin 解析要发送的用户消息（undefined 表示无消息） */
+export async function resolveUserMessage(args: ParsedArgs): Promise<string | undefined> {
+  if (args.message) return args.message
+  if (!process.stdin.isTTY && args.output !== 'rpc') {
+    const chunks: Buffer[] = []
+    for await (const chunk of process.stdin) chunks.push(chunk as Buffer)
+    const stdin = Buffer.concat(chunks).toString('utf-8').trim()
+    return args.prompt ? `${args.prompt}\n\n${stdin}` : stdin
+  }
+  return args.prompt
+}
+
+/** true = 启动 TUI 模式（无参且仍是 print 模式 fallback） */
+export function shouldUseTUI(args: ParsedArgs): boolean {
+  const noInstructionalArgs = !args.message && !args.prompt && !args.tui && !args.continue
+  const noOutputCommand = args.output === 'print' && !args.list && !args.deleteSession
+  return !!args.tui || (noInstructionalArgs && noOutputCommand && process.stdin.isTTY)
+}
+
+/** 分发四种运行模式；返回主控是否需 await 的信号（TUI 自驱动） */
+export async function runMode(opts: {
+  agent: Agent
+  args: ParsedArgs
+  userMessage?: string
+  permission: PermissionManager
+}): Promise<void> {
+  const { agent, args, userMessage, permission } = opts
+  if (args.tui) { startTUI(agent, { permission, useMainScreen: args.mainScreen }); return }
+  if (args.output === 'json') {
+    createJSONInterface(agent)
+    try { await agent.prompt(userMessage!) } catch (e) {
+      if (isAppError(e)) {
+        console.error(`\n[${e.code}] ${e.message}`)
+        if (e.suggestion) console.error(`  💡 ${e.suggestion}`)
+      } else { console.error(e) }
+      process.exit(1)
+    }
+    return
+  }
+  if (args.output === 'rpc') { startRPC(agent); return }
+  // 默认 print
+  createPrintInterface(agent)
+  try { await agent.prompt(userMessage!); console.log('\n--- 完成 ---') }
+  catch (e) {
+    if (isAppError(e)) {
+      console.error(`\n[${e.code}] ${e.message}`)
+      if (e.suggestion) console.error(`  💡 ${e.suggestion}`)
+    } else { console.error('\n错误:', e instanceof Error ? e.message : String(e)) }
+    process.exit(1)
+  }
+}
+
+// ============================================================
+// main — 仅做编排
+// ============================================================
 async function main(): Promise<void> {
   const args = parseArgs()
   const config = new ConfigManager()
@@ -108,49 +282,23 @@ async function main(): Promise<void> {
     process.exit(0)
   }
 
-  // 提供商和模型
+  // 提供商 / 模型 / API Key 三重校验（buildModel 一处完成，各类错误均可达）
   const provider = args.provider || config.getDefaultProvider()
   const apiKey = config.getApiKey(provider)
-  if (!apiKey) {
-    const err = AUTH_API_KEY_MISSING(provider)
-    console.error(`[${err.code}] ${err.message}`)
-    console.error(`  💡 ${err.suggestion}`)
-    process.exit(1)
-  }
   const modelId = args.model || config.getDefaultModel(provider)
 
-  // 执行模式
-  let userMessage = args.message
-  const noArgs = !args.message && !args.prompt && !args.tui && !args.continue && args.output === 'print' && !args.list && !args.deleteSession
-  if (noArgs && process.stdin.isTTY) args.tui = true
-
-  if (!args.tui && args.output !== 'rpc') {
-    if (args.message) { userMessage = args.message }
-    else if (!process.stdin.isTTY) {
-      const chunks: Buffer[] = []
-      for await (const chunk of process.stdin) chunks.push(chunk as Buffer)
-      const stdin = Buffer.concat(chunks).toString('utf-8').trim()
-      userMessage = args.prompt ? `${args.prompt}\n\n${stdin}` : stdin
-    } else if (args.prompt) { userMessage = args.prompt }
-  }
-
-  // 设置
-  const registry = new ModelRegistry()
-  registry.setProvider('anthropic', AnthropicProvider)
-  registry.setProvider('deepseek', DeepSeekProvider)
-  registry.setProvider('openai', OpenAIProvider)
-  const model = registry.getModel(provider, modelId, { apiKey })
-  if (!model) {
-    const err = MODEL_NOT_FOUND(modelId, provider)
+  const modelResult = buildModel(provider, modelId, apiKey)
+  if ('error' in modelResult) {
+    const err = modelResult.error
     console.error(`[${err.code}] ${err.message}`)
+    if (err.suggestion) console.error(`  💡 ${err.suggestion}`)
     process.exit(1)
   }
 
-  const toolRegistry = new ToolRegistry()
-  for (const t of [bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, webFetchTool]) { toolRegistry.registerTool(t) }
+  const toolRegistry = buildTools()
 
   // 恢复历史
-  let initialMessages = undefined
+  let initialMessages: AgentMessage[] | undefined
   let sessionId: string | null = null
   if (args.continue) {
     const lastId = await sessionManager.getLastSession()
@@ -161,93 +309,29 @@ async function main(): Promise<void> {
     if (!initialMessages) { console.error('没有可恢复的会话'); process.exit(1) }
   }
 
-  // PermissionManager 通过注入的 confirm 回调与 UI 解耦：
-  //  - 交互式 TTY 环境（print / tui 前置聊天）提供 CLI readline 确认
-  //  - 非交互 / JSON / RPC 模式不传 confirm，PermissionManager 内部走 fail-closed
-  const cliConfirm: ConfirmFn | undefined = process.stdin.isTTY
-    ? async ({ command, risk }) => {
-        const riskLabel = risk === RiskLevel.DANGEROUS ? '🔴 高风险' : '🟡 普通风险'
-        return new Promise<boolean>((resolve) => {
-          const rl = readline.createInterface({ input: process.stdin, output: process.stderr })
-          process.stderr.write(`\n${'='.repeat(50)}\n`)
-          process.stderr.write(`${riskLabel} 操作需要确认\n`)
-          process.stderr.write(`命令: ${command}\n`)
-          process.stderr.write(`${'='.repeat(50)}\n`)
-          process.stderr.write('是否允许执行？(y/N) ')
-          const timeout = setTimeout(() => { rl.close(); resolve(false) }, 30_000)
-          rl.on('line', (line) => {
-            clearTimeout(timeout); rl.close()
-            resolve(['y', 'yes'].includes(line.trim().toLowerCase()))
-          })
-          rl.on('SIGINT', () => { clearTimeout(timeout); rl.close(); resolve(false) })
-        })
-      }
-    : undefined
-  const permission = new PermissionManager({ confirm: cliConfirm })
+  const permission = new PermissionManager({ confirm: buildConfirmFn() })
   const compactor = new Compactor()
 
-  const agent = new Agent({
-    systemPrompt: '你是 piagent — 一个 AI 编程助手。\n\n你有以下工具可用：\n- bash：执行 shell 命令\n- read：读取文件内容\n- write：写入文件内容\n- edit：替换文件中的文本\n- grep：在文件中搜索关键词\n- find：查找文件名\n- ls：列出目录内容\n- web_fetch：读取网页内容（用于在线查看 GitHub 文件、文档等）\n\n请用中文回答用户的问题。保持回答简洁、准确，不要回复冗余的模型元信息。',
-    model: model!,
+  const agent = buildAgent({
+    model: modelResult.model,
     tools: toolRegistry.listTools(),
-    beforeToolCall: (ctx) => permission.check(ctx),
-    transformContext: async (messages) => compactor.compact(messages),
+    permission,
+    compactor,
   })
 
   if (initialMessages) { agent.state.messages = initialMessages }
 
   // 自动保存会话 + 自动命名
-  let sessionNamed = false
   if (!sessionId) sessionId = await sessionManager.createSession()
   await sessionManager.saveLastSession(sessionId)
+  setupSessionPersistence(agent, sessionManager, sessionId)
 
-  let turnCount = 0
-  agent.subscribe(async (event) => {
-    if (event.type === 'message_end' && event.message.role !== 'notification') {
-      await sessionManager.saveMessage(sessionId!, event.message)
+  // 决定 TUI 模式（无参 TTY fallback）
+  if (shouldUseTUI(args)) { args.tui = true }
 
-      // 第一条用户消息自动命名会话
-      if (!sessionNamed && event.message.role === 'user' && event.message.content) {
-        const name = event.message.content.slice(0, 40) + (event.message.content.length > 40 ? '...' : '')
-        await sessionManager.renameSession(sessionId!, name)
-        sessionNamed = true
-      }
-    }
-    if (event.type === 'turn_end') {
-      turnCount++
-      const usage = event.usage
-      if (usage && (usage.promptTokens != null || usage.completionTokens != null)) {
-        recordTokenUsage(usage.promptTokens ?? 0, usage.completionTokens ?? 0)
-      } else {
-        // Provider 未返回 usage：不造假。counter 仍加 1 表示一次完整调用，tokens 显示 N/A。
-        recordTokenUsage(0, 0)
-      }
-    }
-  })
+  const userMessage = await resolveUserMessage(args)
 
-  // 启动界面
-  if (args.tui) { startTUI(agent, { permission, useMainScreen: args.mainScreen }) }
-  else if (args.output === 'json') {
-    createJSONInterface(agent)
-    try { await agent.prompt(userMessage!) } catch (e) {
-      if (isAppError(e)) {
-        console.error(`\n[${e.code}] ${e.message}`)
-        if (e.suggestion) console.error(`  💡 ${e.suggestion}`)
-      } else { console.error(e) }
-      process.exit(1)
-    }
-  } else if (args.output === 'rpc') { startRPC(agent) }
-  else {
-    createPrintInterface(agent)
-    try { await agent.prompt(userMessage!); console.log('\n--- 完成 ---') }
-    catch (e) {
-      if (isAppError(e)) {
-        console.error(`\n[${e.code}] ${e.message}`)
-        if (e.suggestion) console.error(`  💡 ${e.suggestion}`)
-      } else { console.error('\n错误:', e instanceof Error ? e.message : String(e)) }
-      process.exit(1)
-    }
-  }
+  await runMode({ agent, args, userMessage, permission })
 }
 
 main()
