@@ -20,7 +20,13 @@
 import * as readline from 'readline'
 import type { Agent, AgentEvent } from '../agent/index.js'
 
-/** 启动 RPC 模式 */
+/**
+ * 启动 RPC 模式
+ *
+ * exit 消息不会立即退出：若 Agent 正在流式响应中，先等它 idle（agent_end），
+ * 保证上一条 message 的完整事件流已写到 stdout，再退出。避免 exit 抢在
+ * async agent.prompt 之前触发 process.exit 导致响应丢失。
+ */
 export function startRPC(agent: Agent): void {
   // 所有事件输出到 stdout（JSONL）
   agent.subscribe((event: AgentEvent) => {
@@ -34,6 +40,17 @@ export function startRPC(agent: Agent): void {
     output: process.stderr, // 提示信息输出到 stderr，不污染 JSONL
     prompt: '',
   })
+
+  let exiting = false
+
+  /** 安全退出：等 Agent 空闲后再退，避免截断进行中的流式响应 */
+  async function gracefulExit(): Promise<void> {
+    if (exiting) return
+    exiting = true
+    rl.close()
+    await agent.waitForIdle()
+    process.exit(0)
+  }
 
   rl.on('line', async (line) => {
     const trimmed = line.trim()
@@ -50,7 +67,7 @@ export function startRPC(agent: Agent): void {
           break
 
         case 'exit':
-          rl.close()
+          await gracefulExit()
           break
 
         default:
@@ -62,6 +79,7 @@ export function startRPC(agent: Agent): void {
   })
 
   rl.on('close', () => {
-    process.exit(0)
+    // stdin EOF：同样走 graceful 退出，避免在响应中途被关流截断
+    void gracefulExit()
   })
 }
