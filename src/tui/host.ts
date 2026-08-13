@@ -14,7 +14,6 @@
 //        + editor（dock('bottom')，常驻）
 // ============================================================
 
-import * as readline from 'readline'
 import type { Agent, AgentEvent } from '../agent/index.js'
 import type { PermissionManager } from '../agent/index.js'
 import { RiskLevel } from '../agent/index.js'
@@ -331,41 +330,32 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       `${'='.repeat(50)}`,
       '是否允许执行？(y/N)',
     ]
-    // 确认弹窗也走 chat history，避免破坏渲染区 continuum
+    // 确认弹窗走 chat history（始终保留在 scrollback）
     for (const l of lines) chatContainer.addChild(new Text(l))
     chatContainer.addChild(new Spacer(1))
     screen.requestRender()
-    // confirming=true：让 editor.onInput 跳过，readline 独占 stdin
     confirming = true
-    // 临时退 raw → readline 问 → 重进
-    if (exitRaw) exitRaw()
-    // 收尾：恢复 confirming=false + 重进 raw（单点出口，防异常路径留 stdin 卡非 raw）
-    const finalize = (): void => {
-      confirming = false
-      reenterRaw()
-    }
+    // 直接在 raw mode 下读一个按键（不 exitRaw，不用 readline）
+    stopLoaderTimer()
     return new Promise((resolve) => {
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stderr,
-      })
       const timeout = setTimeout(() => {
-        rl.close()
-        finalize()
+        confirming = false
         resolve(false)
       }, 30_000)
-      rl.on('line', (line) => {
+      const handler = (buf: Buffer) => {
+        const ch = buf.toString('utf-8')
+        // 跳过鼠标事件
+        if (ch.startsWith('\x1b[')) return
         clearTimeout(timeout)
-        rl.close()
-        finalize()
-        resolve(['y', 'yes'].includes(line.trim().toLowerCase()))
-      })
-      rl.on('SIGINT', () => {
-        clearTimeout(timeout)
-        rl.close()
-        finalize()
-        resolve(false)
-      })
+        confirming = false
+        const allowed = ch.toLowerCase() === 'y' || ch === '\r'
+        if (allowed && agent.state.isStreaming) startLoaderTimer()
+        screen.requestRender()
+        resolve(ch.toLowerCase() === 'y')   // Enter = false（默认 N）
+        // 卸下临时监听
+        process.stdin.off('data', handler)
+      }
+      process.stdin.on('data', handler)
     })
   }
   function reenterRaw(): void {
@@ -374,6 +364,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
 
   // ── 启动 ──
   let unsubscribeAgent: (() => void) | null = null
+  let chatScrollView: ScrollView | null = null
+  let stopMouse: (() => void) | null = null
 
   /** 回放历史消息到 chatContainer（-c 续接）：把 state.messages 重建为可见组件 */
   function replayHistory(): void {
@@ -419,7 +411,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       screen.dock('bottom', editor)
     } else {
       // alt: rootStack = VStack([chatScrollView(grow1), bottomDock[status, editor]])
-      const chatScrollView = new ScrollView({ stickyBottom: true })
+      chatScrollView = new ScrollView({ stickyBottom: true })
       chatScrollView.setChild(chatContainer)
       const bottomDock = new VStack([
         { component: statusContainer, grow: 0 },
@@ -434,6 +426,19 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     screen.start()
     exitRaw = terminal.enterRawMode()
     terminal.hideCursor()
+
+    // alt-screen 启用鼠标滚轮 (SGR 1006)
+    if (!useMainScreen && chatScrollView) {
+      terminal.enableMouse()
+      stopMouse = terminal.onMouse((ev: { button: number }) => {
+        if (chatScrollView) {
+          if (ev.button === 64) chatScrollView.scrollBy(-3)
+          else if (ev.button === 65) chatScrollView.scrollBy(3)
+          screen.requestRender()
+        }
+      })
+    }
+
     unsubscribeAgent = agent.subscribe(handleEvent)
     // 回放历史（-c 续接）；订阅后调，让首次渲染画上历史
     if (agent.state.messages && agent.state.messages.length > 0) {
@@ -451,6 +456,9 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     unsubscribeAgent = null
     stopInput()
     stopResize()
+    stopMouse?.()
+    stopMouse = null
+    if (!useMainScreen) terminal.disableMouse()
     if (exitRaw) { exitRaw(); exitRaw = null }
     screen.stop()
     terminal.showCursor()

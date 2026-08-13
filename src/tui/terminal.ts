@@ -25,6 +25,12 @@ export interface TerminalCapabilities {
   mouse: boolean
 }
 
+export interface MouseEventData {
+  button: number      // 64=wheel up, 65=wheel down
+  col: number
+  row: number
+}
+
 export class Terminal {
   private caps: TerminalCapabilities
 
@@ -76,11 +82,44 @@ export class Terminal {
     }
   }
 
-  /** 注册 stdin 数据监听 */
+  /** 注册 stdin 数据监听（已剥离鼠标事件） */
   onInput(listener: (data: string) => void): () => void {
-    const handler = (buf: Buffer) => listener(buf.toString('utf-8'))
+    const handler = (buf: Buffer) => {
+      const str = buf.toString('utf-8')
+      // 检查是否是 SGR 鼠标事件 \x1b[<...M 或 \x1b[<...m
+      const mouseMatch = str.match(/^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/)
+      if (mouseMatch) {
+        const [, btn, col, row] = mouseMatch
+        this.invokeMouseListeners({ button: parseInt(btn), col: parseInt(col), row: parseInt(row) })
+        return
+      }
+      listener(str)
+    }
     process.stdin.on('data', handler)
     return () => { process.stdin.off('data', handler) }
+  }
+
+  /** 注册鼠标事件监听（滚轮/点击） */
+  onMouse(listener: (ev: MouseEventData) => void): () => void {
+    this.mouseListeners.add(listener)
+    return () => { this.mouseListeners.delete(listener) }
+  }
+
+  private mouseListeners = new Set<(ev: MouseEventData) => void>()
+  private invokeMouseListeners(ev: MouseEventData): void {
+    for (const cb of this.mouseListeners) cb(ev)
+  }
+
+  /** 启用 SGR 鼠标跟踪（按钮事件 + 滚轮） */
+  enableMouse(): void {
+    this.write('\x1b[?1000h')
+    this.write('\x1b[?1006h')
+  }
+
+  /** 停用 SGR 鼠标跟踪 */
+  disableMouse(): void {
+    this.write('\x1b[?1006l')
+    this.write('\x1b[?1000l')
   }
 
   /** 注册 resize 监听 */

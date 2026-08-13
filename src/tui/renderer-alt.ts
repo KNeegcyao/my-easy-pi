@@ -86,31 +86,43 @@ export class TuiAltScreen implements TUI {
   /** 测试用：强制 flush 节流队列 */
   flushPending(): void { this.renderNow() }
 
-  // ── 核心：doRender（逐行定位重写整屏，CSI 2026 包裹）──
+  // ── 核心：doRender（行级 diff，CSI 2026 包裹）──
+  //
+  // Phase 6.1：从「全行重写」改为行级 diff。previousScreen vs newLines 逐行比，
+  // 只重写变化的行。每个变化行用 \x1b[N;1H 定位 + \x1b[2K 清后写新内容。
+  // CSI 2026 整帧包裹。对 24 行终端，典型流式帧只变 1-3 行（新 token 所在行），
+  // 带宽省 90%+。慢终端（SSH/mosh）能感觉差异。
+  //
   private doRender(): void {
     if (!this.started || !this.root) return
     const width = this.terminal.columns
     const height = this.terminal.rows
     this.root.setViewportHeight(height)
     const lines = this.root.render(width)
-    // 补齐到 height 行（VStack 已补，保险）
     while (lines.length < height) lines.push('')
 
-    // 跳过无变化帧（节流的副产品）
-    let changed = false
-    for (let i = 0; i < height; i++) {
-      if (lines[i] !== (this.previousScreen[i] ?? '')) { changed = true; break }
+    // 跳过完全无变化帧
+    if (this.previousScreen.length === height) {
+      let same = true
+      for (let i = 0; i < height && same; i++) {
+        if (lines[i] !== this.previousScreen[i]) same = false
+      }
+      if (same) return
     }
-    if (!changed && this.previousScreen.length === height) return
 
+    // --- 行级 diff：只重写变化行 ---
     let buf = this.frame.isSupported ? '\x1b[?2026h' : ''
+    let anyChanged = false
     for (let row = 0; row < height; row++) {
-      // 定位到 row+1 行首 + 清行 + 写内容
-      buf += `\x1b[${row + 1};1H\x1b[2K${lines[row] || ''}`
+      const newLine = lines[row] || ''
+      if (newLine !== (this.previousScreen[row] ?? '')) {
+        buf += `\x1b[${row + 1};1H\x1b[2K${newLine}`
+        anyChanged = true
+      }
     }
+    if (!anyChanged && this.previousScreen.length === height) return
     if (this.frame.isSupported) buf += '\x1b[?2026l'
     this.terminal.write(buf)
-
     this.previousScreen = lines.slice(0, height)
   }
 
