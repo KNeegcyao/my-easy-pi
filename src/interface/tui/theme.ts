@@ -18,7 +18,6 @@ export function gray(text: string): string { return `\x1b[90m${text}${RESET}` }
 export function italic(text: string): string { return `\x1b[3m${text}${RESET}` }
 
 export function clearLine(): string { return '\x1b[2K' }
-export function clearBelow(): string { return '\x1b[J' }
 export function enterAltScreen(): string { return '\x1b[?1049h' }
 export function exitAltScreen(): string { return '\x1b[?1049l' }
 export function hideCursor(): string { return '\x1b[?25l' }
