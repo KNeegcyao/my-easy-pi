@@ -28,9 +28,14 @@ export function createBashTool(ops: Operations): ToolDefinition {
       const command = params.command as string
       const timeout = (params.timeout as number) || 30000
 
+      // 把 onUpdate(ToolUpdate) 适配成 ExecUpdateCallback(string)，
+      // 让 ops.exec 的流式 chunk 逐段发射到 Agent loop → TUI
+      const streamChunk: import('../operations.js').ExecUpdateCallback | undefined =
+        onUpdate ? (chunk: string) => onUpdate({ content: [{ type: 'text', text: chunk }] }) : undefined
+
       let result: ExecResult
       try {
-        result = await ops.exec(command, timeout, signal)
+        result = await ops.exec(command, timeout, signal, streamChunk)
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error)
         return {

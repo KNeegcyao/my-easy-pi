@@ -11,7 +11,7 @@
 // ============================================================
 
 import { readFile, writeFile, readdir } from 'fs/promises'
-import { execFile } from 'child_process'
+import { execFile, spawn } from 'child_process'
 import { promisify } from 'util'
 import { getSandbox } from '../sandbox/index.js'
 
@@ -35,8 +35,11 @@ export interface DirEntry {
  * 每个方法都设计为返回原始数据而非封装格式，让调用方自由处理。
  * 所有方法不应抛出异常 —— 错误应通过返回值中的空/错误标记表达。
  */
+/** Partial output callback — 用于沙箱流式输出可视反馈 */
+export type ExecUpdateCallback = (chunk: string) => void
+
 export interface Operations {
-  exec(command: string, timeout?: number, signal?: AbortSignal): Promise<ExecResult>
+  exec(command: string, timeout?: number, signal?: AbortSignal, onUpdate?: ExecUpdateCallback): Promise<ExecResult>
   readFile(path: string): Promise<string>
   writeFile(path: string, content: string): Promise<void>
   replaceInFile(path: string, oldText: string, newText: string): Promise<boolean>
@@ -54,16 +57,21 @@ export interface Operations {
  *   - fetchUrl 走全局 fetch
  */
 export class LocalOperations implements Operations {
-  async exec(command: string, timeout = 30000, signal?: AbortSignal): Promise<ExecResult> {
+  async exec(command: string, timeout = 30000, signal?: AbortSignal, onUpdate?: ExecUpdateCallback): Promise<ExecResult> {
     try {
       const sandbox = getSandbox()
-      const result = await sandbox.execute(command, timeout, signal)
-      return {
-        stdout: result.stdout || '',
-        stderr: result.stderr || '',
-        exitCode: result.exitCode ?? 0,
-        runtime: result.runtime === 'docker' ? 'sandbox' : 'local',
+      if (await sandbox.isAvailable()) {
+        // Docker 沙箱：走原有逻辑（不支持流式）
+        const result = await sandbox.execute(command, timeout, signal)
+        return {
+          stdout: result.stdout || '',
+          stderr: result.stderr || '',
+          exitCode: result.exitCode ?? 0,
+          runtime: 'sandbox',
+        }
       }
+      // 本地执行：流式输出 via onUpdate
+      return await spawnWithStreaming(command, timeout, signal, onUpdate)
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error)
       return { stdout: '', stderr: msg, exitCode: 1 }
@@ -123,6 +131,46 @@ export class LocalOperations implements Operations {
     }
     return await response.text()
   }
+}
+
+/**
+ * 流式 spawn：逐 chunk 调用 onUpdate，最终返回完整结果。
+ * 用于 LocalOperations 的本地执行路径，让沙箱输出实时流向 TUI。
+ */
+async function spawnWithStreaming(
+  command: string,
+  timeout: number,
+  signal?: AbortSignal,
+  onUpdate?: ExecUpdateCallback,
+): Promise<ExecResult> {
+  return new Promise((resolve) => {
+    const child = spawn('/bin/sh', ['-c', command], { timeout, signal })
+    let stdout = ''
+    let stderr = ''
+
+    child.stdout?.on('data', (data: Buffer) => {
+      const chunk = data.toString()
+      stdout += chunk
+      onUpdate?.(chunk)
+    })
+
+    child.stderr?.on('data', (data: Buffer) => {
+      stderr += data.toString()
+    })
+
+    child.on('error', () => {
+      resolve({ stdout, stderr, exitCode: 1, runtime: 'local' })
+    })
+
+    child.on('close', (exitCode) => {
+      resolve({
+        stdout,
+        stderr,
+        exitCode: exitCode ?? 1,
+        runtime: 'local',
+      })
+    })
+  })
 }
 
 /**

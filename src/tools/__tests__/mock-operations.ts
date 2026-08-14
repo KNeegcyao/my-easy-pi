@@ -18,7 +18,11 @@ export class MockOperations implements Operations {
   setExecResult(result: Partial<ExecResult>): void { this.mockExec = { stdout: '', stderr: '', exitCode: 0, ...result } }
   setFetchResult(content: string): void { this.mockFetch = content }
 
-  async exec(_cmd: string, _timeout?: number): Promise<ExecResult> { return this.mockExec }
+  async exec(_cmd: string, _timeout?: number, _signal?: AbortSignal, onUpdate?: ExecUpdateCallback): Promise<ExecResult> {
+    // 模拟流式：如果设置了流式回调，chunk 调它
+    if (onUpdate && this.mockExec.stdout) onUpdate(this.mockExec.stdout)
+    return this.mockExec
+  }
   async readFile(path: string): Promise<string> {
     const c = this.mockFiles.get(path)
     if (c === undefined) throw new Error(`ENOENT: ${path}`)
