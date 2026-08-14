@@ -54,6 +54,7 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
           `  ${green('/help')}      ${gray('显示本帮助')}`,
           `  ${green('/model')}     ${gray('显示当前模型信息')}`,
           `  ${green('/theme')}     ${gray('检测终端主题（深浅色）')}`,
+          `  ${green('/keymap')}    ${gray('切换 Vim/默认键位模式')}`,
           `  ${green('/tools')}     ${gray('列出所有可用工具')}`,
           `  ${green('/session')}   ${gray('查看会话信息')}`,
           `  ${green('/sessions')}  ${gray('列出所有会话')}`,

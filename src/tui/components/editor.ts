@@ -241,6 +241,11 @@ export class Editor implements Component, Focusable {
   // ── 输入处理 ──
   handleInput(data: string): void {
     const intents = parseKeys(data)
+    this.handleIntents(intents)
+  }
+
+  /** 直接处理已解析的 KeyIntent 列表（用于 KeyBinds 层调用） */
+  handleIntents(intents: KeyIntent[]): void {
     for (const intent of intents) {
       this.applyIntent(intent)
     }

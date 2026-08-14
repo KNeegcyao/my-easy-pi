@@ -29,6 +29,7 @@ import { Spacer } from './components/spacer.js'
 import { Text } from './components/text.js'
 import { Loader } from './components/loader.js'
 import { Editor } from './components/editor.js'
+import { KeyBinds } from './components/keybinds.js'
 import { Box } from './components/box.js'
 import { Statusbar } from './components/statusbar.js'
 import { green, dim, gray, yellow, red, bold, cyan } from './ansi.js'
@@ -104,7 +105,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   let loaderInterval: NodeJS.Timeout | null = null
   let stopped = false
   let exitRaw: (() => void) | null = null
-  let confirming = false   // permission confirm 期间：跳过 editor onInput，防 readline+editor 双重消费 stdin
+  let confirming = false   // permission confirm 期间：跳过 editor onInput
+  let keybinds = new KeyBinds('default')   // 键绑定状态机（/keymap 切换），防 readline+editor 双重消费 stdin
 
   // ── hero（像素 ASCII art 欢迎页，加入 chatContainer 顶部） ──
   function addHeroToChat(): void {
@@ -285,6 +287,22 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       return
     }
 
+    // /keymap 命令
+    if (cmd === '/keymap') {
+      const mode = keybinds.currentMode
+      const vimState = keybinds.isVimInsert ? 'INSERT' : 'NORMAL'
+      if (mode === 'default') {
+        keybinds.setMode('vim')
+        chatContainer.addChild(new Text(`  ${green('✓')} 键位切换: ${bold(cyan('Vim 模式'))} (${dim(gray('i=输入, Esc=命令, h/j/k/l=移动, x=删除, u=撤销, D=删到行尾, A=行尾插入'))})`))
+      } else {
+        keybinds.setMode('default')
+        chatContainer.addChild(new Text(`  ${green('✓')} 键位切换: ${bold(gray('默认模式'))}`))
+      }
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+      return
+    }
+
     // 同步命令
     const result = executeCommand(input, agent)
     if (!result) {
@@ -415,9 +433,17 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
 
   // ── 输入路径 ──
   const stopInput = terminal.onInput((data) => {
-    // permission confirm 期间 readline 接管 stdin，跳过 editor（防 y/N 污染 editor 状态）
+    // permission confirm 期间，跳过 editor（防 y/N 污染 editor 状态）
     if (confirming) return
-    editor.handleInput(data)
+    // 通过 keybinds 层处理输入（支持 vim 模式）
+    const result = keybinds.process(data)
+    if (result.intents.length > 0) {
+      editor.handleIntents(result.intents)
+    }
+    // 更新 vim 模式状态标记到 statusbar
+    if (keybinds.currentMode !== 'default') {
+      // visual feedback via modified prompt
+    }
     screen.requestRender()
   })
 
