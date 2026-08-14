@@ -1,10 +1,13 @@
 // ============================================================
-// TUI Renderer — 全屏渲染器
+// TUI Renderer — 全屏渲染器（@deprecated，被 src/tui/ 取代）
 //
 // 流式 Markdown 渲染策略：
 //   每次 message_update 收到完整内容，用 marked 重新解析，
 //   计算出新的行数。如果行数变化，用 ANSI 移动光标覆盖旧内容。
 //   这解决了流式分块导致的 Markdown 标记不完整问题。
+//
+// @deprecated 已被 src/tui/host.ts + 组件框架取代，仅保留供参考/回滚。
+//   新入口:startTUI (src/tui/index.ts)
 // ============================================================
 
 import type { Agent, AgentEvent } from '../../agent/index.js'

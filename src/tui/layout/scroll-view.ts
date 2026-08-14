@@ -32,6 +32,7 @@ export class ScrollView implements Component {
       stickyBottom: opts.stickyBottom ?? true,
       height: opts.height ?? 0,
     }
+    this.pinnedBottom = this.opts.stickyBottom  // 默认钉底
   }
 
   setChild(c: Component | null): void {
@@ -42,8 +43,11 @@ export class ScrollView implements Component {
   /** 外层布局给定可用高度；0 表示不裁切 */
   setViewportHeight(height: number): void {
     if (height !== this.opts.height) {
-      // 高度变化时重新钉底（新内容到来自动跟随）
-      this.pinnedBottom = this.opts.stickyBottom
+      // 首次设置高度时激活 pinnedBottom（默认自动跟随）；
+      // resize 不重置 pinnedBottom，保留用户的滚动位置。
+      if (this.opts.height === 0) {
+        this.pinnedBottom = this.opts.stickyBottom
+      }
       this.opts.height = height
       this.invalidate()
     }
@@ -86,16 +90,27 @@ export class ScrollView implements Component {
     const total = allLines.length
     this.lastTotalLines = total
 
-    // stickyBottom + pinnedBottom：跟随到最底
-    if (this.opts.stickyBottom && this.pinnedBottom && viewport > 0) {
-      this.offset = Math.max(0, total - viewport)
-    } else if (this.opts.stickyBottom && this.pinnedBottom === undefined) {
-      this.pinnedBottom = true
-      this.offset = Math.max(0, total - viewport)
+    // stickyBottom：当 pinnedBottom=true（默认）时自动钉到底。
+    // 用户 scrollBy/scrollTo 手动滚动后解除 pinnedBottom；
+    // 若 offset 已自然到达底部（内容增长），自动重新激活。
+    if (this.opts.stickyBottom && viewport > 0) {
+      if (this.pinnedBottom) {
+        this.offset = Math.max(0, total - viewport)
+      } else {
+        const maxOffset = Math.max(0, total - viewport)
+        if (this.offset >= maxOffset) {
+          this.offset = maxOffset
+          this.pinnedBottom = true
+        }
+      }
     }
 
-    const maxOffset = Math.max(0, total - Math.max(0, viewport))
-    if (this.offset > maxOffset) this.offset = maxOffset
+    // 通用 clamp：无论 stickyBottom 是否启用，offset 超出最大有效值
+    // （total-viewport）时 clamp 回来，防止 scrollTo 设了非法值导致空白视口。
+    if (viewport > 0) {
+      const maxOffset = Math.max(0, total - viewport)
+      if (this.offset > maxOffset) this.offset = maxOffset
+    }
 
     if (viewport <= 0) {
       return allLines.slice()

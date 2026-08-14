@@ -176,6 +176,12 @@ function parseEsc(data: string, start: number): { intent: KeyIntent; next: numbe
         if (num === 4 || num === 8) return { intent: { type: 'cursorEnd' }, next: j + 1 }
         return { intent: { type: 'unknown' }, next: j + 1 }
       }
+      case 'u': {
+        // CSI u protocol (kitty): \x1b[<key>;<modifier>u
+        // 13;2 = Shift+Enter → 换行不提交
+        if (params === '13;2') return { intent: { type: 'newline' }, next: j + 1 }
+        return { intent: { type: 'unknown' }, next: j + 1 }
+      }
       default: return { intent: { type: 'unknown' }, next: j + 1 }
     }
   }

@@ -12,7 +12,8 @@
 // ============================================================
 
 import type { Agent } from '../../agent/index.js'
-import { green, yellow, cyan, dim, gray } from './theme.js'
+import type { ThinkingLevel } from '../../ai/types.js'
+import { green, yellow, cyan, dim, gray, red, bold } from './theme.js'
 
 export interface CommandResult {
   handled: boolean
@@ -59,6 +60,9 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
           `  ${green('/session')}   ${gray('查看会话信息')}`,
           `  ${green('/sessions')}  ${gray('列出所有会话')}`,
           `  ${green('/delete')}    ${gray('删除指定会话')}`,
+          `  ${green('/stats')}     ${gray('对话统计（消息数/模型/思考级别）')}`,
+          `  ${green('/thinking')}  ${gray('查看或设置思考级别')}`,
+          `  ${green('/system')}    ${gray('查看或修改系统提示词')}`,
           `  ${green('/cost')}      ${gray('查看 Token 用量统计')}`,
           `  ${green('/clear')}     ${gray('清屏')}`,
           `  ${green('/exit')}      ${gray('退出程序')}`,
@@ -127,6 +131,68 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
       }
     }
 
+    case '/stats': {
+      const msgs = agent.state.messages
+      const userCount = msgs.filter(m => m.role === 'user').length
+      const asstCount = msgs.filter(m => m.role === 'assistant').length
+      const toolCallCount = msgs.filter(m => m.role === 'toolResult').length
+      return {
+        handled: true,
+        output: [
+          '',
+          `  ${yellow('对话统计:')}`,
+          `  ${dim('├─')} ${gray('消息总数:')}  ${cyan(String(msgs.length))}`,
+          `  ${dim('├─')} ${gray('用户消息:')}  ${cyan(String(userCount))}`,
+          `  ${dim('├─')} ${gray('模型回复:')}  ${cyan(String(asstCount))}`,
+          `  ${dim('├─')} ${gray('工具结果:')}  ${cyan(String(toolCallCount))}`,
+          `  ${dim('├─')} ${gray('当前模型:')}  ${cyan(agent.state.model.provider + '/' + agent.state.model.id)}`,
+          `  ${dim('├─')} ${gray('思考级别:')}  ${cyan(agent.state.thinkingLevel)}`,
+          `  ${dim('├─')} ${gray('流式状态:')}  ${agent.state.isStreaming ? yellow('处理中') : green('空闲')}`,
+          `  ${dim('└─')} ${gray('API 调用:')}  ${cyan(String(tokenStats.callCount))}`,
+          '',
+        ].join('\n'),
+      }
+    }
+
+    case '/thinking': {
+      const validLevels: ThinkingLevel[] = ['off', 'low', 'medium', 'high']
+      const arg = parts[1]?.toLowerCase() as ThinkingLevel | undefined
+      if (!arg) {
+        return {
+          handled: true,
+          output: `  ${yellow('当前思考级别:')} ${bold(cyan(agent.state.thinkingLevel))}\n  ${dim(gray('用法: /thinking <off|low|medium|high>'))}\n`,
+        }
+      }
+      if (!validLevels.includes(arg)) {
+        return {
+          handled: true,
+          output: `  ${red('✗')} 无效级别: ${arg}${dim(gray(' (可选: off, low, medium, high)'))}\n`,
+        }
+      }
+      agent.state.thinkingLevel = arg
+      return {
+        handled: true,
+        output: `  ${green('✓')} 思考级别已设为 ${bold(cyan(arg))}\n`,
+      }
+    }
+
+    case '/system': {
+      if (parts.length === 1) {
+        const prompt = agent.state.systemPrompt
+        const truncated = prompt.length > 300 ? prompt.slice(0, 300) + dim(gray('…')) : prompt
+        return {
+          handled: true,
+          output: `  ${yellow('当前系统提示词:')}\n  ${dim(gray(truncated))}\n  ${dim(gray('(' + String(prompt.length) + ' 字符)'))}\n`,
+        }
+      }
+      const newPrompt = parts.slice(1).join(' ')
+      agent.state.systemPrompt = newPrompt
+      return {
+        handled: true,
+        output: `  ${green('✓')} 系统提示词已更新 ${dim(gray('(' + String(newPrompt.length) + ' 字符)'))}\n`,
+      }
+    }
+
     case '/clear':
       // 不直接写 stdout（docs 约束：命令不直接操作终端）。
       // host 见 clear 标志后会重启渲染区。
@@ -145,7 +211,3 @@ export function resetTokenStats(): void {
   tokenStats = { promptTokens: 0, completionTokens: 0, totalTokens: 0, callCount: 0, hasRealUsage: false }
 }
 
-// 避免 commands.ts 中引用未导入的 red
-function red(text: string): string {
-  return `\x1b[31m${text}\x1b[0m`
-}

@@ -31,10 +31,12 @@ import { Loader } from './components/loader.js'
 import { Editor } from './components/editor.js'
 import { KeyBinds } from './components/keybinds.js'
 import { Selector, type SelectOption } from './components/selector.js'
+import type { Component } from './component.js'
 import { Box } from './components/box.js'
 import { Statusbar } from './components/statusbar.js'
 import { green, dim, gray, yellow, red, bold, cyan } from './ansi.js'
 import { executeCommand } from '../interface/tui/commands.js'
+import { Compactor } from '../session/compaction.js'
 
 // tool_execution 事件 payload 里的 args 形状
 interface ToolExecArgs {
@@ -109,6 +111,10 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   let confirming = false   // permission confirm 期间：跳过 editor onInput
   let keybinds = new KeyBinds('default')   // 键绑定状态机（/keymap 切换）
   let activeSelector: Selector | null = null  // 活跃选择器（/sessions /delete 等），防 readline+editor 双重消费 stdin
+  /** 当前正在构建的回合的组件引用（用于 undo/retry） */
+  let turnComponents: Component[] = []
+  /** 已完成回合的组件列表 */
+  const turnHistory: Component[][] = []
 
   // ── hero（像素 ASCII art 欢迎页，加入 chatContainer 顶部） ──
   function addHeroToChat(): void {
@@ -174,10 +180,16 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   function handleEvent(event: AgentEvent): void {
     switch (event.type) {
       case 'turn_start': {
+        // 上一个回合完成：将 turnComponents 归档到 turnHistory
+        if (turnComponents.length > 0) {
+          turnHistory.push(turnComponents)
+        }
         // 新回合：创建新 AssistantTurn 永久挂到 chatContainer 末尾
         streamTurn = new AssistantTurn()
-        chatContainer.addChild(new Spacer(1))
+        const spacer = new Spacer(1)
+        chatContainer.addChild(spacer)
         chatContainer.addChild(streamTurn)
+        turnComponents = [spacer, streamTurn]
         loader.setText('piagent is thinking...')
         showLoader()
         break
@@ -302,6 +314,48 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
       chatContainer.addChild(new Spacer(1))
       screen.requestRender()
+      return
+    }
+
+    // /compact: 压缩上下文
+    if (cmd === '/compact') {
+      compactContext()
+      return
+    }
+    // /undo: 撤销上一回合
+    if (cmd === '/undo') {
+      const last = undoLastTurn()
+      if (last !== null) {
+        chatContainer.addChild(new Text(`  ${green('✓')} 已撤销上一回合`))
+        chatContainer.addChild(new Spacer(1))
+      } else {
+        chatContainer.addChild(new Text(`  ${dim(gray('没有可撤销的回合'))}`))
+        chatContainer.addChild(new Spacer(1))
+      }
+      screen.requestRender()
+      return
+    }
+    // /retry: 重试上一回合
+    if (cmd === '/retry') {
+      const last = undoLastTurn()
+      if (last !== null) {
+        const retryText = new Text(userPromptLine(last))
+        const retrySpacer = new Spacer(1)
+        chatContainer.addChild(retryText)
+        chatContainer.addChild(retrySpacer)
+        turnComponents = [retryText, retrySpacer]
+        screen.requestRender()
+        agent.prompt(last).catch((e: unknown) => {
+          const msg = e instanceof Error ? e.message : String(e)
+          chatContainer.addChild(new Text(`  ${red('✗')} 重试错误: ${msg}`))
+          chatContainer.addChild(new Spacer(1))
+          screen.requestRender()
+        })
+      } else {
+        chatContainer.addChild(new Text(`  ${dim(gray('没有可重试的内容'))}`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+      }
       return
     }
 
@@ -448,8 +502,11 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       return
     }
     // 用户消息进 chat history（pi model：addChild 到 chatContainer）
-    chatContainer.addChild(new Text(userPromptLine(text)))
-    chatContainer.addChild(new Spacer(1))
+    const userText = new Text(userPromptLine(text))
+    const userSpacer = new Spacer(1)
+    chatContainer.addChild(userText)
+    chatContainer.addChild(userSpacer)
+    turnComponents = [userText, userSpacer]  // 新回合跟踪开始
     screen.requestRender()
     // 触发 agent.prompt；后续事件会驱动 loader/markdown
     agent.prompt(trimmed).catch((e: unknown) => {
@@ -534,6 +591,58 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
     })
   }
+  // ── undo/retry/compact 辅助 ──
+
+  /** 撤销最后一个 user+assistant 回合；返回最后一条 user 文本（供 /retry 用） */
+  function undoLastTurn(): string | null {
+    // 先尝试从 turnHistory 取
+    let components = turnHistory.length > 0 ? turnHistory.pop()! : null
+    // 若不在 history 中，看是否有当前正在构建的回合
+    if (!components && turnComponents.length > 0 && turnComponents.some(c => c instanceof AssistantTurn)) {
+      components = turnComponents
+      turnComponents = []
+    }
+    if (!components || components.length === 0) return null
+
+    for (const c of components) {
+      chatContainer.removeChild(c)
+    }
+    // 从 agent.state.messages 移除最后一个 user + assistant
+    let lastUserText: string | null = null
+    let removed = 0
+    for (let i = agent.state.messages.length - 1; i >= 0 && removed < 2; i--) {
+      const role = agent.state.messages[i].role
+      if (role === 'user') lastUserText = agent.state.messages[i].content
+      if (role === 'user' || role === 'assistant') {
+        agent.state.messages.splice(i, 1)
+        removed++
+      }
+    }
+    return lastUserText
+  }
+
+  /** 压缩上下文：将早期消息压缩为摘要 */
+  function compactContext(): void {
+    if (agent.state.isStreaming) {
+      chatContainer.addChild(new Text(`  ${yellow('⚠')} 当前正在生成，请等待完成后再压缩`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+      return
+    }
+    const compactor = new Compactor({ threshold: 15, keepRecent: 8 })
+    const originalCount = agent.state.messages.length
+    const compressed = compactor.compact(agent.state.messages)
+    if (compressed.length >= originalCount) {
+      chatContainer.addChild(new Text(`  ${dim(gray('消息数 ' + String(originalCount) + ' 未达压缩阈值，无需压缩'))}`))
+    } else {
+      agent.state.messages = compressed
+      const saved = originalCount - compressed.length
+      chatContainer.addChild(new Text(`  ${green('✓')} 上下文已压缩: ${dim(gray(String(saved) + ' 条消息 → 摘要'))}`))
+    }
+    chatContainer.addChild(new Spacer(1))
+    screen.requestRender()
+  }
+
   function reenterRaw(): void {
     exitRaw = terminal.enterRawMode()
   }

@@ -87,6 +87,19 @@ describe('parseKeys', () => {
   it('未识别 ESC 序列 → unknown', () => {
     expect(parseKeys('\x1b[99;1Z')).toEqual([{ type: 'unknown' }])
   })
+
+  it('Alt+Enter (\\x1b\\r) → newline', () => {
+    expect(parseKeys('\x1b\r')).toEqual([{ type: 'newline' }])
+  })
+
+  it('CSI u Shift+Enter (\\x1b[13;2u) → newline', () => {
+    expect(parseKeys('\x1b[13;2u')).toEqual([{ type: 'newline' }])
+  })
+
+  it('CSI u bare Enter (\\x1b[13u) → unknown（默认提交走 \\r）', () => {
+    // bare Enter via CSI u 不常见，非预期语义，降级 unknown
+    expect(parseKeys('\x1b[13u')).toEqual([{ type: 'unknown' }])
+  })
 })
 
 describe('Editor — 基础行为', () => {
