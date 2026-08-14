@@ -1,46 +1,46 @@
 // ============================================================
-// Bash 工具
+// Bash 工具 — factory + default instance
 //
-// 让 LLM 可以执行 shell 命令。
-// 支持 Docker 沙箱执行（自动检测，不可用时回退到本地）。
-// 支持超时和中断。
+// createBashTool(ops) 接受 Operations 注入，返回 ToolDefinition。
+// default 实例使用 LocalOperations 兜底。
 // ============================================================
 
 import { Type } from '@sinclair/typebox'
-import type { AgentTool } from '../../agent/types.js'
-import { getSandbox } from '../../sandbox/index.js'
+import type { Operations, ExecResult } from '../operations.js'
+import { defaultOperations } from '../operations.js'
+import type { ToolDefinition } from '../../agent/types.js'
 import { logger } from '../../config/index.js'
 
-/** 创建 bash 工具 */
-export const bashTool: AgentTool = {
-  name: 'bash',
-  label: 'Shell',
-  description: '执行 shell 命令，获取输出结果',
-  parameters: Type.Object({
-    command: Type.String({ description: '要执行的 shell 命令' }),
-    timeout: Type.Optional(Type.Number({ description: '超时时间（毫秒），默认 30000' })),
-  }),
+export function createBashTool(ops: Operations): ToolDefinition {
+  return {
+    name: 'bash',
+    label: 'Shell',
+    description: '执行 shell 命令，获取输出结果',
+    category: 'system',
+    dangerLevel: 'normal',
+    icon: '⚡',
+    parameters: Type.Object({
+      command: Type.String({ description: '要执行的 shell 命令' }),
+      timeout: Type.Optional(Type.Number({ description: '超时时间（毫秒），默认 30000' })),
+    }),
 
-  async execute(toolCallId, params, signal, onUpdate) {
-    const command = params.command as string
-    const timeout = (params.timeout as number) || 30000
+    async execute(toolCallId, params, signal, onUpdate) {
+      const command = params.command as string
+      const timeout = (params.timeout as number) || 30000
 
-    // 获取沙箱实例
-    const sandbox = getSandbox()
-    const isSandbox = await sandbox.isAvailable()
-
-    onUpdate?.({
-      content: [{
-        type: 'text',
-        text: isSandbox ? `🔒 在沙箱中执行: ${command}` : `执行: ${command}`,
-      }],
-    })
-
-    try {
-      const result = await sandbox.execute(command, timeout, signal)
+      let result: ExecResult
+      try {
+        result = await ops.exec(command, timeout, signal)
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error)
+        return {
+          content: [{ type: 'text', text: msg }],
+          isError: true,
+        }
+      }
 
       const output = result.stdout || result.stderr || '(无输出)'
-      const runtimeInfo = result.runtime === 'docker' ? ' [沙箱]' : ' [本地]'
+      const runtimeInfo = result.runtime === 'sandbox' ? ' [沙箱]' : ' [本地]'
 
       logger.audit('tool_execution', {
         tool: 'bash', command, exitCode: result.exitCode, runtime: result.runtime,
@@ -50,14 +50,9 @@ export const bashTool: AgentTool = {
         content: [{ type: 'text', text: output + runtimeInfo }],
         details: { command, exitCode: result.exitCode, runtime: result.runtime },
       }
-    } catch (error: unknown) {
-      const err = error as Error
-      logger.audit('tool_execution_failed', { tool: 'bash', command, error: err.message })
-
-      return {
-        content: [{ type: 'text', text: err.message || String(error) }],
-        details: { command, exitCode: 1 },
-      }
-    }
-  },
+    },
+  }
 }
+
+/** 默认 bash 工具实例（使用 LocalOperations） */
+export const bashTool = createBashTool(defaultOperations)

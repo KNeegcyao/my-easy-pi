@@ -8,7 +8,7 @@
 //   - on()             监听 Agent 事件
 // ============================================================
 
-import type { AgentTool } from '../agent/types.js'
+import type { ToolDefinition } from '../agent/types.js'
 import type { AgentEventListener } from '../ai/types.js'
 import type { ToolRegistry } from '../tools/registry.js'
 import type { Agent } from '../agent/index.js'
@@ -26,8 +26,8 @@ export class ExtensionAPI {
     private agent: Agent,
   ) {}
 
-  /** 注册自定义工具 */
-  registerTool(tool: AgentTool): void {
+  /** 注册自定义工具（ToolDefinition 携带 UI/扩展元数据） */
+  registerTool(tool: ToolDefinition): void {
     this.toolRegistry.registerTool(tool)
   }
 

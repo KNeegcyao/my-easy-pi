@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import * as readline from 'node:readline'
 import { ModelRegistry, AnthropicProvider, DeepSeekProvider, OpenAIProvider } from './ai/index.js'
-import { ToolRegistry, bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, webFetchTool } from './tools/index.js'
+import { ToolRegistry, LocalOperations, createBashTool, createReadTool, createWriteTool, createEditTool, createGrepTool, createFindTool, createLsTool, createWebFetchTool } from './tools/index.js'
 import { Agent, PermissionManager, type ConfirmFn, RiskLevel } from './agent/index.js'
 import { isAppError, AUTH_API_KEY_MISSING, PROVIDER_NOT_FOUND, MODEL_NOT_FOUND, type AppError } from './ai/errors.js'
 import { createPrintInterface, createJSONInterface, startRPC } from './interface/index.js'
@@ -93,13 +93,27 @@ piagent — 简易 AI Coding Agent
 // 几个职责单一的纯/半纯函数，供 main 编排 + 独立单测
 // ============================================================
 
-/** 装配内置 ToolRegistry（8 个工具） */
-export function buildTools(): ToolRegistry {
+/** 装配内置 ToolRegistry（8 个工具，注入 LocalOperations） */
+export function buildTools(ops?: import('./tools/operations.js').Operations): ToolRegistry {
   const registry = new ToolRegistry()
-  for (const t of [bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, webFetchTool]) {
-    registry.registerTool(t)
-  }
+  const opsImpl = ops ?? new LocalOperations()
+  const tools = [
+    createBashTool(opsImpl),
+    createReadTool(opsImpl),
+    createWriteTool(opsImpl),
+    createEditTool(opsImpl),
+    createGrepTool(opsImpl),
+    createFindTool(opsImpl),
+    createLsTool(opsImpl),
+    createWebFetchTool(opsImpl),
+  ]
+  for (const t of tools) registry.registerTool(t)
   return registry
+}
+
+/** 返回默认工具列表（使用 defaultOperations 兜底，仅用于无 cli 集成的场景） */
+export function defaultTools(): import('./tools/operations.js').Operations {
+  return new LocalOperations()
 }
 
 /**

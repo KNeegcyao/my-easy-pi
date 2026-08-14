@@ -1,30 +1,38 @@
 // ============================================================
-// Write 工具 — 写入/覆盖文件内容
+// Write 工具 — factory + default instance
 // ============================================================
 
-import { writeFile } from 'fs/promises'
 import { Type } from '@sinclair/typebox'
-import type { AgentTool } from '../../agent/types.js'
+import type { Operations } from '../operations.js'
+import { defaultOperations } from '../operations.js'
+import type { ToolDefinition } from '../../agent/types.js'
 
-export const writeTool: AgentTool = {
-  name: 'write',
-  label: 'Write',
-  description: '写入内容到指定文件（会覆盖已有内容）',
-  parameters: Type.Object({
-    path: Type.String({ description: '文件路径' }),
-    content: Type.String({ description: '要写入的内容' }),
-  }),
+export function createWriteTool(ops: Operations): ToolDefinition {
+  return {
+    name: 'write',
+    label: 'Write',
+    description: '写入内容到指定文件（会覆盖已有内容）',
+    category: 'file',
+    dangerLevel: 'dangerous',
+    icon: '✏️',
+    parameters: Type.Object({
+      path: Type.String({ description: '文件路径' }),
+      content: Type.String({ description: '要写入的内容' }),
+    }),
 
-  async execute(toolCallId, params) {
-    const path = params.path as string
-    const content = params.content as string
-    try {
-      await writeFile(path, content, 'utf-8')
-      return { content: [{ type: 'text', text: `已写入 ${path}（${content.length} 字符）` }] }
-    } catch (error) {
-      return {
-        content: [{ type: 'text', text: `写入失败: ${error instanceof Error ? error.message : String(error)}` }],
+    async execute(toolCallId, params) {
+      const path = params.path as string
+      const content = params.content as string
+      try {
+        await ops.writeFile(path, content)
+        return { content: [{ type: 'text', text: `已写入 ${path}（${content.length} 字符）` }] }
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `写入失败: ${error instanceof Error ? error.message : String(error)}` }],
+        }
       }
-    }
-  },
+    },
+  }
 }
+
+export const writeTool = createWriteTool(defaultOperations)

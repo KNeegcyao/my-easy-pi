@@ -1,5 +1,5 @@
 // ============================================================
-// Web Fetch 工具
+// Web Fetch 工具 — factory + default instance
 //
 // 让 LLM 可以直接读取网页内容（支持 raw.githubusercontent.com、
 // GitHub API、文档站点等），无需先 git clone。
@@ -9,48 +9,44 @@
 // ============================================================
 
 import { Type } from '@sinclair/typebox'
-import type { AgentTool } from '../../agent/types.js'
+import type { Operations } from '../operations.js'
+import { defaultOperations } from '../operations.js'
+import type { ToolDefinition } from '../../agent/types.js'
 
-/** 创建 web_fetch 工具 */
-export const webFetchTool: AgentTool = {
-  name: 'web_fetch',
-  label: 'Web Fetch',
-  description: '读取网页内容，支持 GitHub raw 文件、API 响应、文档页面等',
-  parameters: Type.Object({
-    url: Type.String({ description: '要读取的网页 URL（如 https://raw.githubusercontent.com/xxx/README.md）' }),
-  }),
+export function createWebFetchTool(ops: Operations): ToolDefinition {
+  return {
+    name: 'web_fetch',
+    label: 'Web Fetch',
+    description: '读取网页内容，支持 GitHub raw 文件、API 响应、文档页面等',
+    category: 'network',
+    dangerLevel: 'safe',
+    icon: '🌐',
+    parameters: Type.Object({
+      url: Type.String({ description: '要读取的网页 URL（如 https://raw.githubusercontent.com/xxx/README.md）' }),
+    }),
 
-  async execute(toolCallId, params, signal) {
-    const url = params.url as string
+    async execute(toolCallId, params, signal) {
+      const url = params.url as string
 
-    try {
-      const response = await fetch(url, { signal })
+      try {
+        const text = await ops.fetchUrl(url, signal)
+        const truncated = text.length > 100_000
+          ? text.slice(0, 100_000) + `\n\n...（内容已截断，共 ${text.length} 字符，仅显示前 100K）`
+          : text
 
-      if (!response.ok) {
         return {
-          content: [{
-            type: 'text',
-            text: `HTTP ${response.status}: ${response.statusText}\n${await response.text().catch(() => '(无法读取响应体)')}`,
-          }],
+          content: [{ type: 'text', text: truncated }],
+          details: { url, size: text.length },
+        }
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error)
+        return {
+          content: [{ type: 'text', text: `请求失败: ${msg}` }],
           isError: true,
         }
       }
-
-      const text = await response.text()
-      const truncated = text.length > 100_000
-        ? text.slice(0, 100_000) + `\n\n...（内容已截断，共 ${text.length} 字符，仅显示前 100K）`
-        : text
-
-      return {
-        content: [{ type: 'text', text: truncated }],
-        details: { url, contentType: response.headers.get('content-type'), size: text.length },
-      }
-    } catch (error: unknown) {
-      const err = error as Error
-      return {
-        content: [{ type: 'text', text: `请求失败: ${err.message}` }],
-        isError: true,
-      }
-    }
-  },
+    },
+  }
 }
+
+export const webFetchTool = createWebFetchTool(defaultOperations)

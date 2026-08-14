@@ -1,0 +1,132 @@
+// ============================================================
+// Operations — 系统操作抽象层
+//
+// 最小化的 Operations 接口，把工具需要的所有系统调用抽象出来：
+//   - 本地环境：LocalOperations（走真实文件系统/进程）
+//   - 测试环境：MockOperations（不碰系统）
+//   - 远程环境：SSHOperations（走远程主机）
+//
+// 工具不再直接 import fs/child_process/sandbox，
+// 而是通过构造注入的 Operations 间接调用。
+// ============================================================
+
+import { readFile, writeFile, readdir } from 'fs/promises'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+import { getSandbox } from '../sandbox/index.js'
+
+const execFileAsync = promisify(execFile)
+
+export interface ExecResult {
+  stdout: string
+  stderr: string
+  exitCode: number
+  runtime?: 'local' | 'sandbox'
+}
+
+export interface DirEntry {
+  name: string
+  isDirectory: boolean
+}
+
+/**
+ * Operations 接口 — 工具执行所需的全部系统操作。
+ *
+ * 每个方法都设计为返回原始数据而非封装格式，让调用方自由处理。
+ * 所有方法不应抛出异常 —— 错误应通过返回值中的空/错误标记表达。
+ */
+export interface Operations {
+  exec(command: string, timeout?: number, signal?: AbortSignal): Promise<ExecResult>
+  readFile(path: string): Promise<string>
+  writeFile(path: string, content: string): Promise<void>
+  replaceInFile(path: string, oldText: string, newText: string): Promise<boolean>
+  grep(pattern: string, path: string): Promise<string>
+  findFiles(pattern: string, path: string): Promise<string>
+  listDir(path: string): Promise<DirEntry[]>
+  fetchUrl(url: string, signal?: AbortSignal): Promise<string>
+}
+
+/**
+ * 本地 Operations 实现。
+ *   - exec 走沙箱（Docker → 本地回退）
+ *   - 文件操作走 fs/promises
+ *   - grep/find 走 child_process.execFile
+ *   - fetchUrl 走全局 fetch
+ */
+export class LocalOperations implements Operations {
+  async exec(command: string, timeout = 30000, signal?: AbortSignal): Promise<ExecResult> {
+    try {
+      const sandbox = getSandbox()
+      const result = await sandbox.execute(command, timeout, signal)
+      return {
+        stdout: result.stdout || '',
+        stderr: result.stderr || '',
+        exitCode: result.exitCode ?? 0,
+        runtime: result.runtime === 'docker' ? 'sandbox' : 'local',
+      }
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      return { stdout: '', stderr: msg, exitCode: 1 }
+    }
+  }
+
+  async readFile(path: string): Promise<string> {
+    return await readFile(path, 'utf-8')
+  }
+
+  async writeFile(path: string, content: string): Promise<void> {
+    await writeFile(path, content, 'utf-8')
+  }
+
+  async replaceInFile(path: string, oldText: string, newText: string): Promise<boolean> {
+    const content = await readFile(path, 'utf-8')
+    if (!content.includes(oldText)) return false
+    const result = content.replace(oldText, newText)
+    await writeFile(path, result, 'utf-8')
+    return true
+  }
+
+  async grep(pattern: string, path: string): Promise<string> {
+    try {
+      const { stdout } = await execFileAsync('grep', ['-rn', pattern, path], {
+        timeout: 10000,
+        maxBuffer: 1024 * 1024,
+      })
+      return stdout || ''
+    } catch {
+      return ''
+    }
+  }
+
+  async findFiles(pattern: string, path: string): Promise<string> {
+    try {
+      const { stdout } = await execFileAsync('find', [path, '-name', pattern], {
+        timeout: 10000,
+        maxBuffer: 1024 * 1024,
+      })
+      return stdout || ''
+    } catch {
+      return ''
+    }
+  }
+
+  async listDir(path: string): Promise<DirEntry[]> {
+    const entries = await readdir(path, { withFileTypes: true })
+    return entries.map(e => ({ name: e.name, isDirectory: e.isDirectory() }))
+  }
+
+  async fetchUrl(url: string, signal?: AbortSignal): Promise<string> {
+    const response = await fetch(url, { signal })
+    if (!response.ok) {
+      const body = await response.text().catch(() => '')
+      throw new Error(`HTTP ${response.status}: ${response.statusText}\n${body}`)
+    }
+    return await response.text()
+  }
+}
+
+/**
+ * 默认 Operations 实例（单例），供未注入的工具兜底使用。
+ * 在 cli.ts 的生产路径中会显式构造并传入。
+ */
+export const defaultOperations = new LocalOperations()
