@@ -42,6 +42,8 @@ export class ScrollView implements Component {
   /** 外层布局给定可用高度；0 表示不裁切 */
   setViewportHeight(height: number): void {
     if (height !== this.opts.height) {
+      // 高度变化时重新钉底（新内容到来自动跟随）
+      this.pinnedBottom = this.opts.stickyBottom
       this.opts.height = height
       this.invalidate()
     }

@@ -41,6 +41,7 @@ export interface EditorOptions {
 export type KeyIntent =
   | { type: 'insert'; ch: string }
   | { type: 'submit' }
+  | { type: 'newline' }         // Alt+Enter / Shift+Enter（插入 \n 不提交）
   | { type: 'backspace' }
   | { type: 'delete' }
   | { type: 'cursorLeft' }
@@ -66,6 +67,12 @@ export function parseKeys(data: string): KeyIntent[] {
 
     // ESC 开头的控制序列
     if (ch === '\x1b') {
+      // Alt+Enter（\x1b\r）：插入换行
+      if (data[i + 1] === '\r' || data[i + 1] === '\n') {
+        out.push({ type: 'newline' })
+        i += 2
+        continue
+      }
       const parsed = parseEsc(data, i)
       if (parsed) {
         out.push(parsed.intent)
@@ -256,6 +263,15 @@ export class Editor implements Component, Focusable {
       case 'insert':
         this.text = this.text.slice(0, this.cursorPos) + intent.ch + this.text.slice(this.cursorPos)
         this.cursorPos += intent.ch.length
+        this.exitHistoryBrowse()
+        this.invalidate()
+        this.emitChange()
+        break
+
+      case 'newline':
+        // Alt+Enter / Shift+Enter：在光标处插入 \n 不提交
+        this.text = this.text.slice(0, this.cursorPos) + '\n' + this.text.slice(this.cursorPos)
+        this.cursorPos += 1
         this.exitHistoryBrowse()
         this.invalidate()
         this.emitChange()

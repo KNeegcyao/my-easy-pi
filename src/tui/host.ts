@@ -30,6 +30,7 @@ import { Text } from './components/text.js'
 import { Loader } from './components/loader.js'
 import { Editor } from './components/editor.js'
 import { KeyBinds } from './components/keybinds.js'
+import { Selector, type SelectOption } from './components/selector.js'
 import { Box } from './components/box.js'
 import { Statusbar } from './components/statusbar.js'
 import { green, dim, gray, yellow, red, bold, cyan } from './ansi.js'
@@ -106,7 +107,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   let stopped = false
   let exitRaw: (() => void) | null = null
   let confirming = false   // permission confirm 期间：跳过 editor onInput
-  let keybinds = new KeyBinds('default')   // 键绑定状态机（/keymap 切换），防 readline+editor 双重消费 stdin
+  let keybinds = new KeyBinds('default')   // 键绑定状态机（/keymap 切换）
+  let activeSelector: Selector | null = null  // 活跃选择器（/sessions /delete 等），防 readline+editor 双重消费 stdin
 
   // ── hero（像素 ASCII art 欢迎页，加入 chatContainer 顶部） ──
   function addHeroToChat(): void {
@@ -333,25 +335,52 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
 
   async function sessCmdList(): Promise<void> {
     chatContainer.addChild(new Spacer(1))
-    chatContainer.addChild(new Text(cyan(bold('  会话列表'))))
     try {
       const sessions = await sessionManager!.listSessions()
       if (sessions.length === 0) {
         chatContainer.addChild(new Text(`  ${dim(gray('(无会话)'))}`))
-      } else {
-        for (const s of sessions) {
-          chatContainer.addChild(new Text(
-            `  ${dim(gray('▸'))} ${cyan(s.id.slice(-8))}  ${bold(gray(s.name))}  ${dim(gray(s.messageCount + ' msgs · ' + s.createdAt))}`
-          ))
-        }
-        chatContainer.addChild(new Text(`  ${dim(gray('──────────────'))}`))
-        chatContainer.addChild(new Text(`  ${dim(gray('/delete <id> 可删除会话'))}`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+        return
       }
+      const opts: SelectOption[] = sessions.map(s => ({
+        label: s.name,
+        value: s.id,
+        description: `${s.messageCount} msgs · ${s.createdAt}`,
+      }))
+      // 加一个退出选项
+      opts.push({ label: '取消', value: '' })
+      const sel = new Selector(opts, '会话列表 (选择后按 Enter 进入)')
+      sel.onSelect = (opt) => {
+        activeSelector = null
+        if (!opt.value) {
+          chatContainer.addChild(new Text(`  ${dim(gray('已取消'))}`))
+          chatContainer.addChild(new Spacer(1))
+          screen.requestRender()
+          return
+        }
+        // 加载选中会话（切换到该会话）
+        chatContainer.addChild(new Text(`  ${green('✓')} 选中: ${bold(gray(opt.label))} ${dim(gray('(当前版本仅显示，续接请用 -c flag)'))}`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+      }
+      sel.onCancel = () => {
+        activeSelector = null
+        chatContainer.addChild(new Text(`  ${dim(gray('已取消'))}`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+      }
+      activeSelector = sel
+      // 把选择器渲染到 chat（作为 Text 组件）
+      const lines = sel.render(terminal.columns)
+      for (const l of lines) chatContainer.addChild(new Text(l))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
     } catch (e) {
       chatContainer.addChild(new Text(`  ${red('✗')} 获取会话列表失败: ${e instanceof Error ? e.message : String(e)}`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
     }
-    chatContainer.addChild(new Spacer(1))
-    screen.requestRender()
   }
 
   async function sessCmdDelete(idOrName: string | undefined): Promise<void> {
@@ -433,16 +462,18 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
 
   // ── 输入路径 ──
   const stopInput = terminal.onInput((data) => {
-    // permission confirm 期间，跳过 editor（防 y/N 污染 editor 状态）
+    // 活跃选择器时：路由到 selector，跳过 editor
+    if (activeSelector) {
+      activeSelector.handleKey(data)
+      screen.requestRender()
+      return
+    }
+    // permission confirm 期间（兼容旧路径）
     if (confirming) return
     // 通过 keybinds 层处理输入（支持 vim 模式）
     const result = keybinds.process(data)
     if (result.intents.length > 0) {
       editor.handleIntents(result.intents)
-    }
-    // 更新 vim 模式状态标记到 statusbar
-    if (keybinds.currentMode !== 'default') {
-      // visual feedback via modified prompt
     }
     screen.requestRender()
   })
@@ -459,41 +490,48 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   }
 
   function rawModeConfirm(req: { command: string; risk: RiskLevel }): Promise<boolean> {
-    const riskLabel = req.risk === RiskLevel.DANGEROUS ? '🔴 高风险' : '🟡 普通风险'
-    const lines = [
-      '',
-      `${'='.repeat(50)}`,
-      `${riskLabel} 操作需要确认`,
-      `命令: ${req.command}`,
-      `${'='.repeat(50)}`,
-      '是否允许执行？(y/N)',
-    ]
-    // 确认弹窗走 chat history（始终保留在 scrollback）
+    const sel = new Selector([
+      { label: 'Yes', value: 'y', description: '允许执行' },
+      { label: 'No', value: 'n', description: '拒绝执行（默认）' },
+    ], `${req.risk === RiskLevel.DANGEROUS ? '🔴' : '🟡'} 操作需要确认`)
+
+    // 写入确认框到 chat
+    chatContainer.addChild(new Spacer(1))
+    chatContainer.addChild(new Text(`  ${dim(gray('命令: '))}${req.command}`))
+    const lines = sel.render(terminal.columns)
     for (const l of lines) chatContainer.addChild(new Text(l))
     chatContainer.addChild(new Spacer(1))
     screen.requestRender()
-    confirming = true
-    // 直接在 raw mode 下读一个按键（不 exitRaw，不用 readline）
     stopLoaderTimer()
+
+    activeSelector = sel
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        confirming = false
+        activeSelector = null
         resolve(false)
       }, 30_000)
-      const handler = (buf: Buffer) => {
-        const ch = buf.toString('utf-8')
-        // 跳过鼠标事件
-        if (ch.startsWith('\x1b[')) return
+      sel.onSelect = (opt) => {
         clearTimeout(timeout)
-        confirming = false
-        const allowed = ch.toLowerCase() === 'y' || ch === '\r'
+        activeSelector = null
+        const allowed = opt.value === 'y'
         if (allowed && agent.state.isStreaming) startLoaderTimer()
+        if (opt.value === 'y') {
+          chatContainer.addChild(new Text(`  ${green('✓')} 已允许`))
+        } else {
+          chatContainer.addChild(new Text(`  ${dim(gray('已拒绝'))}`))
+        }
+        chatContainer.addChild(new Spacer(1))
         screen.requestRender()
-        resolve(ch.toLowerCase() === 'y')   // Enter = false（默认 N）
-        // 卸下临时监听
-        process.stdin.off('data', handler)
+        resolve(allowed)
       }
-      process.stdin.on('data', handler)
+      sel.onCancel = () => {
+        clearTimeout(timeout)
+        activeSelector = null
+        chatContainer.addChild(new Text(`  ${dim(gray('已取消'))}`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+        resolve(false)
+      }
     })
   }
   function reenterRaw(): void {
