@@ -238,9 +238,10 @@ export async function runMode(opts: {
   args: ParsedArgs
   userMessage?: string
   permission: PermissionManager
+  sessionManager?: SessionManager
 }): Promise<void> {
-  const { agent, args, userMessage, permission } = opts
-  if (args.tui) { startTUI(agent, { permission, useMainScreen: args.mainScreen }); return }
+  const { agent, args, userMessage, permission, sessionManager } = opts
+  if (args.tui) { startTUI(agent, { permission, useMainScreen: args.mainScreen, sessionManager }); return }
   if (args.output === 'json') {
     createJSONInterface(agent)
     try { await agent.prompt(userMessage!) } catch (e) {
@@ -345,7 +346,7 @@ async function main(): Promise<void> {
 
   const userMessage = await resolveUserMessage(args)
 
-  await runMode({ agent, args, userMessage, permission })
+  await runMode({ agent, args, userMessage, permission, sessionManager })
 }
 
 main()

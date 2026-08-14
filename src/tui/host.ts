@@ -62,6 +62,8 @@ export interface StartTUIOptions {
   terminal?: Terminal
   /** true 用主屏模式（renderer-main，行 diff + 原生 scrollback）；默认 false=alt-screen */
   useMainScreen?: boolean
+  /** 会话管理器（用于 /sessions /delete 命令） */
+  sessionManager?: import('../session/index.js').SessionManager
 }
 
 /** 启动 TUI；返回 stop 函数 */
@@ -69,6 +71,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   const terminal = options?.terminal ?? new Terminal()
   const permission = options?.permission
   const useMainScreen = options?.useMainScreen ?? false
+  const sessionManager = options?.sessionManager
 
   // 渲染器：默认 alt-screen（全屏布局，editor 钉底）；--main-screen 降级
   const screen = useMainScreen
@@ -253,6 +256,21 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
 
   // ── slash 命令 ──
   function handleSlashCommand(input: string): void {
+    const trimmed = input.trim()
+    const parts = trimmed.split(/\s+/)
+    const cmd = parts[0].toLowerCase()
+
+    // 会话管理命令（异步，需 sessionManager）
+    if (sessionManager && (cmd === '/sessions')) {
+      sessCmdList()
+      return
+    }
+    if (sessionManager && cmd === '/delete') {
+      sessCmdDelete(parts[1])
+      return
+    }
+
+    // 同步命令
     const result = executeCommand(input, agent)
     if (!result) {
       chatContainer.addChild(new Text(`  ${red('✗')} 未知命令: ${input}`))
@@ -261,7 +279,6 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       return
     }
     if (result.clear) {
-      // /clear：清屏 + 清 LLM 上下文（agent.reset）。sessionId 不变（cli.ts 集成，follow-up）。
       chatContainer.clear()
       pendingTools.clear()
       streamTurn = null
@@ -269,17 +286,83 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       screen.requestRender()
     }
     if (result.output) {
-      // 命令输出进 chat history（常驻）
       for (const line of result.output.split('\n')) {
         chatContainer.addChild(new Text(line))
       }
       chatContainer.addChild(new Spacer(1))
       screen.requestRender()
     }
-    if (input === '/exit' || input === '/quit') {
+    if (cmd === '/exit' || cmd === '/quit') {
       cleanup()
       process.exit(0)
     }
+  }
+
+  async function sessCmdList(): Promise<void> {
+    chatContainer.addChild(new Spacer(1))
+    chatContainer.addChild(new Text(cyan(bold('  会话列表'))))
+    try {
+      const sessions = await sessionManager!.listSessions()
+      if (sessions.length === 0) {
+        chatContainer.addChild(new Text(`  ${dim(gray('(无会话)'))}`))
+      } else {
+        for (const s of sessions) {
+          chatContainer.addChild(new Text(
+            `  ${dim(gray('▸'))} ${cyan(s.id.slice(-8))}  ${bold(gray(s.name))}  ${dim(gray(s.messageCount + ' msgs · ' + s.createdAt))}`
+          ))
+        }
+        chatContainer.addChild(new Text(`  ${dim(gray('──────────────'))}`))
+        chatContainer.addChild(new Text(`  ${dim(gray('/delete <id> 可删除会话'))}`))
+      }
+    } catch (e) {
+      chatContainer.addChild(new Text(`  ${red('✗')} 获取会话列表失败: ${e instanceof Error ? e.message : String(e)}`))
+    }
+    chatContainer.addChild(new Spacer(1))
+    screen.requestRender()
+  }
+
+  async function sessCmdDelete(idOrName: string | undefined): Promise<void> {
+    if (!idOrName) {
+      chatContainer.addChild(new Spacer(1))
+      chatContainer.addChild(new Text(`  ${yellow('用法')}: /delete <会话ID最后8位>`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+      return
+    }
+    // 找匹配的会话（支持时最后 8 位匹配）
+    const sessions = await sessionManager!.listSessions()
+    const target = sessions.find(s => s.id.endsWith(idOrName))
+    if (!target) {
+      chatContainer.addChild(new Text(`  ${red('✗')} 未找到匹配会话: ${idOrName}`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+      return
+    }
+    // 确认删除
+    chatContainer.addChild(new Spacer(1))
+    chatContainer.addChild(new Text(`  ${yellow('⚠ 确认删除会话:')}`))
+    chatContainer.addChild(new Text(`  ${gray(target.name)}  ${dim(gray(target.messageCount + ' 条消息'))}`))
+    chatContainer.addChild(new Text(`  ${yellow('输入 y 确认, 其他取消')}`))
+    chatContainer.addChild(new Spacer(1))
+    screen.requestRender()
+    // 读一个键
+    confirming = true
+    const handler = (buf: Buffer) => {
+      const ch = buf.toString('utf-8').toLowerCase()
+      if (ch === 'y') {
+        sessionManager!.deleteSession(target.id).then(() => {
+          chatContainer.addChild(new Text(`  ${green('✓')} 已删除会话: ${target.name}`))
+        }).catch((err: unknown) => {
+          chatContainer.addChild(new Text(`  ${red('✗')} 删除失败: ${err instanceof Error ? err.message : String(err)}`))
+        }).finally(() => {
+          chatContainer.addChild(new Spacer(1))
+          screen.requestRender()
+        })
+      }
+      confirming = false
+      process.stdin.off('data', handler)
+    }
+    process.stdin.on('data', handler)
   }
 
   // ── Editor 提交 ──

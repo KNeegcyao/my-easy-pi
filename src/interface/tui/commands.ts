@@ -55,6 +55,8 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
           `  ${green('/model')}     ${gray('显示当前模型信息')}`,
           `  ${green('/tools')}     ${gray('列出所有可用工具')}`,
           `  ${green('/session')}   ${gray('查看会话信息')}`,
+          `  ${green('/sessions')}  ${gray('列出所有会话')}`,
+          `  ${green('/delete')}    ${gray('删除指定会话')}`,
           `  ${green('/cost')}      ${gray('查看 Token 用量统计')}`,
           `  ${green('/clear')}     ${gray('清屏')}`,
           `  ${green('/exit')}      ${gray('退出程序')}`,
