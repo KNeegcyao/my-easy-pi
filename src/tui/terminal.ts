@@ -142,6 +142,32 @@ export class Terminal {
     if (process.stderr.writable) process.stderr.write(data)
   }
 
+  /**
+   * 探测终端背景色（OSC 11 查询）。
+   * 异步：写入查询序列后等待终端回复，超时则 fallback 到 'dark'。
+   */
+  async detectBackground(): Promise<'light' | 'dark'> {
+    if (!this.caps.isTTY) return 'dark'
+    this.write('\x1b]11;?\x07')
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve('dark'), 200)
+      const handler = (buf: Buffer) => {
+        const str = buf.toString()
+        const match = str.match(/\x1b\]11;rgb:([0-9a-f]+)\/([0-9a-f]+)\/([0-9a-f]+)/i)
+        if (match) {
+          clearTimeout(timeout)
+          process.stdin.off('data', handler)
+          const r = parseInt(match[1], 16)
+          const g = parseInt(match[2], 16)
+          const b = parseInt(match[3], 16)
+          const brightness = 0.299 * r + 0.587 * g + 0.114 * b
+          resolve(brightness > 150 ? 'light' : 'dark')
+        }
+      }
+      process.stdin.on('data', handler)
+    })
+  }
+
   // ── escape code 便捷方法（供 renderers/overlays 使用）──
   hideCursor(): void { this.write('\x1b[?25l') }
   showCursor(): void { this.write('\x1b[?25h') }

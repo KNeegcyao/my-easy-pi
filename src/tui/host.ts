@@ -270,6 +270,21 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       return
     }
 
+    // /theme 命令（直接处理，需 Terminal）
+    if (cmd === '/theme') {
+      terminal.detectBackground().then((mode) => {
+        const display = mode === 'dark' ? '🌙 深色' : '☀️ 浅色'
+        const tip = mode === 'dark'
+          ? `${dim(gray('检测到深色终端背景'))}`
+          : `${dim(gray('检测到浅色终端背景 — 正在适配颜色'))}`
+        chatContainer.addChild(new Text(`  ${green('✓')} 主题: ${bold(gray(display))}`))
+        chatContainer.addChild(new Text(`  ${tip}`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+      })
+      return
+    }
+
     // 同步命令
     const result = executeCommand(input, agent)
     if (!result) {

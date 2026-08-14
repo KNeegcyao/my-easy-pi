@@ -5,7 +5,7 @@
 // 用于工具测试，或开发环境模拟。
 // ============================================================
 
-import type { Operations, ExecResult, DirEntry } from '../operations.js'
+import type { Operations, ExecResult, DirEntry, ExecUpdateCallback } from '../operations.js'
 
 export class MockOperations implements Operations {
   private mockFiles = new Map<string, string>()

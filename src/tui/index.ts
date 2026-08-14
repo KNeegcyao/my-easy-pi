@@ -17,6 +17,7 @@ export { startTUI, type StartTUIOptions } from './host.js'
 
 export * from './layout/index.js'
 export * from './components/index.js'
+export { createTheme, detectThemeMode, defaultTheme, type Theme } from './theme.js'
 
 // ANSI 工具单独路径导出，避免污染命名空间
 export * as ansi from './ansi.js'
