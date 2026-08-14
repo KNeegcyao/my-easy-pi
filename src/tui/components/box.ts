@@ -32,8 +32,8 @@ export class Box implements Component {
     borderColor: ((s: string) => string) | undefined
     border: BoxChars
   }
-  private cachedForWidth: number | null = null
-  private cachedLines: string[] | null = null
+  // 注：Box 不缓存渲染结果（同 Container/Stack 策略）。子组件（Text/Elditor）
+  // 内容变化无法向上通知 Box 失效缓存，缓存会挡住内容更新。见 Phase 6 统一方案。
 
   constructor(opts: BoxOptions = {}) {
     this.opts = {
@@ -55,13 +55,10 @@ export class Box implements Component {
   }
 
   invalidate(): void {
-    this.cachedLines = null
-    this.cachedForWidth = null
     if (this.child?.invalidate) this.child.invalidate()
   }
 
   render(width: number): string[] {
-    if (this.cachedLines && this.cachedForWidth === width) return this.cachedLines
 
     const b = this.opts.border
     const pad = this.opts.padding
@@ -101,8 +98,6 @@ export class Box implements Component {
       return `${left}${padLeft}${truncated}${padStr}${padRight}${right}`
     })
 
-    this.cachedLines = [top, ...middle, bottom]
-    this.cachedForWidth = width
-    return this.cachedLines
+    return [top, ...middle, bottom]
   }
 }

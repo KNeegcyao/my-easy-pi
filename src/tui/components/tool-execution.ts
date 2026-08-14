@@ -1,7 +1,7 @@
 import type { Component } from '../component.js'
 import { Container } from '../layout/container.js'
 import { Text } from './text.js'
-import { dim, gray, yellow, red, green } from '../ansi.js'
+import { dim, gray, yellow, red, green, bold, cyan } from '../ansi.js'
 
 /**
  * ToolExecution — pi `tool-execution.ts:13-377` 的对应。
@@ -10,11 +10,11 @@ import { dim, gray, yellow, red, green } from '../ansi.js'
  * 不随事件移除；4 个事件钩子（updateArgs / markExecutionStarted /
  * setArgsComplete / updateResult）全部走内部 updateDisplay() clear+重建。
  *
- * 显示形态：
- *   `→ bash  command=ls -la    `         (call: toolName + args)
- *   `  ⠴ running...                        ` (started, 无 result)
- *   `  → result content（可多行）          ` (result)
- *   `  ✗ error message                     ` (isError)
+ * 显示形态（Phase 6 优化）：
+ *   `  ⚡ bash  command=ls -la    `         (call: 绿色闪电 + 黄色 toolName + gray args)
+ *   `    running...                        ` (started, 无 result)
+ *   `  ╎ file1                             ` (result, dim cyan pipe)
+ *   `  ✗ ERROR message                    ` (isError, red)
  */
 export interface ToolResultLike {
   content: string
@@ -102,24 +102,31 @@ export class ToolExecution implements Component {
       })
       .join(' ')
     const argSuffix = argsText ? ` ${dim(gray(argsText))}` : ''
-    // args 未完成时尾随 *（pi 风格表示"还在流式 args"）
     const incomplete = this.argsComplete ? '' : dim(gray('*'))
-    return `  ${dim('→')} ${yellow(this.toolName)}${argSuffix}${incomplete}`
+    // ⚡ 闪电 + 黄色 toolName
+    return `  ${green(bold('⚡'))} ${yellow(this.toolName)}${argSuffix}${incomplete}`
   }
 
   /** 结果最多渲染的行数；超出截断防止读大文件/grep 大输出撑爆屏幕 */
   private static readonly MAX_RESULT_LINES = 20
 
   private renderResultLines(result: ToolResultLike): string[] {
-    const prefix = result.isError ? `  ${red('✗')} ` : `  ${dim(gray('│'))} `
     const allLines = result.content.split('\n')
-    if (allLines.length <= ToolExecution.MAX_RESULT_LINES) {
-      return allLines.map(line => `${prefix}${line}`)
+    if (result.isError) {
+      // 错误：红色 ✗ + 消息
+      const shown = allLines.slice(0, ToolExecution.MAX_RESULT_LINES).map(l => `  ${red('✗')} ${l}`)
+      if (allLines.length > ToolExecution.MAX_RESULT_LINES) {
+        shown.push(`  ${dim(gray(`⋯ (${allLines.length - ToolExecution.MAX_RESULT_LINES} 行省略)`))}`)
+      }
+      return shown
     }
-    // 截断：取前 N 行 + 截断提示尾行
-    const shown = allLines.slice(0, ToolExecution.MAX_RESULT_LINES).map(line => `${prefix}${line}`)
-    const omitted = allLines.length - ToolExecution.MAX_RESULT_LINES
-    shown.push(`  ${dim(gray(`… (${omitted} 行已截断)`))}`)
+    // 正常结果：青色细竖线 + 内容（更柔和）
+    const pipe = dim(cyan('╎'))
+    const shown = allLines.slice(0, ToolExecution.MAX_RESULT_LINES).map(l => `  ${pipe} ${l}`)
+    if (allLines.length > ToolExecution.MAX_RESULT_LINES) {
+      const omitted = allLines.length - ToolExecution.MAX_RESULT_LINES
+      shown.push(`  ${dim(gray(`⋯ (${omitted} 行省略)`))}`)
+    }
     return shown
   }
 

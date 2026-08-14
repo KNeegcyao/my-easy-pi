@@ -71,7 +71,7 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
     const agent = fakeAgent()
     const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     const out = term.written.join('')
-    expect(out).toContain('piagent')
+    expect(out).toContain('█')            // pixel art 字符
     expect(out).toContain('test-model')
     expect(out).toContain('/help')
     stop()

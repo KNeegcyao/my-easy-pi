@@ -38,12 +38,13 @@ describe('Box', () => {
     expect(lines[0]).toContain('TITLE')
   })
 
-  it('缓存：相同 width 不重算', () => {
+  it('不缓存：相同 width 两次 render 同内容不同引用（同 Container 策略）', () => {
     const box = new Box()
     box.setChild(new Text('hi'))
     const a = box.render(20)
     const b = box.render(20)
-    expect(a).toBe(b)
+    expect(a).toEqual(b)
+    expect(a).not.toBe(b)
   })
 
   it('不同 width 触发重算', () => {

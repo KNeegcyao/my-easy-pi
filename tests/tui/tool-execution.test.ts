@@ -7,7 +7,7 @@ describe('ToolExecution', () => {
     const out = t.render(80).join('\n')
     expect(out).toContain('bash')
     expect(out).toContain('command=ls -la')
-    expect(out).toContain('→')
+    expect(out).toContain('⚡')
   })
 
   it('updateArgs 更新参数显示', () => {
@@ -94,7 +94,7 @@ describe('ToolExecution', () => {
     const lines = t.render(80)
     // 调用行 + 20 结果行 + 1 截断提示行
     expect(lines.length).toBe(1 + 20 + 1)
-    expect(lines[lines.length - 1]).toMatch(/截断/)
+    expect(lines[lines.length - 1]).toMatch(/省略/)
     // line29（第 30 行）不应出现，被截掉
     expect(lines.join('\n')).not.toContain('line29')
   })

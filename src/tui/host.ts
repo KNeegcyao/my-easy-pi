@@ -29,7 +29,9 @@ import { Spacer } from './components/spacer.js'
 import { Text } from './components/text.js'
 import { Loader } from './components/loader.js'
 import { Editor } from './components/editor.js'
-import { green, dim, gray, yellow, red } from './ansi.js'
+import { Box } from './components/box.js'
+import { Statusbar } from './components/statusbar.js'
+import { green, dim, gray, yellow, red, bold, cyan } from './ansi.js'
 import { executeCommand } from '../interface/tui/commands.js'
 
 // tool_execution 事件 payload 里的 args 形状
@@ -84,7 +86,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   const ensureEditor = () => {
     if (!editor) {
       editor = new Editor({
-        prompt: green('> '),
+        prompt: `${green(bold('>'))}${dim(gray(' ▸ '))}`,
         history: [],
         onSubmit: (text) => onSubmit(text),
         onCancel: () => { cleanup(); process.exit(0) },
@@ -101,16 +103,28 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   let exitRaw: (() => void) | null = null
   let confirming = false   // permission confirm 期间：跳过 editor onInput，防 readline+editor 双重消费 stdin
 
-  // ── hero（一次性写 scrollback，屏幕顶部） ──
-  function printHero(): void {
+  // ── hero（像素 ASCII art 欢迎页，加入 chatContainer 顶部） ──
+  function addHeroToChat(): void {
     const m = agent.state.model
     const n = agent.state.tools.length
-    const lines = [
-      `  ${green('piagent')} ${dim(gray('v0.1.0 ·'))} ${dim(gray(`${m.provider}/${m.id}`))}`,
-      `  ${dim(gray(`${n} 个工具可用 · 输入 /help 查看帮助`))}`,
-      '',
+    const art = [
+      '  ███╗   ███╗██╗   ██╗        ███████╗ █████╗ ███████╗██╗   ██╗     ██████╗ ██╗',
+      '  ████╗ ████║╚██╗ ██╔╝        ██╔════╝██╔══██╗██╔════╝╚██╗ ██╔╝     ██╔══██╗██║',
+      '  ██╔████╔██║ ╚████╔╝         █████╗  ███████║███████╗ ╚████╔╝      ██████╔╝██║',
+      '  ██║╚██╔╝██║  ╚██╔╝          ██╔══╝  ██╔══██║╚════██║  ╚██╔╝       ██╔═══╝ ██║',
+      '  ██║ ╚═╝ ██║   ██║           ███████╗██║  ██║███████║   ██║        ██║     ██║',
+      '  ╚═╝     ╚═╝   ╚═╝           ╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝        ╚═╝     ╚═╝',
     ]
-    terminal.write(lines.join('\n') + '\n')
+    const artW = visibleWidth(art[0])
+    chatContainer.addChild(new Spacer(1))
+    for (const line of art) chatContainer.addChild(new Text(green(line)))
+    chatContainer.addChild(new Spacer(1))
+    const sep = bold(green('━'.repeat(artW)))
+    chatContainer.addChild(new Text(sep))
+    chatContainer.addChild(new Text(`${cyan(bold('  🎓 从零搭建 AI Coding Agent 的渐进式教学项目'))}`))
+    chatContainer.addChild(new Text(`  ${bold(cyan('▸'))} ${dim(gray('model'))}: ${bold(gray(m.provider + '/' + m.id))}     ${bold(cyan('▸'))} ${dim(gray('tools'))}: ${bold(gray(n.toString()))}     ${bold(cyan('▸'))} ${dim(gray('/help · ctrl+c quit'))}`))
+    chatContainer.addChild(new Text(sep))
+    chatContainer.addChild(new Spacer(1))
   }
 
   // ── loader slot 控制（statusContainer 是单 slot，绝不 unregister）──
@@ -402,7 +416,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       terminal.writeErr(`\n  ⚠ ${msg}\n`)
     })
 
-    printHero()
+    addHeroToChat()
     // 渲染器接线：alt-screen 用 VStack 布局树（chat ScrollView + footer editor），
     // main-screen 沿用 registerComponent/dock（行 diff + 原生 scrollback）
     if (useMainScreen) {
@@ -413,9 +427,17 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       // alt: rootStack = VStack([chatScrollView(grow1), bottomDock[status, editor]])
       chatScrollView = new ScrollView({ stickyBottom: true })
       chatScrollView.setChild(chatContainer)
+      const editorBox = new Box({ padding: 0 })
+      editorBox.setChild(editor)
+      const statusbar = new Statusbar(
+        `${agent.state.model.provider}/${agent.state.model.id}`,
+        agent.state.tools.length,
+      )
       const bottomDock = new VStack([
         { component: statusContainer, grow: 0 },
-        { component: editor, grow: 0, min: 1 },
+        { component: new Text(dim(gray('─'.repeat(terminal.columns)))), grow: 0 },
+        { component: editorBox, grow: 0, min: 1 },
+        { component: statusbar, grow: 0 },
       ])
       const rootStack = new VStack([
         { component: chatScrollView, grow: 1, min: 1 },
@@ -466,4 +488,17 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
 
   start()
   return cleanup
+}
+
+/** 计算字符串的终端可视宽度（含 ANSI 剥离，CJK/emoji 双宽，其余单宽） */
+function visibleWidth(s: string): number {
+  let w = 0
+  for (const ch of s) {
+    const cp = ch.codePointAt(0) || 0
+    const wide = (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0x9FFF) ||
+      (cp >= 0xAC00 && cp <= 0xD7A3) || (cp >= 0xFF00 && cp <= 0xFF60) ||
+      (cp >= 0x1F300 && cp <= 0x1F64F)
+    w += wide ? 2 : 1
+  }
+  return w
 }
