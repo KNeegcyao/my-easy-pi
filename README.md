@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="./assets/banner.png" alt="MY EASY PI" width="800">
+</p>
+
+<p align="center">
   <h1 align="center">piagent</h1>
   <p align="center">轻量级 AI 编程助手 · AI Coding Agent</p>
   <p align="center">
