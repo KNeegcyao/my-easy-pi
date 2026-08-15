@@ -26,7 +26,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/TypeScript-7.x-3178C6?logo=typescript" alt="TypeScript">
   <img src="https://img.shields.io/badge/Node.js-22+-339933?logo=node.js" alt="Node.js">
-  <img src="https://img.shields.io/badge/Coverage-49%20tests%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/Coverage-347%20tests%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/CI-Passing-brightgreen?logo=githubactions" alt="CI">
   <a href="docs/README.md"><img src="https://img.shields.io/badge/📖-10%E7%AB%A0%E5%85%A8%E9%9D%A2%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97-blue" alt="学习指南"></a>
@@ -150,7 +150,7 @@ my-easy-pi (本仓库)
 |------|------|
 | 🤖 **多 LLM 提供商** | 支持 DeepSeek（默认）、Anthropic Claude、OpenAI |
 | 🔧 **7 个内置工具** | bash、read、write、edit、grep、find、ls |
-| 🖥️ **全屏 TUI** | 仿 Claude Code 的 Alt Screen 模式（重构中，见 [docs/tui-strategy.md](docs/tui-strategy.md)） |
+| 🖥️ **全屏 TUI** | 仿 Claude Code 的 Alt Screen 模式 + VStack 布局引擎（见 [docs/tui-strategy.md](docs/tui-strategy.md)） |
 | 📁 **会话持久化** | JSONL 格式自动保存，支持 `-c` 恢复 |
 | 🔒 **三级权限系统** | SAFE / NORMAL / DANGEROUS + TTY 检测 |
 | 📦 **Docker 沙箱** | 可选容器化执行，自动降级回退 |
@@ -227,18 +227,19 @@ npx tsx src/cli.ts
 
 ```
 my-easy-pi/
-├── src/                    # 源代码（~3000 行）
+├── src/                    # 源代码（~8600 行）
 │   ├── cli.ts             # 📍 入口：参数解析 + 模块组装
 │   ├── ai/                # 🤖 统一 LLM 接口
 │   ├── agent/             # 🧠 Agent 核心循环 ⭐
 │   ├── tools/             # 🔧 7 个内置工具
+│   ├── tui/               # 🖥️ 全屏渲染器（renderer + layout + components）
 │   ├── session/           # 📁 会话持久化
 │   ├── extension/         # 🔌 扩展系统
 │   ├── interface/         # 🖥️ 输出模式
 │   ├── config/            # ⚙️ 配置管理
 │   └── sandbox/           # 🐳 Docker 沙箱
 ├── docs/                  # 📖 10 章学习教程
-├── tests/                 # ✅ 49 个测试用例
+├── tests/                 # ✅ 347 个测试用例（31 个文件）
 └── Dockerfile             # 🐳 沙箱镜像
 ```
 

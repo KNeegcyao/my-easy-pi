@@ -1,5 +1,12 @@
 # docs/ 变更日志
 
+## 2026-08-09
+- 同步：文档与代码对齐（Phase 5 TUI 全屏渲染器已完成）
+- 重写：07-interface-layer/04-tui.md 跟进 `src/tui/` 新框架（Component/TUI 契约、双渲染器、渲染管线，配 Mermaid 架构图）
+- 更新：README.md 测试徽章 49→347、项目结构补 `src/tui/`、TUI 特性改为已完成
+- 更新：01-before-start/03-project-structure.md 目录树补 `src/tui/`、测试结构（31 文件 347 用例）
+- 修正：04-tools-layer/README.md 将 `web_fetch` 归为自定义工具教学案例（非内置工具，内置仍为 7 个）
+
 ## 2026-08-08
 - 新增：全部 10 章学习文档（共 ~45 篇）
 - 新增：docs/README.md 学习路线图
