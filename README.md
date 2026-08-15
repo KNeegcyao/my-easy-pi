@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <h1 align="center">piagent</h1>
+  <h1 align="center">my-easy-pi</h1>
   <p align="center">
     <strong>🧑‍💻 从零学习 AI Coding Agent 的渐进式教程</strong>
   </p>
@@ -36,15 +36,15 @@
 
 > **"What I cannot create, I do not understand."** — Richard Feynman
 >
-> piagent 的核心理念：**读代码不如写代码，用工具不如造工具。** 只有亲手从零搭建一个 AI Coding Agent，你才能真正理解它背后的每一行逻辑。
+> my-easy-pi 的核心理念：**读代码不如写代码，用工具不如造工具。** 只有亲手从零搭建一个 AI Coding Agent，你才能真正理解它背后的每一行逻辑。
 
 ---
 
 ## 🎯 学习使命
 
-piagent 不是一个"开箱即用"的产品，而是一份**从零学习 AI Coding Agent 的渐进式教程**。
+my-easy-pi 不是一个"开箱即用"的产品，而是一份**从零学习 AI Coding Agent 的渐进式教程**。
 
-| 维度 | piagent | Claude Code |
+| 维度 | my-easy-pi | Claude Code |
 |------|---------|-------------|
 | 🎓 **定位** | 学习项目，代码可读 | 生产工具，代码量大 |
 | 📏 **规模** | ~3000 行 TypeScript | 数十万行 |
@@ -65,7 +65,7 @@ piagent 不是一个"开箱即用"的产品，而是一份**从零学习 AI Codi
 
 ## 🎓 学习路线图
 
-> 从零开始，10 章带你逐层深入 piagent 的每一行代码。
+> 从零开始，10 章带你逐层深入 my-easy-pi 的每一行代码。
 
 <p align="center">
   <a href="docs/README.md">
@@ -94,7 +94,7 @@ piagent 不是一个"开箱即用"的产品，而是一份**从零学习 AI Codi
 
 ## 🧬 关于 pi
 
-piagent 的设计深受 [earendil-works/pi](https://github.com/earendil-works/pi) 的启发。
+my-easy-pi 的设计深受 [earendil-works/pi](https://github.com/earendil-works/pi) 的启发。
 
 ### pi 的思想
 
@@ -102,7 +102,7 @@ piagent 的设计深受 [earendil-works/pi](https://github.com/earendil-works/pi
 
 > **Agent 应该能够理解并扩展自身。** Pi 不仅是一个工具，更是一个框架——它提供了统一的 LLM 调用抽象、Agent 运行时、工具系统和 TUI，让你可以在此基础上构建自己的 AI 助手。
 
-### piagent 与 pi 的关系
+### my-easy-pi 与 pi 的关系
 
 ```
 Pi (earendil-works/pi)
@@ -112,7 +112,7 @@ Pi (earendil-works/pi)
 ├── @earendil-works/pi-tui            ← 终端 UI 库
 └── ...
 
-piagent (本仓库)
+my-easy-pi (本仓库)
 ├── src/cli.ts                        ← 精简版 CLI
 ├── src/ai/                           ← 统一 LLM 接口
 ├── src/agent/                        ← Agent 核心循环
@@ -125,7 +125,7 @@ piagent (本仓库)
 
 **关键区别：**
 
-| 维度 | Pi | piagent |
+| 维度 | Pi | my-easy-pi |
 |------|----|---------|
 | 🎯 **目标** | 生产级自扩展 Agent | 学习用精简实现 |
 | 📚 **学习成本** | 需要理解完整生态 | 单人可读完 |
@@ -138,8 +138,8 @@ piagent (本仓库)
 选择 pi 的生态作为学习起点，而不是从零凭空造轮子，是因为：
 
 1. **经过验证的架构** — pi 的分层设计已经被生产环境验证
-2. **真实项目映射** — 学习 piagent 后，你能更快理解 pi、Claude Code 等工作原理
-3. **可扩展的基础** — 掌握了 piagent，你可以轻松过渡到 pi 的完整生态
+2. **真实项目映射** — 学习 my-easy-pi 后，你能更快理解 pi、Claude Code 等工作原理
+3. **可扩展的基础** — 掌握了 my-easy-pi，你可以轻松过渡到 pi 的完整生态
 4. **社区支持** — pi 有活跃的社区和丰富的扩展
 
 ---
@@ -226,7 +226,7 @@ npx tsx src/cli.ts
 ## 📂 项目结构
 
 ```
-piagent/
+my-easy-pi/
 ├── src/                    # 源代码（~3000 行）
 │   ├── cli.ts             # 📍 入口：参数解析 + 模块组装
 │   ├── ai/                # 🤖 统一 LLM 接口
