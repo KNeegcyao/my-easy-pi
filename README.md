@@ -3,7 +3,6 @@
 </p>
 
 <p align="center">
-  <h1 align="center">my-easy-pi</h1>
   <p align="center">
     <strong>🧑‍💻 从零学习 AI Coding Agent 的渐进式教程</strong>
   </p>
