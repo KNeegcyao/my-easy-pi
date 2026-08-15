@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="https://cdn.jsdelivr.net/gh/KNeegcyao/picdemo/img/image-20260815124313236.png" alt="MY EASY PI" width="800">
+</p>
+
+<p align="center">
   <h1 align="center">piagent</h1>
   <p align="center">
     <strong>🧑‍💻 从零学习 AI Coding Agent 的渐进式教程</strong>
