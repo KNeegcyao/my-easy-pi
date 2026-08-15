@@ -75,7 +75,9 @@ export interface Tool {
 
 **设计原则**：`Tool` 是纯类型定义（无运行时行为），`AgentTool` 扩展了 `execute` 方法，遵循"类型递进扩展"模式。
 
-### 3.3 8 个内置工具一览
+### 3.3 内置工具一览
+
+系统内置 **7 个工具**，覆盖日常开发的核心操作：
 
 | 工具名 | 源码 | 作用 | 底层实现 |
 |--------|------|------|----------|
@@ -86,9 +88,8 @@ export interface Tool {
 | `grep` | `src/tools/builtin/grep.ts` | 搜索文本 | `grep -rn` |
 | `find` | `src/tools/builtin/find.ts` | 查找文件 | `find -name` |
 | `ls` | `src/tools/builtin/ls.ts` | 列出目录 | `fs.readdir` |
-| `web_fetch` | `src/tools/builtin/web_fetch.ts` | 读取网页内容 | Node.js `fetch` |
 
-> `web_fetch` 是 piagent 中新增工具的**实战案例**，完整的创建流程在 [添加自定义工具](../10-advanced-topics/01-adding-new-tool.md) 中有详细讲解。
+> 💡 **`web_fetch` 不是内置工具**，而是项目中**自定义工具的教学案例**——它演示了如何在不需要修改内核的情况下新增一个工具。完整的创建流程见 [添加自定义工具](../10-advanced-topics/01-adding-new-tool.md) 第 4 章"真实案例：web_fetch 工具"。
 
 ### 3.4 与 Agent 层的集成方式
 

@@ -36,17 +36,20 @@ piagent/
 │   ├── cli.ts             # 入口文件
 │   ├── ai/                # AI 层
 │   ├── agent/             # Agent 层
-│   ├── tools/             # 工具层
+│   ├── tools/             # 工具层（7 个内置工具）
+│   ├── tui/               # 全屏渲染器（renderer + layout + components）
 │   ├── session/           # 会话层
 │   ├── extension/         # 扩展层
-│   ├── interface/         # 接口层
+│   ├── interface/         # 接口层（print / json / rpc 输出）
 │   ├── config/            # 配置管理
 │   └── sandbox/           # 沙箱层
 │
-├── tests/                 # 测试代码
+├── tests/                 # 测试代码（31 个文件，347 个用例）
+│   ├── tui/
 │   └── unit/
 │       ├── ai/
 │       ├── agent/
+│       ├── cli/
 │       ├── config/
 │       ├── extension/
 │       └── tools/
@@ -69,8 +72,8 @@ piagent 采用**分层架构**设计，共 6 个核心层 + 2 个辅助层：
 │  CLI 入口 (src/cli.ts)                                │
 │  参数解析 · 模块组装 · 环境变量读取                    │
 ├──────────────────────────────────────────────────────┤
-│  ⑥ 接口层 (src/interface/)                           │
-│  Print · TUI · JSON · RPC — 四种交互方式              │
+│  ⑥ 接口层 (src/interface/ + src/tui/)                │
+│  Print · JSON · RPC 输出 · 全屏 TUI 渲染器           │
 ├──────────────────────────────────────────────────────┤
 │  ⑤ Agent 层 (src/agent/)                             │
 │  核心循环 · 状态管理 · 消息队列 · 权限控制             │
