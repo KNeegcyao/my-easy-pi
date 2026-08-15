@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/banner.png" alt="MY EASY PI" width="800">
+  <img src="https://cdn.jsdelivr.net/gh/KNeegcyao/picdemo/img/image-20260815124313236.png" alt="MY EASY PI" width="800">
 </p>
 
 <p align="center">
