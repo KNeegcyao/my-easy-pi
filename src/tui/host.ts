@@ -37,6 +37,8 @@ import { Statusbar } from './components/statusbar.js'
 import { green, dim, gray, yellow, red, bold, cyan } from './ansi.js'
 import { executeCommand } from '../interface/tui/commands.js'
 import { Compactor } from '../session/compaction.js'
+import { readdirSync, statSync, existsSync } from 'node:fs'
+import { resolve, join, relative } from 'node:path'
 
 // tool_execution 事件 payload 里的 args 形状
 interface ToolExecArgs {
@@ -95,8 +97,10 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       editor = new Editor({
         prompt: `${green(bold('>'))}${dim(gray(' ▸ '))}`,
         history: [],
+        multiline: true,
         onSubmit: (text) => onSubmit(text),
         onCancel: () => { cleanup(); process.exit(0) },
+        onChange: (text) => handleEditorChange(text),
       })
     }
   }
@@ -111,6 +115,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   let confirming = false   // permission confirm 期间：跳过 editor onInput
   let keybinds = new KeyBinds('default')   // 键绑定状态机（/keymap 切换）
   let activeSelector: Selector | null = null  // 活跃选择器（/sessions /delete 等），防 readline+editor 双重消费 stdin
+  let autocompleteSelector: Selector | null = null // @ 文件引用补全选择器
   /** 当前正在构建的回合的组件引用（用于 undo/retry） */
   let turnComponents: Component[] = []
   /** 已完成回合的组件列表 */
@@ -517,10 +522,110 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     })
   }
 
+  // ── Editor 变化（自动补全触发） ──
+  function handleEditorChange(_text: string): void {
+    const prefix = editor.getAutocompletePrefix('@')
+    if (!prefix) {
+      closeAutocomplete()
+      return
+    }
+    // 异步扫描文件（debounce：如果已有选择器，先关闭）
+    closeAutocomplete()
+    const candidates = scanFiles(prefix)
+    if (candidates.length === 0) return
+
+    const opts: SelectOption[] = candidates.map(c => ({ label: c, value: c }))
+    opts.push({ label: '取消', value: '' })
+
+    const sel = new Selector(opts, `文件补全 @${prefix}`)
+    sel.onSelect = (opt) => {
+      autocompleteSelector = null
+      if (!opt.value) return
+      const full = `@${opt.value}`
+      const currentPrefix = editor.getAutocompletePrefix('@')
+      if (currentPrefix !== null) {
+        const triggerIdx = editor.getText().lastIndexOf('@', editor.getCursorPos() - 1)
+        if (triggerIdx !== -1) {
+          editor.replaceAutocomplete(editor.getCursorPos() - triggerIdx, full)
+        }
+      }
+      screen.requestRender()
+    }
+    sel.onCancel = () => { autocompleteSelector = null; screen.requestRender() }
+    autocompleteSelector = sel
+    // 渲染到 statusContainer（不污染 chat 历史）
+    statusContainer.clear()
+    statusContainer.addChild(new Text(dim(gray('按 ↑/↓ 选择，Enter 确认，Esc 取消'))))
+    const lines = sel.render(terminal.columns)
+    for (const l of lines) statusContainer.addChild(new Text(l))
+    screen.requestRender()
+  }
+
+  function closeAutocomplete(): void {
+    if (autocompleteSelector) {
+      autocompleteSelector = null
+      // 如果 statusContainer 只有补全内容，清空它（恢复 loader 或空状态）
+      if (!agent.state.isStreaming) {
+        statusContainer.clear()
+      }
+      screen.requestRender()
+    }
+  }
+
+  /** 扫描当前目录下匹配前缀的文件/目录 */
+  function scanFiles(prefix: string): string[] {
+    try {
+      const cwd = process.cwd()
+      // 支持子目录路径，如 "src/" 或 "src/cl"
+      const lastSlash = prefix.lastIndexOf('/')
+      const dirPart = lastSlash >= 0 ? prefix.slice(0, lastSlash) : ''
+      const filePart = lastSlash >= 0 ? prefix.slice(lastSlash + 1) : prefix
+      const targetDir = resolve(cwd, dirPart || '.')
+      if (!existsSync(targetDir)) return []
+      const entries = readdirSync(targetDir)
+      const matches: string[] = []
+      for (const entry of entries) {
+        if (entry.startsWith('.')) continue // 忽略隐藏文件
+        const rel = dirPart ? `${dirPart}/${entry}` : entry
+        if (filePart && !entry.toLowerCase().startsWith(filePart.toLowerCase())) continue
+        const fullPath = join(targetDir, entry)
+        const isDir = statSync(fullPath).isDirectory()
+        matches.push(isDir ? `${rel}/` : rel)
+      }
+      return matches.slice(0, 10) // 最多 10 个候选
+    } catch {
+      return []
+    }
+  }
+
   // ── 输入路径 ──
   // 转义序列缓冲：Windows 终端可能把 \x1b[A 拆成 \x1b 和 [A 两次 data 事件
   let escBuf = ''
   const stopInput = terminal.onInput((data) => {
+    // 自动补全选择器时：路由到 autocompleteSelector，跳过 editor
+    if (autocompleteSelector) {
+      if (escBuf || data.startsWith('\x1b')) {
+        escBuf += data
+        if (escBuf.length >= 3 || (escBuf === '\x1b' && !data.startsWith('\x1b'))) {
+          autocompleteSelector.handleKey(escBuf)
+          escBuf = ''
+          screen.requestRender()
+          return
+        }
+        const sel = autocompleteSelector
+        setTimeout(() => {
+          if (escBuf && sel) {
+            sel.handleKey(escBuf)
+            escBuf = ''
+            screen.requestRender()
+          }
+        }, 50)
+        return
+      }
+      autocompleteSelector.handleKey(data)
+      screen.requestRender()
+      return
+    }
     // 活跃选择器时：路由到 selector，跳过 editor
     if (activeSelector) {
       // 如果有缓冲的 ESC 或本次以 ESC 开头，尝试拼接完整转义序列

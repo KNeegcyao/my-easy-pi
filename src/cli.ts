@@ -358,4 +358,9 @@ async function main(): Promise<void> {
   await runMode({ agent, args, userMessage, permission, sessionManager })
 }
 
-main()
+import { pathToFileURL } from 'node:url'
+
+// 仅在直接运行时执行 main，防止被测试导入时触发
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  main()
+}

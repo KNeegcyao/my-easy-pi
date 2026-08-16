@@ -35,6 +35,8 @@ export interface EditorOptions {
   onCancel?: () => void
   /** 历史（↑/↓ 翻阅；提交后由业务侧把新条目 push 进来） */
   history?: string[]
+  /** 多行模式；true 时 Enter 提交、Shift+Enter 换行，编辑器高度自适应 */
+  multiline?: boolean
 }
 
 /** 解析一次输入得出来的"按键意图"；纯数据，易测试 */
@@ -228,6 +230,34 @@ export class Editor implements Component, Focusable {
   getCursorPos(): number { return this.cursorPos }
   clear(): void { this.setText('') }
 
+  /**
+   * 获取光标处自动补全前缀。
+   * 从光标位置向左扫描，找到 trigger 字符后的内容。
+   * 例如文本 "帮我看看 @src/cl"，光标在末尾，trigger 为 "@"，返回 "src/cl"。
+   */
+  getAutocompletePrefix(trigger: string): string | null {
+    const before = this.text.slice(0, this.cursorPos)
+    const idx = before.lastIndexOf(trigger)
+    if (idx === -1) return null
+    // trigger 和光标之间不能有空白或换行（说明用户在输入一个连续词）
+    const between = before.slice(idx + trigger.length)
+    if (/[\s\n]/.test(between)) return null
+    return between
+  }
+
+  /**
+   * 替换光标前从 trigger 开始的一段文本为新的补全结果。
+   * replaceStart 是相对于光标位置的负偏移量（trigger 前）。
+   */
+  replaceAutocomplete(prefixLengthWithTrigger: number, replacement: string): void {
+    const start = this.cursorPos - prefixLengthWithTrigger
+    if (start < 0) return
+    this.text = this.text.slice(0, start) + replacement + this.text.slice(this.cursorPos)
+    this.cursorPos = start + replacement.length
+    this.invalidate()
+    this.emitChange()
+  }
+
   /** 追加一条历史（业务侧在 onSubmit 后调用） */
   pushHistory(entry: string): void {
     if (entry.length === 0) return
@@ -244,10 +274,14 @@ export class Editor implements Component, Focusable {
   render(width: number): string[] {
     if (this.cachedLines) return this.cachedLines
     const prompt = this.opts.prompt ?? '> '
-    // 单行横向滚动：始终返回 1 行。超宽时只显示光标附近的窗口，
-    // 光标始终可见。这保证 bottomDock 高度恒 1，layout 稳定（Phase 5）。
-    const line = renderSingleLineScroll(prompt, this.text, this.cursorPos, width)
-    this.cachedLines = [line]
+    if (this.opts.multiline) {
+      this.cachedLines = renderMultiline(prompt, this.text, this.cursorPos, width)
+    } else {
+      // 单行横向滚动：始终返回 1 行。超宽时只显示光标附近的窗口，
+      // 光标始终可见。这保证 bottomDock 高度恒 1，layout 稳定（Phase 5）。
+      const line = renderSingleLineScroll(prompt, this.text, this.cursorPos, width)
+      this.cachedLines = [line]
+    }
     return this.cachedLines
   }
 
@@ -387,11 +421,19 @@ export class Editor implements Component, Focusable {
       }
 
       case 'historyPrev':
-        this.browseHistory(-1)
+        if (this.opts.multiline) {
+          this.cursorUp()
+        } else {
+          this.browseHistory(-1)
+        }
         break
 
       case 'historyNext':
-        this.browseHistory(1)
+        if (this.opts.multiline) {
+          this.cursorDown()
+        } else {
+          this.browseHistory(1)
+        }
         break
 
       case 'cancel':
@@ -456,6 +498,30 @@ export class Editor implements Component, Focusable {
   private emitChange(): void {
     this.opts.onChange?.(this.text)
   }
+
+  // ── 多行光标移动 ──
+  private cursorUp(): void {
+    const { line, col } = posToLineCol(this.text, this.cursorPos)
+    if (line > 0) {
+      this.cursorPos = lineColToPos(this.text, line - 1, col)
+      this.invalidate()
+    } else {
+      // 光标已在第一行：退化为浏览历史
+      this.browseHistory(-1)
+    }
+  }
+
+  private cursorDown(): void {
+    const lines = this.text.split('\n')
+    const { line, col } = posToLineCol(this.text, this.cursorPos)
+    if (line < lines.length - 1) {
+      this.cursorPos = lineColToPos(this.text, line + 1, col)
+      this.invalidate()
+    } else {
+      // 光标已在最后一行：退化为浏览历史
+      this.browseHistory(1)
+    }
+  }
 }
 
 // ============================================================
@@ -485,6 +551,79 @@ function lastCodePoint(s: string): string {
   if (s.length === 0) return ''
   const cps = Array.from(s)  // 按 code point 拆分；代理对合并为 1 项
   return cps[cps.length - 1]
+}
+
+/** 把一维字符串位置映射为 { line, col } */
+function posToLineCol(text: string, pos: number): { line: number; col: number } {
+  const before = text.slice(0, pos)
+  const lines = before.split('\n')
+  return { line: lines.length - 1, col: lines[lines.length - 1].length }
+}
+
+/** 把 { line, col } 映射回一维字符串位置 */
+function lineColToPos(text: string, line: number, col: number): number {
+  const lines = text.split('\n')
+  let pos = 0
+  for (let i = 0; i < Math.min(line, lines.length); i++) {
+    pos += lines[i].length + 1 // +1 for \n
+  }
+  if (line < lines.length) {
+    pos += Math.min(col, lines[line].length)
+  }
+  return pos
+}
+
+/**
+ * 多行编辑器渲染。
+ * 文本按 \n 拆分，每逻辑行占一行物理行（超宽截断）。
+ * 光标所在字符用反色块标记。
+ */
+function renderMultiline(prompt: string, text: string, cursorPos: number, width: number): string[] {
+  const promptW = visibleLen(prompt)
+  const avail = Math.max(1, width - promptW)
+  const { line: cursorLine, col: cursorCol } = posToLineCol(text, cursorPos)
+  const lines = text.split('\n')
+  const out: string[] = []
+
+  for (let i = 0; i < lines.length; i++) {
+    const isCursorLine = i === cursorLine
+    const chars = Array.from(lines[i])
+
+    if (!isCursorLine) {
+      // 非光标行：直接截断渲染
+      const visible = chars.slice(0, avail).join('')
+      out.push(`${prompt}${visible}`)
+      continue
+    }
+
+    // 光标行：标记光标位置
+    if (chars.length <= avail) {
+      const before = chars.slice(0, cursorCol).join('')
+      const at = chars.slice(cursorCol, cursorCol + 1).join('')
+      const after = chars.slice(cursorCol + 1).join('')
+      const cursorBlock = at ? `\x1b[7m${at}\x1b[0m` : '\x1b[7m \x1b[0m'
+      out.push(`${prompt}${before}${cursorBlock}${after}`)
+    } else {
+      // 超宽：光标居中窗口
+      let windowStart = Math.max(0, cursorCol - Math.floor(avail * 0.75))
+      if (windowStart + avail > chars.length) windowStart = Math.max(0, chars.length - avail)
+      if (cursorCol < windowStart) windowStart = cursorCol
+      const showChars = chars.slice(windowStart, windowStart + avail)
+      const localCursor = cursorCol - windowStart
+      const before = showChars.slice(0, localCursor).join('')
+      const at = showChars.slice(localCursor, localCursor + 1).join('')
+      const after = showChars.slice(localCursor + 1).join('')
+      const cursorBlock = at ? `\x1b[7m${at}\x1b[0m` : '\x1b[7m \x1b[0m'
+      out.push(`${prompt}${before}${cursorBlock}${after}`)
+    }
+  }
+
+  // 至少返回一行（空文本时）
+  if (out.length === 0) {
+    out.push(`${prompt}\x1b[7m \x1b[0m`)
+  }
+
+  return out
 }
 
 /**

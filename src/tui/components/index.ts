@@ -8,3 +8,4 @@ export { AssistantTurn, type AssistantMessageLike, userPromptLine, mutedLine } f
 export { Statusbar } from './statusbar.js'
 export { KeyBinds } from './keybinds.js'
 export { Selector, type SelectOption } from './selector.js'
+export { DiffView, computeDiff, type DiffHunk, type DiffLine } from './diff-view.js'
