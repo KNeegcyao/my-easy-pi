@@ -518,13 +518,37 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   }
 
   // ── 输入路径 ──
+  // 转义序列缓冲：Windows 终端可能把 \x1b[A 拆成 \x1b 和 [A 两次 data 事件
+  let escBuf = ''
   const stopInput = terminal.onInput((data) => {
     // 活跃选择器时：路由到 selector，跳过 editor
     if (activeSelector) {
+      // 如果有缓冲的 ESC 或本次以 ESC 开头，尝试拼接完整转义序列
+      if (escBuf || data.startsWith('\x1b')) {
+        escBuf += data
+        // 转义序列通常 ≤4 字节（\x1b[A / \x1bOA / \x1b[5~）
+        if (escBuf.length >= 3 || (escBuf === '\x1b' && !data.startsWith('\x1b'))) {
+          activeSelector.handleKey(escBuf)
+          escBuf = ''
+          screen.requestRender()
+          return
+        }
+        // 等 50ms 看后续 data 是否到达
+        const sel = activeSelector
+        setTimeout(() => {
+          if (escBuf && sel) {
+            sel.handleKey(escBuf)
+            escBuf = ''
+            screen.requestRender()
+          }
+        }, 50)
+        return
+      }
       activeSelector.handleKey(data)
       screen.requestRender()
       return
     }
+    escBuf = ''  // 清空缓冲
     // permission confirm 期间（兼容旧路径）
     if (confirming) return
     // 通过 keybinds 层处理输入（支持 vim 模式）

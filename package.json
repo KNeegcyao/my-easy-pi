@@ -1,19 +1,40 @@
 {
   "name": "my-easy-pi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "简易 AI Coding Agent（教学项目）",
   "type": "module",
+  "bin": {
+    "my-easy-pi": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "examples",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
+    "prepublishOnly": "npm run build && node scripts/make-cli-executable.mjs",
     "audit": "bash scripts/audit.sh",
     "audit:prod": "npm audit --audit-level=high",
     "outdated": "npm outdated",
     "test": "npx vitest run --reporter=verbose 2>&1; echo \"EXIT_CODE=$?\"",
     "test:watch": "vitest"
   },
-  "keywords": [],
+  "keywords": [
+    "ai",
+    "agent",
+    "coding",
+    "cli",
+    "assistant",
+    "tutorial"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {

@@ -62,10 +62,10 @@ describe('parseArgs', () => {
 
 // ── buildTools ──
 describe('buildTools', () => {
-  test('注册 8 个内置工具', () => {
+  test('注册 7 个内置工具', () => {
     const reg = buildTools()
     const names = reg.listTools().map(t => t.name).sort()
-    expect(names).toEqual(['bash', 'edit', 'find', 'grep', 'ls', 'read', 'web_fetch', 'write'].sort())
+    expect(names).toEqual(['bash', 'edit', 'find', 'grep', 'ls', 'read', 'write'].sort())
   })
 
   test('每次调用返回独立实例', () => {

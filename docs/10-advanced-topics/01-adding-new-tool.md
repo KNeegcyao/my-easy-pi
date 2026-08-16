@@ -1,6 +1,6 @@
 ---
-对应源码: src/tools/builtin/web_fetch.ts, src/tools/index.ts, src/cli.ts
-最后更新: 2026-08-10
+对应源码: examples/extensions/web_fetch.ts, src/extension/loader.ts, src/extension/api.ts, src/cli.ts
+最后更新: 2026-08-16
 适用版本: 0.1.0+
 ---
 
@@ -14,10 +14,10 @@
 
 - 理解 `AgentTool` 接口的设计
 - 用 `TypeBox` 定义工具参数 Schema
-- 将一个工具注册到 Agent
+- 通过**扩展机制**注册自定义工具（不改内核）
 - 让 LLM 在对话中自动调用自定义工具
 
-> 💡 **本教程的代码已实现在项目代码中**，你可以在 `src/tools/builtin/web_fetch.ts` 看到完整源码。我们边看代码边讲解。
+> 💡 **本教程的代码已实现在项目中**，你可以在 `examples/extensions/web_fetch.ts` 看到完整源码。我们边看代码边讲解。
 
 ---
 
@@ -26,7 +26,7 @@
 - 熟悉 TypeScript 接口和类型
 - 了解 `@sinclair/typebox` 的基本用法（用于定义参数 Schema）
 - 了解 my-easy-pi 的工具注册机制（`ToolRegistry`）
-- 建议先阅读 [工具层概览](../04-tools-layer/README.md)
+- 建议先阅读 [工具层概览](../04-tools-layer/README.md) 和 [扩展层概览](../06-extension-layer/README.md)
 
 ---
 
@@ -62,7 +62,20 @@ export interface Tool {
 
 **核心设计思想：** 工具接口分为两层——`Tool` 是纯数据定义（AI 层），`AgentTool` 在 `Tool` 基础上添加 `execute` 方法（Agent 层）。这样 AI 层只需要知道工具的"形状"，不需要关心执行逻辑。
 
-### 3.2 工具的工作流程
+### 3.2 内置工具 vs 自定义工具
+
+这是理解本教程的关键。my-easy-pi 借鉴了 pi 的"自扩展"设计，把工具分成两类：
+
+| | 内置工具 | 自定义工具（扩展） |
+|---|---------|------------------|
+| **位置** | `src/tools/builtin/` | `examples/extensions/`（示例），复制到 `.pi/extensions/`（运行时） |
+| **加载方式** | 编译进内核，`cli.ts` 装配 | 运行时由 `ExtensionLoader` 自动发现 |
+| **修改成本** | 需要改核心代码 | 零，加文件即可 |
+| **适合** | 人人必备的基础能力 | 个人/项目专属的定制能力 |
+
+> 这个设计正是 pi 名字的由来（self-extensible coding agent）——**Agent 能通过"扩展"来扩展自身的能力**，加一个新工具不需要碰任何核心代码。
+
+### 3.3 工具的工作流程
 
 ```
 LLM 生成回复
@@ -84,7 +97,7 @@ LLM 生成回复
     └── LLM 根据工具结果生成最终回答
 ```
 
-### 3.3 工具描述的重要性
+### 3.4 工具描述的重要性
 
 `description` 字段可能是整个工具定义中**最关键**的部分。LLM 通过 description 来决定是否调用这个工具、以及什么时候调用。一个好的 description 应该：
 
@@ -102,90 +115,67 @@ LLM 生成回复
 
 ### 4.2 完整源码
 
-下面是对应源码 `src/tools/builtin/web_fetch.ts`：
+下面是对应源码 `examples/extensions/web_fetch.ts`：
 
 ```typescript
-// ============================================================
-// Web Fetch 工具
-//
-// 让 LLM 可以直接读取网页内容（支持 raw.githubusercontent.com、
-// GitHub API、文档站点等），无需先 git clone。
-//
-// 使用 Node.js 内置的 fetch API，不依赖第三方库。
-// 只支持 GET 请求，返回纯文本内容。
-// ============================================================
-
 import { Type } from '@sinclair/typebox'
-import type { AgentTool } from '../../agent/types.js'
+import type { Operations } from '../../src/tools/operations.js'
+import { defaultOperations } from '../../src/tools/operations.js'
+import type { ExtensionAPI } from '../../src/extension/api.js'
+import type { ToolDefinition } from '../../src/agent/types.js'
 
-/** 创建 web_fetch 工具 */
-export const webFetchTool: AgentTool = {
-  // ── 1. 工具元信息 ──
-  name: 'web_fetch',
-  label: 'Web Fetch',
-  description: '读取网页内容，支持 GitHub raw 文件、API 响应、文档页面等',
-  parameters: Type.Object({
-    url: Type.String({ description: '要读取的网页 URL（如 https://raw.githubusercontent.com/xxx/README.md）' }),
-  }),
+// ── 1. 工具本体：与内置工具一样，返回一个 ToolDefinition ──
+export function createWebFetchTool(ops: Operations): ToolDefinition {
+  return {
+    // ① 工具元信息
+    name: 'web_fetch',            // LLM 调用时的标识（函数名）
+    label: 'Web Fetch',            // UI 显示用
+    description: '读取网页内容，支持 GitHub raw 文件、API 响应、文档页面等',
+    parameters: Type.Object({
+      url: Type.String({ description: '要读取的网页 URL（如 https://raw.githubusercontent.com/xxx/README.md）' }),
+    }),
 
-  // ── 2. 工具执行方法 ──
-  async execute(toolCallId, params, signal) {
-    const url = params.url as string
-
-    try {
-      // 2a. 发起 HTTP GET 请求
-      const response = await fetch(url, { signal })
-
-      // 2b. 处理 HTTP 错误
-      if (!response.ok) {
+    // ② 工具执行方法
+    async execute(toolCallId, params, signal) {
+      const url = params.url as string
+      try {
+        // 通过注入的 Operations 发起请求（可测试、可替换实现）
+        const text = await ops.fetchUrl(url, signal)
+        // 内容截断保护（防止返回过多 token）
+        const truncated = text.length > 100_000
+          ? text.slice(0, 100_000) + `\n\n...（内容已截断，共 ${text.length} 字符，仅显示前 100K）`
+          : text
         return {
-          content: [{
-            type: 'text',
-            text: `HTTP ${response.status}: ${response.statusText}\n${
-              await response.text().catch(() => '(无法读取响应体)')}`,
-          }],
+          content: [{ type: 'text', text: truncated }],
+          details: { url, size: text.length },
+        }
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error)
+        // 错误处理：返回错误信息而非抛出异常
+        return {
+          content: [{ type: 'text', text: `请求失败: ${msg}` }],
           isError: true,
         }
       }
+    },
+  }
+}
 
-      // 2c. 读取响应文本
-      const text = await response.text()
-
-      // 2d. 内容截断保护（防止返回过多 token）
-      const truncated = text.length > 100_000
-        ? text.slice(0, 100_000) + `\n\n...（内容已截断，共 ${text.length} 字符）`
-        : text
-
-      return {
-        content: [{ type: 'text', text: truncated }],
-        details: { url, contentType: response.headers.get('content-type'), size: text.length },
-      }
-    } catch (error) {
-      // 2e. 错误处理：返回错误信息而非抛出异常
-      const err = error as Error
-      return {
-        content: [{ type: 'text', text: `请求失败: ${err.message}` }],
-        isError: true,
-      }
-    }
-  },
+// ── 2. 扩展入口：默认导出一个函数，接收 ExtensionAPI ──
+export default function registerWebFetchExtension(api: ExtensionAPI): void {
+  api.registerTool(createWebFetchTool(defaultOperations))
 }
 ```
 
 ### 4.3 逐行解读
 
-#### 工具元信息（第 14-19 行）
-
-```typescript
-name: 'web_fetch',            // LLM 调用时的标识（函数名）
-label: 'Web Fetch',            // UI 显示用
-description: '读取网页内容...', // LLM 理解工具用途
-```
+#### 工具本体（`createWebFetchTool`）
 
 - `name` 是 LLM 在生成 tool_call 时使用的标识，LLM 会说"调用 web_fetch"
 - `description` 帮助 LLM 在合适的场景下选择这个工具
+- **使用 factory 模式**（`createWebFetchTool(ops)`）而不是直接导出单例：工厂接受一个 `Operations`，方便测试时注入 mock，也让工具逻辑与具体实现解耦
 
-#### 参数 Schema（第 20-22 行）
+#### 参数 Schema
 
 ```typescript
 parameters: Type.Object({
@@ -197,10 +187,9 @@ parameters: Type.Object({
 
 - `Type.Object({...})` — 定义一个对象类型的参数
 - `Type.String()` — 定义一个字符串字段
-- `Type.Optional(...)` — 标记可选字段（本例中没有）
 - 每个字段的 `description` 会被 LLM 读取，帮助它理解如何填充参数
 
-TypeBox 会自动生成 JSON Schema，同时能从 TypeScript 编译器中获得类型检查：
+TypeBox 会自动生成 JSON Schema：
 
 ```typescript
 // TypeBox 生成的 JSON Schema
@@ -213,7 +202,7 @@ TypeBox 会自动生成 JSON Schema，同时能从 TypeScript 编译器中获得
 }
 ```
 
-#### execute 方法（第 24-55 行）
+#### execute 方法
 
 ```typescript
 async execute(toolCallId, params, signal) {
@@ -228,7 +217,7 @@ async execute(toolCallId, params, signal) {
 | `signal` | `AbortSignal` | 取消信号（用户按 Ctrl+C、超时等） |
 | `onUpdate` | `(update) => void` | 可选，用于发送中间进度更新 |
 
-#### 内容截断保护（第 44-47 行）
+#### 内容截断保护
 
 ```typescript
 const truncated = text.length > 100_000
@@ -238,12 +227,12 @@ const truncated = text.length > 100_000
 
 **为什么需要截断？** LLM 的上下文窗口是有限的。如果返回一个包含数百万字符的文件，不仅浪费 token，还可能导致 LLM 超出上下文限制。100K 字符是一个安全阈值。
 
-#### 为什么不抛出异常？（第 50-54 行）
+#### 为什么不抛出异常？
 
 ```typescript
 } catch (error) {
   return {
-    content: [{ type: 'text', text: `请求失败: ${err.message}` }],
+    content: [{ type: 'text', text: `请求失败: ${msg}` }],
     isError: true,
   }
 }
@@ -255,86 +244,83 @@ const truncated = text.length > 100_000
 
 设置 `isError: true` 可以让 Agent 层知道这次执行失败了，但仍然把结果返回给 LLM。
 
-### 4.4 注册到系统
-
-工具创建好后，需要三步来注册它：
-
-#### 步骤 1：在统一导出中注册
-
-编辑 `src/tools/index.ts`，添加导出：
+### 4.4 扩展入口（注册的关键）
 
 ```typescript
-// src/tools/index.ts
-export { webFetchTool } from './builtin/web_fetch.js'  // ← 新增
-```
-
-#### 步骤 2：在 CLI 入口注册到 Agent
-
-编辑 `src/cli.ts`：
-
-```typescript
-// import 部分（第 3 行）
-import { ..., webFetchTool } from './tools/index.js'
-
-// 工具注册处（第 144 行）
-const toolRegistry = new ToolRegistry()
-for (const t of [bashTool, readTool, writeTool, editTool, grepTool, findTool, lsTool, webFetchTool]) {
-  toolRegistry.registerTool(t)
+export default function registerWebFetchExtension(api: ExtensionAPI): void {
+  api.registerTool(createWebFetchTool(defaultOperations))
 }
 ```
 
-#### 步骤 3：更新系统提示词
+这是扩展机制的核心约定：
 
-在 `src/cli.ts` 的 systemPrompt 中添加工具说明，让 LLM 知道有这个工具可用：
-
-```typescript
-systemPrompt: `...\n- web_fetch：读取网页内容（用于在线查看 GitHub 文件、文档等）\n...`,
-```
+1. **默认导出**一个函数 —— `ExtensionLoader` 发现扩展文件后会调用 `default(api)`
+2. **接收 `ExtensionAPI`** —— 通过 `api.registerTool()` 把工具注册进 `ToolRegistry`
+3. **与内置工具共用一个注册表** —— 注册后 LLM 无法区分工具是内置的还是扩展的
 
 ### 4.5 注册流程示意图
 
 ```
-┌─────────────────────────────────────────────┐
-│               my-easy-pi 启动                   │
-│                                             │
-│  cli.ts — 创建 ToolRegistry                 │
-│    │                                        │
-│    ├── registry.registerTool(webFetchTool)  │ ← 注册工具
-│    │                                        │
-│    ├── agent.state.tools = 工具列表          │ ← 传给 Agent
-│    │                                        │
-│    └── systemPrompt 包含工具说明             │ ← 让 LLM 知道
-│                                             │
-│  LLM: "需要读取网页内容 → 调用 web_fetch"    │
-└─────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│               my-easy-pi 启动（cli.ts）                  │
+│                                                        │
+│  ① buildTools()  → 注册 7 个内置工具                    │
+│  ② buildAgent()  → Agent 复用同一个 ToolRegistry       │
+│  ③ ExtensionLoader.loadAll()                           │
+│       ├── 扫描 .pi/extensions/                          │
+│       ├── 扫描 ~/.my-easy-pi/extensions/               │
+│       ├── 找到 web_fetch.ts → import()                 │
+│       └── 调用 default(api) → api.registerTool()        │
+│                                                        │
+│  ToolRegistry = [bash, read, write, edit, grep,         │
+│                  find, ls, web_fetch]  ← 同一个注册表    │
+│                                                        │
+│  LLM: "需要读取网页内容 → 调用 web_fetch"               │
+└────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 5. 运行与验证
 
-### 5.1 编译项目
+### 5.1 启用扩展
+
+把示例扩展复制到运行时加载目录（二选一）：
 
 ```bash
-npm run build
+# 项目级（推荐，随仓库走）
+cp examples/extensions/web_fetch.ts .pi/extensions/
+
+# 或 全局（对当前用户所有项目生效）
+mkdir -p ~/.my-easy-pi/extensions
+cp examples/extensions/web_fetch.ts ~/.my-easy-pi/extensions/
 ```
 
-确保没有编译错误。如果有类型错误，检查是否在 `src/tools/index.ts` 中正确导出了 `webFetchTool`。
+> 不用编译 —— 运行时由 `ExtensionLoader` 动态 `import()`，Node 原生支持加载 `.ts` 文件。
 
 ### 5.2 验证工具注册
 
 ```bash
-# 快速验证
-node -e "
-const { ToolRegistry } = require('./dist/tools/registry.js');
-const { webFetchTool } = require('./dist/tools/builtin/web_fetch.js');
-const registry = new ToolRegistry();
-registry.registerTool(webFetchTool);
-console.log(registry.listTools().map(t => t.name));
-"
+# 启动后（任一模式），观察是否多出 web_fetch
+npm run build
+node dist/cli.js --help   # 或直接进入 TUI
 ```
 
-预期输出：`[ 'web_fetch' ]`（以及其他注册的工具名称）
+也可以在代码里直接验证：
+
+```bash
+node -e "
+import('./dist/extension/index.js').then(async ({ ExtensionLoader, ExtensionAPI }) => {
+  const { ToolRegistry } = await import('./dist/tools/registry.js');
+  const reg = new ToolRegistry();
+  const api = new ExtensionAPI(reg);
+  const loader = new ExtensionLoader(api);
+  const n = await loader.loadAll();
+  console.log('加载扩展数:', n);
+  console.log('工具列表:', reg.listTools().map(t => t.name));
+});
+"
+```
 
 ### 5.3 在对话中测试
 
@@ -357,43 +343,57 @@ npx tsx src/cli.ts
 ```typescript
 // tests/unit/tools/web_fetch.test.ts
 import { describe, test, expect } from 'vitest'
-import { webFetchTool } from '../../../src/tools/builtin/web_fetch.js'
+import { createWebFetchTool } from '../../../examples/extensions/web_fetch.js'
+import { MockOperations } from '../../../src/tools/__tests__/mock-operations.js'
 
 describe('webFetchTool', () => {
   test('工具定义正确', () => {
-    expect(webFetchTool.name).toBe('web_fetch')
-    expect(webFetchTool.description).toBeTruthy()
-    expect(webFetchTool.parameters).toBeDefined()
-    expect(webFetchTool.execute).toBeInstanceOf(Function)
+    const tool = createWebFetchTool(new MockOperations())
+    expect(tool.name).toBe('web_fetch')
+    expect(tool.description).toBeTruthy()
+    expect(tool.parameters).toBeDefined()
+    expect(tool.execute).toBeInstanceOf(Function)
   })
 
   test('参数 Schema 要求 url 字段', () => {
-    const schema = webFetchTool.parameters as any
+    const tool = createWebFetchTool(new MockOperations())
+    const schema = tool.parameters as any
     expect(schema.properties?.url).toBeDefined()
     expect(schema.required).toContain('url')
   })
 })
 ```
 
+> 正因为工具本体用了 **factory 模式**（接收 `Operations`），测试时注入 mock 即可，不需要真实网络请求。这是"依赖注入便于测试"的典型示范。
+
 ---
 
 ## 6. 小结
 
-### 6.1 添加工具的完整流程
+### 6.1 添加自定义工具的完整流程
 
 ```
-创建工具文件 (.ts) → 实现 AgentTool 接口
+创建扩展文件 (examples/extensions/xxx.ts) → 实现 AgentTool 接口
        ↓
-在 tools/index.ts 中导出
+默认导出函数 (api) => { api.registerTool(tool) }
        ↓
-在 cli.ts 中注册到 ToolRegistry
+复制到 .pi/extensions/ 或 ~/.my-easy-pi/extensions/
        ↓
-在 systemPrompt 中添加说明
+启动 → ExtensionLoader 自动发现 → 注册到 ToolRegistry
        ↓
-编译 → 验证 → 测试
+LLM 即可调用（无需改任何内核代码）
 ```
 
-### 6.2 设计要点回顾
+### 6.2 为什么用扩展机制（对比硬编码）
+
+| | 硬编码进内核 | 扩展机制（本教程） |
+|---|------------|------------------|
+| 改动范围 | `src/` 多个文件 | 一个独立文件 |
+| 升级冲突 | 内核升级可能覆盖/冲突 | 完全隔离 |
+| 团队协作 | 所有人共享 | 按需启用 |
+| 教学价值 | 无 | 展示"自扩展"架构思想（pi 的核心卖点） |
+
+### 6.3 设计要点回顾
 
 | 要点 | 说明 |
 |------|------|
@@ -401,20 +401,22 @@ describe('webFetchTool', () => {
 | **TypeBox 定义参数** | 类型安全的 Schema 定义，自动生成 JSON Schema |
 | **不抛出异常** | 返回 `ToolResult` 让 LLM 自行处理错误 |
 | **内容截断** | 防止返回过多数据浪费 token |
-| **全局唯一命名** | 工具名在整个项目中必须唯一 |
+| **依赖注入** | 工具通过 `Operations` 抽象系统调用，便于测试 |
+| **扩展注册** | 默认导出函数 + `api.registerTool()`，零内核改动 |
 
-### 6.3 延伸思考
+### 6.4 延伸思考
 
 - `web_fetch` 只支持 GET 请求。如果要支持 POST（调用 REST API），需要加哪些参数？
 - 如何给 `web_fetch` 添加超时功能？（提示：`AbortSignal` + `setTimeout`）
 - 当前返回纯文本。如果要支持 JSON 响应的结构化提取，应该怎么设计？
 
-### 6.4 思考题
+### 6.5 思考题
 
 1. 如果要给 `web_fetch` 添加 `headers` 参数（用于设置 Authorization 请求头），参数 Schema 该如何修改？
 2. 假设你发现 LLM 经常在不需要读取网页时也调用了 `web_fetch`，问题可能出在哪里？如何解决？
 3. 当前的实现在内容超长时会截断。如果要让 LLM 能够分页读取完整内容，应该怎么设计？
-4. 对比内置工具和扩展工具（ExtensionAPI）的注册方式有何不同？各自适合什么场景？
+4. 对比内置工具和扩展工具的注册方式有何不同？各自适合什么场景？
+5. `ExtensionLoader` 是扫描目录、动态 `import()` 扩展文件。这种"约定优于配置"的自动发现机制，与显式配置（比如在 config.json 里列出要加载的扩展）相比，各自的优缺点是什么？
 
 ---
 

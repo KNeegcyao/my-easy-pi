@@ -136,6 +136,7 @@ export class LocalOperations implements Operations {
 /**
  * 流式 spawn：逐 chunk 调用 onUpdate，最终返回完整结果。
  * 用于 LocalOperations 的本地执行路径，让沙箱输出实时流向 TUI。
+ * 支持 Windows（cmd.exe）和类 Unix（/bin/sh）系统。
  */
 async function spawnWithStreaming(
   command: string,
@@ -144,7 +145,10 @@ async function spawnWithStreaming(
   onUpdate?: ExecUpdateCallback,
 ): Promise<ExecResult> {
   return new Promise((resolve) => {
-    const child = spawn('/bin/sh', ['-c', command], { timeout, signal })
+    const isWin = process.platform === 'win32'
+    const shell = isWin ? 'cmd.exe' : '/bin/sh'
+    const shellFlag = isWin ? '/c' : '-c'
+    const child = spawn(shell, [shellFlag, command], { timeout, signal })
     let stdout = ''
     let stderr = ''
 
@@ -158,8 +162,9 @@ async function spawnWithStreaming(
       stderr += data.toString()
     })
 
-    child.on('error', () => {
-      resolve({ stdout, stderr, exitCode: 1, runtime: 'local' })
+    child.on('error', (err) => {
+      // 把 spawn 错误（如 ENOENT）写入 stderr，避免前端显示 "(无输出)"
+      resolve({ stdout, stderr: stderr || err.message, exitCode: 1, runtime: 'local' })
     })
 
     child.on('close', (exitCode) => {

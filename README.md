@@ -24,12 +24,14 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/my-easy-pi"><img src="https://img.shields.io/npm/v/my-easy-pi?logo=npm&color=CB3837" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/my-easy-pi"><img src="https://img.shields.io/npm/dm/my-easy-pi?logo=npm&color=CB3837" alt="npm downloads"></a>
   <img src="https://img.shields.io/badge/TypeScript-7.x-3178C6?logo=typescript" alt="TypeScript">
   <img src="https://img.shields.io/badge/Node.js-22+-339933?logo=node.js" alt="Node.js">
   <img src="https://img.shields.io/badge/Coverage-347%20tests%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/CI-Passing-brightgreen?logo=githubactions" alt="CI">
-  <a href="docs/README.md"><img src="https://img.shields.io/badge/📖-10%E7%AB%A0%E5%85%A8%E9%9D%A2%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97-blue" alt="学习指南"></a>
+  <a href="docs/README.md"><img src="https://img.shields.io/badge/%F0%9F%93%96-10%E7%AB%A0%E5%85%A8%E9%9D%A2%E5%AD%A6%E4%B9%A0%E6%8C%87%E5%8D%97-blue" alt="学习指南"></a>
 </p>
 
 ---
@@ -47,7 +49,7 @@ my-easy-pi 不是一个"开箱即用"的产品，而是一份**从零学习 AI C
 | 维度 | my-easy-pi | Claude Code |
 |------|---------|-------------|
 | 🎓 **定位** | 学习项目，代码可读 | 生产工具，代码量大 |
-| 📏 **规模** | ~3000 行 TypeScript | 数十万行 |
+| 📏 **规模** | 核心逻辑 ~3000 行（总 ~8600 行含 TUI） | 数十万行 |
 | 🧩 **架构** | 6 层分层，每层清晰 | 复杂模块化 |
 | 📖 **文档** | 10 章循序渐进的教程 | 产品文档 |
 
@@ -162,6 +164,29 @@ my-easy-pi (本仓库)
 
 ## 📦 安装
 
+### 方式一：npm 全局安装（推荐）
+
+```bash
+# 全局安装
+npm install -g my-easy-pi
+
+# 配置 API 密钥
+export DEEPSEEK_API_KEY=sk-xxxx
+
+# 直接运行
+my-easy-pi --help
+my-easy-pi -m "你好"
+```
+
+### 方式二：npx 零安装（临时使用）
+
+```bash
+# 无需安装，直接运行
+npx my-easy-pi -m "你好"
+```
+
+### 方式三：源码运行（学习/开发）
+
 ```bash
 # 克隆仓库
 git clone https://github.com/KNeegcyao/my-easy-pi.git
@@ -177,7 +202,7 @@ npx tsc --noEmit
 export DEEPSEEK_API_KEY=sk-xxxx
 
 # 启动 TUI
-npx tsx src/cli.ts
+npm start
 ```
 
 > 完整的安装指南请见 [环境搭建](docs/01-before-start/02-environment-setup.md)
@@ -227,7 +252,7 @@ npx tsx src/cli.ts
 
 ```
 my-easy-pi/
-├── src/                    # 源代码（~8600 行）
+├── src/                    # 源代码（~8600 行；核心逻辑 ~3000 行）
 │   ├── cli.ts             # 📍 入口：参数解析 + 模块组装
 │   ├── ai/                # 🤖 统一 LLM 接口
 │   ├── agent/             # 🧠 Agent 核心循环 ⭐
@@ -239,6 +264,7 @@ my-easy-pi/
 │   ├── config/            # ⚙️ 配置管理
 │   └── sandbox/           # 🐳 Docker 沙箱
 ├── docs/                  # 📖 10 章学习教程
+├── examples/              # 🧩 扩展示例（自定义工具教学案例，如 web_fetch）
 ├── tests/                 # ✅ 347 个测试用例（31 个文件）
 └── Dockerfile             # 🐳 沙箱镜像
 ```
