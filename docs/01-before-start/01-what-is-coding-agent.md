@@ -141,7 +141,7 @@ Claude Code 是 Anthropic 推出的 AI 编程助手，运行在终端中。它�
 - 直接在终端中运行命令和编辑文件
 - 支持 Git 操作（创建分支、提交代码、创建 PR）
 
-> 这是目前最成熟的 AI Coding Agent 之一，也是 piagent 的重要参考。
+> 这是目前最成熟的 AI Coding Agent 之一，也是 my-easy-pi 的重要参考。
 
 #### Cursor
 
@@ -155,13 +155,13 @@ Cursor 是一个 AI-first 的代码编辑器，基于 VS Code 深度改造。它
 
 #### 原版 pi（earendil-works/pi）
 
-pi 是一个开源项目，地址是 [github.com/earendil-works/pi](https://github.com/earendil-works/pi)。它是 piagent 的直接灵感来源，采用了类似的分层架构设计。
+pi 是一个开源项目，地址是 [github.com/earendil-works/pi](https://github.com/earendil-works/pi)。它是 my-easy-pi 的直接灵感来源，采用了类似的分层架构设计。
 
-> piagent 参考了 pi 的设计哲学与代码结构，但做了大量简化和调整，使其更适合学习。
+> my-easy-pi 参考了 pi 的设计哲学与代码结构，但做了大量简化和调整，使其更适合学习。
 
 ### 3.5 本项目的定位
 
-**piagent 是一个"学习用精简版"AI Coding Agent。**
+**my-easy-pi 是一个"学习用精简版"AI Coding Agent。**
 
 ```
 ┌─ 完整产品（Claude Code） ─────────────────────────────────┐
@@ -171,7 +171,7 @@ pi 是一个开源项目，地址是 [github.com/earendil-works/pi](https://gith
 │  • 复杂的权限和部署系统                                    │
 └───────────────────────────────────────────────────────────┘
 
-┌─ 学习项目（piagent） ───────────────────────────────────┐
+┌─ 学习项目（my-easy-pi） ───────────────────────────────────┐
 │  • ~3000 行 TypeScript 代码                               │
 │  • 单人可读完的代码量                                     │
 │  • 完整但精简的 6 层架构                                  │
@@ -179,13 +179,13 @@ pi 是一个开源项目，地址是 [github.com/earendil-works/pi](https://gith
 └───────────────────────────────────────────────────────────┘
 ```
 
-**piagent 适合这样的你：**
+**my-easy-pi 适合这样的你：**
 - 想深入理解 AI Coding Agent 的工作原理
 - 想从零搭建一个可用的 Agent 系统
 - 想学习 TypeScript 分层架构设计
 - 想为将来贡献开源项目或开发自己的 Agent 打基础
 
-**piagent 不适合：**
+**my-easy-pi 不适合：**
 - 需要一个生产级的 AI 编程助手（请用 Claude Code 或 Cursor）
 - 不想了解底层原理，只想"开箱即用"
 
@@ -217,7 +217,7 @@ npx tsx src/cli.ts -m "你好，请介绍一下你自己"
 - 与普通聊天机器人最大的区别是：Agent 能**操作文件系统**、**执行命令**、**迭代修改代码**
 - 典型应用场景：代码生成、重构、调试、项目管理
 - 主流项目：Claude Code（终端助手）、Cursor（AI 编辑器）、原版 pi（开源参考）
-- piagent 定位为**学习用精简版**，代码量适中，适合深入学习
+- my-easy-pi 定位为**学习用精简版**，代码量适中，适合深入学习
 
 ### 思考题
 

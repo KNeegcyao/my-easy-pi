@@ -2,7 +2,7 @@
 
 > 对应源码：`src/sandbox/docker.ts`、`src/sandbox/index.ts`、`src/tools/builtin/bash.ts`、`Dockerfile`
 > 最后更新：2026-08-08
-> 适用版本：piagent v0.1.0
+> 适用版本：my-easy-pi v0.1.0
 
 ---
 
@@ -396,7 +396,7 @@ docker build -t piagent-sandbox:latest -f Dockerfile .
 ### 5.3 查看执行环境
 
 ```bash
-# 运行 piagent，观察 bash 工具执行时的提示
+# 运行 my-easy-pi，观察 bash 工具执行时的提示
 # 如果有 Docker，会显示 "🔒 在沙箱中执行: xxx"
 # 如果没有 Docker，会显示 "执行: xxx"
 pi -m "运行 ls -la"
@@ -406,7 +406,7 @@ pi -m "运行 ls -la"
 
 ## 6. 小结
 
-本节介绍了 piagent 的 Docker 沙箱机制，核心要点：
+本节介绍了 my-easy-pi 的 Docker 沙箱机制，核心要点：
 
 - **安全隔离**：通过 Docker 容器的 `--network none`、`--memory 512m`、`--cpus 1`、`--read-only` 等配置，限制命令对宿主机的影响
 - **接口抽象**：`SandboxResult` 统一了 Docker 和本地两种执行模式的结果格式

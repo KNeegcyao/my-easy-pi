@@ -8,11 +8,11 @@
 
 ## 1. 本节目标
 
-本教程将手把手教你为 piagent 接入一个新的 LLM 提供商。我们将以 **Google Gemini** 为例，完整演示从创建 Provider 文件到 CLI 切换测试的全过程。
+本教程将手把手教你为 my-easy-pi 接入一个新的 LLM 提供商。我们将以 **Google Gemini** 为例，完整演示从创建 Provider 文件到 CLI 切换测试的全过程。
 
 ## 2. 前置知识
 
-- 了解 piagent 的 AI 层架构（`ProviderFactory`、`Model`、`ModelRegistry`）
+- 了解 my-easy-pi 的 AI 层架构（`ProviderFactory`、`Model`、`ModelRegistry`）
 - 了解目标 LLM 提供商的 API 文档（请求格式、流式响应格式）
 - 了解 TypeScript 的 `AsyncIterable` 和 Generator 语法
 
@@ -20,7 +20,7 @@
 
 ### Provider 架构
 
-piagent 的 AI 层使用两层抽象：
+my-easy-pi 的 AI 层使用两层抽象：
 
 ```
 ProviderFactory（工厂）     →   创建 Provider 实例
@@ -69,10 +69,10 @@ export type LLMEvent =
 
 ### 消息格式转换
 
-每个 Provider 需要实现消息格式的转换。piagent 使用统一的消息格式（`LLMMessage`），Provider 负责将其转换为目标 API 的格式：
+每个 Provider 需要实现消息格式的转换。my-easy-pi 使用统一的消息格式（`LLMMessage`），Provider 负责将其转换为目标 API 的格式：
 
 ```typescript
-// piagent 统一格式
+// my-easy-pi 统一格式
 { role: 'user', content: '你好' }
 { role: 'assistant', content: '你好！', toolCalls: [...] }
 { role: 'toolResult', toolCallId: 'xxx', content: '结果' }
@@ -470,10 +470,10 @@ console.log('可用模型:', instance.listModels().map(m => m.id));
 
 ## 6. 小结
 
-通过本教程，你已经学会了如何为 piagent 接入一个新的 LLM 提供商。整个过程可以概括为：
+通过本教程，你已经学会了如何为 my-easy-pi 接入一个新的 LLM 提供商。整个过程可以概括为：
 
 1. **创建 Provider 文件**：实现 `ProviderFactory` 和 `Model` 接口
-2. **实现消息格式转换**：将 piagent 的统一消息格式转为目标 API 的格式
+2. **实现消息格式转换**：将 my-easy-pi 的统一消息格式转为目标 API 的格式
 3. **实现流式 SSE 解析**：将目标 API 的流式响应转为统一的 `LLMEvent`
 4. **注册 Provider**：在 `ModelRegistry` 中注册，在 `ConfigManager` 中添加 API Key 支持
 5. **验证**：通过 CLI 的 `--provider` 参数切换测试
@@ -488,7 +488,7 @@ console.log('可用模型:', instance.listModels().map(m => m.id));
 
 ### 思考题
 
-1. 为什么 piagent 要设计 `ProviderFactory` 和 `Model` 两层抽象？直接一个接口不行吗？
+1. 为什么 my-easy-pi 要设计 `ProviderFactory` 和 `Model` 两层抽象？直接一个接口不行吗？
 2. 如果接入的 LLM API 不支持流式响应，应该怎么处理？（提示：可以模拟流式）
 3. 查看 `src/ai/providers/deepseek.ts` 的代码，它与 `openai.ts` 高度相似。为什么 DeepSeek 不直接复用 OpenAI 的 Provider？
 4. 如果要接入 Moonshot（月之暗面），它的 API 兼容 OpenAI 格式，最简单的接入方式是什么？

@@ -1,7 +1,7 @@
 ---
 对应源码: 'src/ai/types.ts（Model 接口）、src/ai/providers/*.ts（实现）'
 最后更新: 2026-08-08
-适用版本: piagent v0.1+
+适用版本: my-easy-pi v0.1+
 ---
 
 # Model 抽象接口

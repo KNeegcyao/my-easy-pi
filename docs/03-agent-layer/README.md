@@ -6,7 +6,7 @@ version: 1.0.0
 
 # Agent 层 — 章节概览
 
-> Agent 层是 piagent 的"大脑与中枢神经系统"，负责管理 Agent 的完整生命周期，驱动 LLM 调用和工具执行。
+> Agent 层是 my-easy-pi 的"大脑与中枢神经系统"，负责管理 Agent 的完整生命周期，驱动 LLM 调用和工具执行。
 
 ## Agent 层的职责
 

@@ -1,7 +1,7 @@
 ---
 对应源码: src/tools/builtin/grep.ts, src/tools/builtin/find.ts, src/tools/builtin/ls.ts
 最后更新: 2026-08-08
-适用版本: piagent v0.1.0
+适用版本: my-easy-pi v0.1.0
 ---
 
 # 搜索工具（Grep / Find / Ls）
@@ -47,7 +47,7 @@
 
 ### 3.3 搜索 vs 查找：理解两种思维
 
-初学者经常混淆"搜索"和"查找"这两个概念，它们在 piagent 中代表两种不同的操作：
+初学者经常混淆"搜索"和"查找"这两个概念，它们在 my-easy-pi 中代表两种不同的操作：
 
 | 维度 | 搜索（grep） | 查找（find） |
 |------|-------------|-------------|
@@ -258,7 +258,7 @@ export const lsTool: AgentTool = {
 
 ### 4.5 实际运行示例：输入与预期输出
 
-以下示例展示在 piagent 源码目录下执行每个工具的实际效果。假设你在 piagent 项目根目录运行。
+以下示例展示在 my-easy-pi 源码目录下执行每个工具的实际效果。假设你在 my-easy-pi 项目根目录运行。
 
 #### Grep 示例
 
@@ -469,7 +469,7 @@ find . -maxdepth 3 -name "*.ts" 2>/dev/null | head -50 || true
 
 ### Q4: find 结果太多，超出了 `head -50` 的限制
 
-`head -50` 是 piagent 内置的限制。如果你需要更多结果：
+`head -50` 是 my-easy-pi 内置的限制。如果你需要更多结果：
 
 - **更精确的模式**：使用更具体的通配符缩小范围
   - `find . -name "*.ts"` → 改为 `find . -name "*Service.ts"`

@@ -1,7 +1,7 @@
 ---
 对应源码: src/session/compaction.ts
 最后更新: 2026-08-08
-适用版本: piagent v0.1.0
+适用版本: my-easy-pi v0.1.0
 ---
 
 # 上下文压缩 — Compactor
@@ -232,7 +232,7 @@ cat ~/.piagent/sessions/session-*.jsonl | grep "compact-"
 
 ## 6. 小结
 
-Compactor 是 piagent 应对 LLM 上下文窗口限制的关键组件。虽然当前实现还比较简陋（简单的文本截断而非真正的摘要），但它奠定了上下文管理的架构基础。
+Compactor 是 my-easy-pi 应对 LLM 上下文窗口限制的关键组件。虽然当前实现还比较简陋（简单的文本截断而非真正的摘要），但它奠定了上下文管理的架构基础。
 
 ### 改进方向
 

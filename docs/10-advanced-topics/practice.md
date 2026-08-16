@@ -52,7 +52,7 @@ const mockWeather: Record<string, { temp: number; condition: string }> = {
 
 ### 目标
 
-为 piagent 接入一个免费的 LLM API。推荐使用以下之一：
+为 my-easy-pi 接入一个免费的 LLM API。推荐使用以下之一：
 
 - **Ollama**（本地运行）：`http://localhost:11434/v1/chat/completions`（兼容 OpenAI 格式）
 - **DeepSeek 开放平台**：提供免费额度，API 兼容 OpenAI 格式
@@ -188,7 +188,7 @@ export default function (api: ExtensionAPI) {
 ### 验收标准
 
 - [ ] 扩展文件创建在正确的目录
-- [ ] 启动 piagent 时能看到扩展加载成功信息
+- [ ] 启动 my-easy-pi 时能看到扩展加载成功信息
 - [ ] LLM 可以调用 datetime 工具
 - [ ] `/datetime` 命令在 CLI 中可用
 - [ ] 无效时区返回友好错误提示

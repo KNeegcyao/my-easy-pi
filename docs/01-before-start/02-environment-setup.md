@@ -6,7 +6,7 @@
 
 # 环境搭建
 
-> 在开始学习 piagent 的代码之前，先把开发环境搭好。这一节我们从零开始，直到你成功启动第一个对话。
+> 在开始学习 my-easy-pi 的代码之前，先把开发环境搭好。这一节我们从零开始，直到你成功启动第一个对话。
 
 ---
 
@@ -77,7 +77,7 @@ npm install
 
 ### 4.3 配置 API 密钥
 
-piagent 支持三种 LLM 提供商，你需要至少配置一个。
+my-easy-pi 支持三种 LLM 提供商，你需要至少配置一个。
 
 **方式一：环境变量（推荐）**
 
@@ -158,7 +158,7 @@ npm run build
 npx tsx src/cli.ts -m "你好，请用中文介绍你自己"
 
 # 方式二：管道模式
-echo "piagent 是什么？" | npx tsx src/cli.ts -p "请用一句话回答"
+echo "my-easy-pi 是什么？" | npx tsx src/cli.ts -p "请用一句话回答"
 
 # 方式三：启动交互式 TUI（最常用的方式）
 npx tsx src/cli.ts
@@ -168,7 +168,7 @@ npx tsx src/cli.ts
 
 ```
 [思考中...]
-你好！我是 piagent，一个 AI 编程助手。我可以帮你完成以下任务：
+你好！我是 my-easy-pi，一个 AI 编程助手。我可以帮你完成以下任务：
 
 - 阅读和编辑代码文件
 - 执行 Shell 命令
@@ -228,7 +228,7 @@ echo "✅ 首次对话: 手动运行 pi -m '你好' 确认"
 
 ### 本节要点
 
-- piagent 需要 Node.js >= 22 和 npm >= 10
+- my-easy-pi 需要 Node.js >= 22 和 npm >= 10
 - 安装三步走：`git clone` → `npm install` → 配置 API 密钥
 - 验证两步走：`npx tsc --noEmit`（类型检查）→ `npm test`（测试）
 - API 密钥可通过环境变量或配置文件设置，环境变量优先级更高
@@ -236,11 +236,11 @@ echo "✅ 首次对话: 手动运行 pi -m '你好' 确认"
 
 ### 思考题
 
-1. 为什么 piagent 选择用原生 `fetch` 而不是 `axios` 来调用 LLM API？这样做有什么好处和坏处？
+1. 为什么 my-easy-pi 选择用原生 `fetch` 而不是 `axios` 来调用 LLM API？这样做有什么好处和坏处？
 
 2. 配置优先级中"环境变量 > 配置文件"的设计，在什么场景下会特别有用？（提示：想想 CI/CD 环境）
 
-3. 如果要在 piagent 中加入一个新的 LLM 提供商（比如 Google Gemini），除了在 `src/ai/providers/` 下新建文件，还需要修改哪些地方？
+3. 如果要在 my-easy-pi 中加入一个新的 LLM 提供商（比如 Google Gemini），除了在 `src/ai/providers/` 下新建文件，还需要修改哪些地方？
 
 4. `npx tsx src/cli.ts` 直接运行 TypeScript 源码很方便，但生产环境为什么不推荐这样做？
 
@@ -248,7 +248,7 @@ echo "✅ 首次对话: 手动运行 pi -m '你好' 确认"
 
 ## 7. 故障排除
 
-> 以下汇集了使用 piagent 时最常见的错误信息。所有错误码定义在 `src/ai/errors.ts` 中，你可以直接查看源码了解每个错误的详细上下文。
+> 以下汇集了使用 my-easy-pi 时最常见的错误信息。所有错误码定义在 `src/ai/errors.ts` 中，你可以直接查看源码了解每个错误的详细上下文。
 
 ### 常见问题及解决方法
 

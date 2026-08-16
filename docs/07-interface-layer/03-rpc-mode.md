@@ -4,13 +4,13 @@
 |--------|------|
 | 对应源码 | `src/interface/rpc.ts` |
 | 最后更新 | 2026-08-08 |
-| 适用版本 | piagent v0.1.0 |
+| 适用版本 | my-easy-pi v0.1.0 |
 
 ---
 
 ## 1. 本节目标
 
-理解 RPC 模式的设计与实现：通过 stdin/stdout 上的 JSONL 协议，使其他编程语言（Python、Go、Java 等）能够与 piagent 进行双向通信，实现无缝集成。
+理解 RPC 模式的设计与实现：通过 stdin/stdout 上的 JSONL 协议，使其他编程语言（Python、Go、Java 等）能够与 my-easy-pi 进行双向通信，实现无缝集成。
 
 ---
 
@@ -48,7 +48,7 @@
 
 ### 3.3 设计目标
 
-RPC 模式的设计目标是 **最小依赖集成**：任何语言只要能读写标准输入输出、能解析 JSON，就能与 piagent 交互。不需要安装 npm 包，不需要了解 Node.js 内部机制。
+RPC 模式的设计目标是 **最小依赖集成**：任何语言只要能读写标准输入输出、能解析 JSON，就能与 my-easy-pi 交互。不需要安装 npm 包，不需要了解 Node.js 内部机制。
 
 ---
 
@@ -151,7 +151,7 @@ printf '{"type":"message","content":"你好"}\n{"type":"message","content":"继�
 import subprocess
 import json
 
-# 启动 piagent RPC 进程
+# 启动 my-easy-pi RPC 进程
 proc = subprocess.Popen(
     ['piagent', '--rpc'],
     stdin=subprocess.PIPE,
@@ -248,7 +248,7 @@ cat rpc_debug.log        # 错误和诊断信息
 
 ## 6. 小结
 
-RPC 模式是 piagent 接口层中功能最丰富的实现，它通过一个简单的 JSONL 协议，让任何语言都能与 piagent 集成。设计上的关键细节——`output: process.stderr`——确保了 JSONL 协议通道的纯净，这是实践中容易忽略但至关重要的点。
+RPC 模式是 my-easy-pi 接口层中功能最丰富的实现，它通过一个简单的 JSONL 协议，让任何语言都能与 my-easy-pi 集成。设计上的关键细节——`output: process.stderr`——确保了 JSONL 协议通道的纯净，这是实践中容易忽略但至关重要的点。
 
 ### 思考题
 

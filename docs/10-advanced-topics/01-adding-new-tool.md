@@ -8,7 +8,7 @@
 
 ## 1. 本节目标
 
-本教程将手把手教你为 piagent 添加一个自定义工具。我们将以项目中真实实现的 **`web_fetch` 工具**（让 LLM 可以直接读取网页内容）为例，完整演示从创建文件到注册测试的全过程。
+本教程将手把手教你为 my-easy-pi 添加一个自定义工具。我们将以项目中真实实现的 **`web_fetch` 工具**（让 LLM 可以直接读取网页内容）为例，完整演示从创建文件到注册测试的全过程。
 
 学完本节，你将能够：
 
@@ -25,7 +25,7 @@
 
 - 熟悉 TypeScript 接口和类型
 - 了解 `@sinclair/typebox` 的基本用法（用于定义参数 Schema）
-- 了解 piagent 的工具注册机制（`ToolRegistry`）
+- 了解 my-easy-pi 的工具注册机制（`ToolRegistry`）
 - 建议先阅读 [工具层概览](../04-tools-layer/README.md)
 
 ---
@@ -34,7 +34,7 @@
 
 ### 3.1 工具的本质
 
-在 piagent 中，一个工具就是一个实现了 `AgentTool` 接口的对象：
+在 my-easy-pi 中，一个工具就是一个实现了 `AgentTool` 接口的对象：
 
 ```typescript
 // src/agent/types.ts
@@ -249,7 +249,7 @@ const truncated = text.length > 100_000
 }
 ```
 
-这是 piagent 工具设计的一个**重要原则**：
+这是 my-easy-pi 工具设计的一个**重要原则**：
 - **❌ 不要 `throw`**：异常会导致 Agent Loop 中断，LLM 看不到错误信息
 - **✅ 返回 `ToolResult`**：LLM 可以读到错误信息，并决定重试或向用户解释
 
@@ -295,7 +295,7 @@ systemPrompt: `...\n- web_fetch：读取网页内容（用于在线查看 GitHub
 
 ```
 ┌─────────────────────────────────────────────┐
-│               piagent 启动                   │
+│               my-easy-pi 启动                   │
 │                                             │
 │  cli.ts — 创建 ToolRegistry                 │
 │    │                                        │

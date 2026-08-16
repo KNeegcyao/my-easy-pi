@@ -1,7 +1,7 @@
 ---
 对应源码: src/extension/
 最后更新: 2026-08-08
-适用版本: piagent v1.0
+适用版本: my-easy-pi v1.0
 ---
 
 # 本章练习

@@ -2,7 +2,7 @@
 
 > 对应源码：`src/config/`、`src/sandbox/`
 > 最后更新：2026-08-08
-> 适用版本：piagent v0.1.0
+> 适用版本：my-easy-pi v0.1.0
 
 ---
 
@@ -21,7 +21,7 @@
 export DEEPSEEK_API_KEY="sk-your-deepseek-api-key"
 export OPENAI_API_KEY="sk-your-openai-api-key"
 
-# 运行 piagent，环境变量会自动被 ConfigManager 读取
+# 运行 my-easy-pi，环境变量会自动被 ConfigManager 读取
 pi -m "你好"
 ```
 
@@ -43,7 +43,7 @@ cat > ~/.piagent/config.json << 'EOF'
 }
 EOF
 
-# 运行 piagent，配置会被自动加载
+# 运行 my-easy-pi，配置会被自动加载
 pi -m "你好"
 ```
 
@@ -67,12 +67,12 @@ pi -m "你好"
 
 ### 目标
 
-学会查看和分析 piagent 的日志文件，理解日志系统的工作方式。
+学会查看和分析 my-easy-pi 的日志文件，理解日志系统的工作方式。
 
 ### 步骤
 
 ```bash
-# 1. 运行 piagent 产生一些日志
+# 1. 运行 my-easy-pi 产生一些日志
 pi -m "运行 ls -la 命令"
 
 # 2. 查看今日的访问日志
@@ -151,7 +151,7 @@ docker ps -a | grep piagent-test
 
 1. 执行 `docker run --rm` 时 `--rm` 参数的作用是什么？如果不加这个参数会怎样？
 2. 沙箱的 `--network none` 是如何保证安全的？如果要让沙箱能访问网络（如 `npm install`），需要修改哪些配置？
-3. 尝试手动触发降级机制：停止 Docker 服务后运行 piagent，观察 bash 工具的执行提示变化。
+3. 尝试手动触发降级机制：停止 Docker 服务后运行 my-easy-pi，观察 bash 工具的执行提示变化。
 
 ---
 
@@ -172,7 +172,7 @@ docker ps -a | grep piagent-test
 
 ## 进阶思考题
 
-1. **配置层扩展**：如何为 piagent 添加 `maxTokens` 和 `temperature` 配置项？需要修改哪些文件？CLI 如何支持 `--max-tokens` 参数？
+1. **配置层扩展**：如何为 my-easy-pi 添加 `maxTokens` 和 `temperature` 配置项？需要修改哪些文件？CLI 如何支持 `--max-tokens` 参数？
 
 2. **日志增强**：如何实现日志文件自动清理策略（如保留最近 7 天，超过的自动删除）？写出实现思路。
 

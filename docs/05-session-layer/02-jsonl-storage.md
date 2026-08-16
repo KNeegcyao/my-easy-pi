@@ -1,14 +1,14 @@
 ---
 对应源码: src/session/storage.ts
 最后更新: 2026-08-08
-适用版本: piagent v0.1.0
+适用版本: my-easy-pi v0.1.0
 ---
 
 # JSONL 存储 — 零依赖的持久化方案
 
 ## 1. 本节目标
 
-理解 piagent 为什么选择 JSONL 而不是 JSON 数组作为存储格式，以及 JSONL 如何通过 `id + parentId` 支持树形结构。
+理解 my-easy-pi 为什么选择 JSONL 而不是 JSON 数组作为存储格式，以及 JSONL 如何通过 `id + parentId` 支持树形结构。
 
 ## 2. 前置知识
 
@@ -213,7 +213,7 @@ grep -r "排序算法" ~/.piagent/sessions/
 
 ## 6. 小结
 
-JSONL 是 piagent 会话层的存储基石。它的设计选择背后有明确的工程考量：
+JSONL 是 my-easy-pi 会话层的存储基石。它的设计选择背后有明确的工程考量：
 
 1. **append-only 写入** — 与 Agent 对话的增量生成模式完美匹配
 2. **每行独立** — 天然支持 `id + parentId` 树形结构，无需额外索引

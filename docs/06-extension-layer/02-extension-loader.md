@@ -1,7 +1,7 @@
 ---
 对应源码: src/extension/loader.ts
 最后更新: 2026-08-08
-适用版本: piagent v1.0
+适用版本: my-easy-pi v1.0
 ---
 
 # ExtensionLoader — 扩展发现与加载
@@ -29,7 +29,7 @@
 手机开机 ──► 系统扫描已安装的 App 列表 ──► 逐个启动 App
     │                                          │
     ▼                                          ▼
-piagent 启动 ──► ExtensionLoader 扫描目录 ──► 逐个加载扩展
+my-easy-pi 启动 ──► ExtensionLoader 扫描目录 ──► 逐个加载扩展
 ```
 
 具体对应关系：
@@ -37,7 +37,7 @@ piagent 启动 ──► ExtensionLoader 扫描目录 ──► 逐个加载扩�
 | 手机 App 安装流程 | ExtensionLoader 的对应步骤 |
 |-------------------|---------------------------|
 | 从 App Store 下载 App 安装包 | 用户将扩展文件放入 `~/.piagent/extensions/` |
-| 手机开机 | piagent 启动，调用 `loadAll()` |
+| 手机开机 | my-easy-pi 启动，调用 `loadAll()` |
 | 系统扫描已安装的 App 列表 | `getSearchDirs()` 获取扩展目录 |
 | 系统检查 App 的签名和 manifest | 检查文件是否为 `.ts/.js`、`default` 导出是否为函数 |
 | 系统启动 App（调用 main 函数） | `import()` 动态导入 + 调用 `default()` 函数 |
@@ -129,7 +129,7 @@ import type { ExtensionAPI } from './api.js'  // ExtensionAPI 类型
  * ExtensionLoader — 扩展加载器
  *
  * 实现了扩展的自动发现、按优先级加载和容错处理。
- * 核心方法是 loadAll()，在 piagent 启动时被调用。
+ * 核心方法是 loadAll()，在 my-easy-pi 启动时被调用。
  *
  * 使用示例：
  *   const loader = new ExtensionLoader(api)

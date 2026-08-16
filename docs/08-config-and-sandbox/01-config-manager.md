@@ -2,13 +2,13 @@
 
 > 对应源码：`src/config/settings.ts`、`src/config/index.ts`
 > 最后更新：2026-08-08
-> 适用版本：piagent v0.1.0
+> 适用版本：my-easy-pi v0.1.0
 
 ---
 
 ## 1. 本节目标
 
-- 理解 piagent 配置加载的优先级机制
+- 理解 my-easy-pi 配置加载的优先级机制
 - 掌握 `ConfigManager` 类的实现与使用
 - 学会通过环境变量和配置文件两种方式管理 API 密钥
 - 了解配置与 CLI 的集成方式
@@ -28,7 +28,7 @@
 
 ### 3.1 配置加载优先级
 
-piagent 采用五层配置模型，优先级从高到低为：
+my-easy-pi 采用五层配置模型，优先级从高到低为：
 
 ```
 CLI 参数  >  环境变量  >  用户配置  >  项目配置  >  默认值
@@ -280,7 +280,7 @@ EOF
 # 通过环境变量设置 API 密钥
 export DEEPSEEK_API_KEY="sk-xxx"
 
-# 运行 piagent，它会自动读取配置
+# 运行 my-easy-pi，它会自动读取配置
 pi --help
 ```
 
@@ -297,7 +297,7 @@ pi -m "hello"
 
 ## 6. 小结
 
-本节介绍了 piagent 的分层配置管理系统，核心要点：
+本节介绍了 my-easy-pi 的分层配置管理系统，核心要点：
 
 - **五层优先级**：CLI > 环境变量 > 用户配置 > 项目配置 > 默认值，确保灵活性和安全性
 - **API 密钥管理**：环境变量优先，用户配置兜底，避免密钥硬编码
@@ -308,7 +308,7 @@ pi -m "hello"
 
 1. 为什么 `getApiKey` 方法中环境变量优先于用户配置？这样设计有什么安全考虑？
 2. 如果用户配置和项目配置中都定义了 `defaultModel`，最终会使用哪个值？为什么？
-3. 如何为 piagent 添加一个自定义配置项（如 `maxTokens`）？需要修改哪些文件？
+3. 如何为 my-easy-pi 添加一个自定义配置项（如 `maxTokens`）？需要修改哪些文件？
 
 > ← [上一节](../08-config-and-sandbox/README.md) · [下一节](./02-logger.md) →
 >

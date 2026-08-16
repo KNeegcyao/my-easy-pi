@@ -6,7 +6,7 @@ version: 1.0.0
 
 # 进阶主题
 
-> 本章面向**想要扩展和修改 piagent 项目的读者**。从新增工具、接入新 LLM、创建扩展到理解测试体系，覆盖 piagent 的所有扩展点。
+> 本章面向**想要扩展和修改 my-easy-pi 项目的读者**。从新增工具、接入新 LLM、创建扩展到理解测试体系，覆盖 my-easy-pi 的所有扩展点。
 
 > **检查清单：阅读本章前，请确保你已理解以下概念**
 > 
@@ -23,7 +23,7 @@ version: 1.0.0
 2. **接入新 LLM** -- 实现 `ProviderFactory` 和 `Model` 接口，接入 Google Gemini、Moonshot 等任意 LLM 提供商
 3. **创建扩展** -- 使用 `ExtensionAPI` 开发插件化功能，在 Agent 事件中注册工具和命令
 4. **加载扩展** -- 理解 `ExtensionLoader` 的加载机制，从本地文件或 npm 包加载扩展
-5. **编写测试** -- 掌握 piagent 的单元测试、集成测试和 E2E 测试编写方法
+5. **编写测试** -- 掌握 my-easy-pi 的单元测试、集成测试和 E2E 测试编写方法
 6. **理解测试架构** -- 看懂项目测试目录结构、Mock 策略和 CI 配置
 7. **诊断扩展问题** -- 当工具、Provider 或扩展加载失败时，独立定位问题根源
 8. **发布扩展** -- 将扩展打包为 npm 包，供他人安装使用
@@ -34,7 +34,7 @@ version: 1.0.0
 
 - **TypeScript 进阶**：接口继承、泛型约束、`instanceof` 类型守卫、`async/await` 错误处理
 - **Node.js 模块系统**：ESM module resolution、`import()` 动态导入、npm 包管理
-- **piagent 核心架构**：建议先阅读 [03-agent-layer/README.md](../03-agent-layer/README.md)、[02-ai-layer/README.md](../02-ai-layer/README.md)、[04-tool-layer/README.md](../04-tool-layer/README.md)
+- **my-easy-pi 核心架构**：建议先阅读 [03-agent-layer/README.md](../03-agent-layer/README.md)、[02-ai-layer/README.md](../02-ai-layer/README.md)、[04-tool-layer/README.md](../04-tool-layer/README.md)
 - **LLM 进阶概念**：Function Calling 协议细节、流式 SSE 响应格式、Tool Choice 策略
 
 ## Architecture diagram
@@ -102,7 +102,7 @@ version: 1.0.0
 
 ### 1. 最小侵入
 
-piagent 的扩展点设计遵循"对核心零侵入"原则。你可以在不修改 Agent 核心代码的前提下，通过注册机制增加功能：
+my-easy-pi 的扩展点设计遵循"对核心零侵入"原则。你可以在不修改 Agent 核心代码的前提下，通过注册机制增加功能：
 
 - 工具：实现 `AgentTool` + 注册到 `ToolRegistry`，Agent Loop 自动识别
 - Provider：实现 `ProviderFactory` + 注册到 `ModelRegistry`，CLI 通过 `-m` 参数切换
@@ -153,7 +153,7 @@ npm start -- --help
 
 ## Summary and next steps
 
-本章从四个维度全面介绍了 piagent 的进阶用法：
+本章从四个维度全面介绍了 my-easy-pi 的进阶用法：
 
 | 维度 | 核心技能 | 对应文档 |
 |------|----------|----------|
@@ -162,7 +162,7 @@ npm start -- --help
 | 扩展系统 | 使用 `ExtensionAPI` 开发插件 | [03-creating-extension.md](./03-creating-extension.md) |
 | 测试体系 | 编写单元/集成/E2E 测试 | [04-testing.md](./04-testing.md) |
 
-完成本章后，你已具备独立扩展和定制 piagent 的能力。下一步可以：
+完成本章后，你已具备独立扩展和定制 my-easy-pi 的能力。下一步可以：
 
 - 开始 [practice.md](./practice.md) 动手练习
 - 查阅完整的 [API 参考文档](../api/README.md)
@@ -171,8 +171,8 @@ npm start -- --help
 ### 思考题
 
 1. 三个扩展点（工具、Provider、扩展）分别在什么场景下使用？能否举出具体的业务例子？
-2. 如果要让 piagent 支持执行 SQL 查询，应该使用哪个扩展点？这个工具应该放在哪个目录？
-3. 如果要让 piagent 使用本地运行的 LLM（如 Ollama），应该使用哪个扩展点？需要实现哪些接口？
+2. 如果要让 my-easy-pi 支持执行 SQL 查询，应该使用哪个扩展点？这个工具应该放在哪个目录？
+3. 如果要让 my-easy-pi 使用本地运行的 LLM（如 Ollama），应该使用哪个扩展点？需要实现哪些接口？
 4. 扩展系统和自定义工具都可以"新增功能"，它们的本质区别是什么？
 
 > ← [📚 返回学习指南](../README.md)

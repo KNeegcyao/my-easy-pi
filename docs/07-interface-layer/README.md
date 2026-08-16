@@ -6,7 +6,7 @@ version: 1.0.0
 
 # 接口层 — 事件驱动与多模式输出
 
-> 接口层是 piagent 面向用户的"第一道门面"。它通过事件驱动架构，将 Agent 核心发射的事件渲染成用户可读的输出。关键设计原则是：**Agent 核心不关心输出格式，接口层不关心 Agent 如何工作**，两者通过 `AgentEvent` 类型契约完成通信。
+> 接口层是 my-easy-pi 面向用户的"第一道门面"。它通过事件驱动架构，将 Agent 核心发射的事件渲染成用户可读的输出。关键设计原则是：**Agent 核心不关心输出格式，接口层不关心 Agent 如何工作**，两者通过 `AgentEvent` 类型契约完成通信。
 
 ## Learning objectives
 
@@ -171,7 +171,7 @@ export function createXxxInterface(agent: Agent): void {
 
 ### 1. 关注点分离
 
-接口层是 piagent 架构中"关注点分离"的典范实践。Agent 核心（`agent/`）只负责 LLM 调用和工具执行，完全不知道输出是什么格式。接口层独立负责渲染，不关心 Agent 内部如何工作。
+接口层是 my-easy-pi 架构中"关注点分离"的典范实践。Agent 核心（`agent/`）只负责 LLM 调用和工具执行，完全不知道输出是什么格式。接口层独立负责渲染，不关心 Agent 内部如何工作。
 
 **效果**：一个 Agent 核心可以同时对接多种 UI 形态。
 
@@ -228,7 +228,7 @@ npx piagent -m "你好" --output json | jq '.type'
 
 ## Summary and next steps
 
-接口层是 piagent "关注点分离"的典范实践。通过事件驱动设计，一个 Agent 核心可以同时对接多种 UI 形态：
+接口层是 my-easy-pi "关注点分离"的典范实践。通过事件驱动设计，一个 Agent 核心可以同时对接多种 UI 形态：
 
 | 模式 | 核心价值 | 最佳用途 |
 |------|----------|----------|

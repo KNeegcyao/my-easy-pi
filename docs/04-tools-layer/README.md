@@ -1,14 +1,14 @@
 ---
 对应源码: src/tools/ 及 src/agent/types.ts
 最后更新: 2026-08-08
-适用版本: piagent v0.1.0
+适用版本: my-easy-pi v0.1.0
 ---
 
 # 工具层 — 章节概览
 
 ## 1. 本节目标
 
-理解 piagent 工具层的设计与实现，包括：
+理解 my-easy-pi 工具层的设计与实现，包括：
 
 - **AgentTool 接口**：LLM 调用工具的统一契约
 - **7 个内置工具**：Bash、Read、Write、Edit、Grep、Find、Ls
@@ -162,7 +162,7 @@ npx vitest run src/tools/ --reporter=verbose 2>&1 | head -30
 
 ## 6. 小结
 
-工具层是 piagent 中 LLM 与操作系统交互的桥梁。通过 `AgentTool` 接口和 `ToolRegistry` 注册表模式，实现了：
+工具层是 my-easy-pi 中 LLM 与操作系统交互的桥梁。通过 `AgentTool` 接口和 `ToolRegistry` 注册表模式，实现了：
 
 - **统一的工具契约**：所有工具遵循相同的 `execute` 签名
 - **灵活的注册机制**：可以动态增删工具

@@ -1,7 +1,7 @@
 ---
 对应源码: 'src/ai/retry.ts'
 最后更新: 2026-08-08
-适用版本: piagent v0.1+
+适用版本: my-easy-pi v0.1+
 ---
 
 # 指数退避重试
@@ -241,7 +241,7 @@ EOF
 当 LLM API 返回 429 Too Many Requests 时，说明请求频率超过了服务商的配额限制。`fetchWithRetry` 会优先使用响应头的 `Retry-After` 字段决定等待时间。
 
 ```
-用户                    piagent                   DeepSeek API
+用户                    my-easy-pi                   DeepSeek API
  │                        │                          │
  │   prompt("翻译这段")    │                          │
  │───────────────────────▶│                          │

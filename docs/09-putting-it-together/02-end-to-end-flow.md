@@ -2,7 +2,7 @@
 
 > 对应源码：`src/cli.ts` → `src/agent/loop.ts` → `src/ai/` → `src/tools/` → 回环
 > 最后更新：2026-08-08
-> 适用版本：piagent v0.1.0+
+> 适用版本：my-easy-pi v0.1.0+
 
 ## 1. 本节目标
 
@@ -22,7 +22,7 @@
 
 ### 3.1 什么是"一次请求"？
 
-在 piagent 中，一次用户请求（`agent.prompt()`）可能包含**多轮**（turns）LLM 调用：
+在 my-easy-pi 中，一次用户请求（`agent.prompt()`）可能包含**多轮**（turns）LLM 调用：
 
 ```
 用户输入 → 第1轮 LLM → 工具调用 → 第2轮 LLM → 工具调用 → ... → 最终回答

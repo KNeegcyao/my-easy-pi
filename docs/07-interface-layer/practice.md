@@ -4,7 +4,7 @@
 |--------|------|
 | 对应源码 | `src/interface/` 目录 |
 | 最后更新 | 2026-08-08 |
-| 适用版本 | piagent v0.1.0 |
+| 适用版本 | my-easy-pi v0.1.0 |
 
 ---
 
@@ -180,7 +180,7 @@ node custom-interface.js
 
 ### 4.3 使用 RPC 模式集成到其他语言
 
-选择你熟悉的语言（Python、Go、Ruby、Rust 等），编写一个简单的程序通过 RPC 模式与 piagent 交互。参考 `03-rpc-mode.md` 中提供的 Python 和 Go 示例。
+选择你熟悉的语言（Python、Go、Ruby、Rust 等），编写一个简单的程序通过 RPC 模式与 my-easy-pi 交互。参考 `03-rpc-mode.md` 中提供的 Python 和 Go 示例。
 
 ---
 

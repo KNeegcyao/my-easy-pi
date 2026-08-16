@@ -1,7 +1,7 @@
 ---
 对应源码: src/tools/builtin/bash.ts, src/sandbox/docker.ts
 最后更新: 2026-08-08
-适用版本: piagent v0.1.0
+适用版本: my-easy-pi v0.1.0
 ---
 
 # Bash 工具
@@ -27,7 +27,7 @@
 
 ### 3.1 Bash 工具的角色
 
-`bash` 工具是 piagent 中最强大的工具——它让 LLM 能够执行任意的 shell 命令。如果说其他工具是"专门化的手"，bash 就是"万能工具"。
+`bash` 工具是 my-easy-pi 中最强大的工具——它让 LLM 能够执行任意的 shell 命令。如果说其他工具是"专门化的手"，bash 就是"万能工具"。
 
 但强大的能力也意味着风险，因此 bash 工具做了三层安全防护：
 
@@ -231,7 +231,7 @@ import('./dist/tools/builtin/bash.js').then(({ bashTool }) => {
 
 ## 6. 小结
 
-`bash` 工具是 piagent 中最重要也最复杂的工具。它的设计体现了几个关键原则：
+`bash` 工具是 my-easy-pi 中最重要也最复杂的工具。它的设计体现了几个关键原则：
 
 - **安全优先**：通过 Docker 沙箱隔离执行环境，即使 LLM 生成了恶意命令，也不会影响宿主机
 - **透明降级**：Docker 不可用时自动回退到本地执行，Agent 层无需感知差异
