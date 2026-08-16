@@ -505,6 +505,9 @@ export class Editor implements Component, Focusable {
     if (line > 0) {
       this.cursorPos = lineColToPos(this.text, line - 1, col)
       this.invalidate()
+    } else {
+      // 光标已在第一行：退化为浏览历史
+      this.browseHistory(-1)
     }
   }
 
@@ -514,6 +517,9 @@ export class Editor implements Component, Focusable {
     if (line < lines.length - 1) {
       this.cursorPos = lineColToPos(this.text, line + 1, col)
       this.invalidate()
+    } else {
+      // 光标已在最后一行：退化为浏览历史
+      this.browseHistory(1)
     }
   }
 }
