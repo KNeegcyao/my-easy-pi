@@ -41,38 +41,37 @@ export class Selector implements Component {
 
   /** 处理键盘原始输入 */
   handleKey(data: string): void {
-    switch (data) {
-      case '\x1b[A': case 'k':           // ↑
-        this.selected = Math.max(0, this.selected - 1)
-        this.invalidate()
-        break
-      case '\x1b[B': case 'j':           // ↓
-        this.selected = Math.min(this.options.length - 1, this.selected + 1)
-        this.invalidate()
-        break
-      case '\r': case '\n':              // Enter
-        this.onSelect?.(this.options[this.selected])
-        break
-      case '\x1b': case '\x03':          // Esc / Ctrl+C
-        this.onCancel?.()
-        break
-      case 'y': case 'Y':                 // 快速确认（y）
-        if (this.options.some(o => o.value === 'y' || o.label === 'yes')) {
-          const yes = this.options.find(o => o.value === 'y' || o.label.toLowerCase() === 'yes')
-          if (yes) { this.onSelect?.(yes); break }
-        }
-        this.selected = Math.min(this.selected, this.options.length - 1)
-        this.invalidate()
-        break
-      case 'n': case 'N':                 // 快速拒绝（n）
-        if (this.options.some(o => o.value === 'n' || o.label === 'no')) {
-          const no = this.options.find(o => o.value === 'n' || o.label.toLowerCase() === 'no')
-          if (no) { this.onSelect?.(no); break }
-        }
-        // 下移一个
-        this.selected = Math.min(this.options.length - 1, this.selected + 1)
-        this.invalidate()
-        break
+    // ↑：支持 \x1b[A（标准）和 \x1bOA（部分 Windows 终端）
+    if (data.includes('\x1b[A') || data.includes('\x1bOA') || data === 'k') {
+      this.selected = Math.max(0, this.selected - 1)
+      this.invalidate()
+      return
+    }
+    // ↓：同上
+    if (data.includes('\x1b[B') || data.includes('\x1bOB') || data === 'j') {
+      this.selected = Math.min(this.options.length - 1, this.selected + 1)
+      this.invalidate()
+      return
+    }
+    // Enter
+    if (data === '\r' || data === '\n') {
+      this.onSelect?.(this.options[this.selected])
+      return
+    }
+    // Esc / Ctrl+C（裸 ESC 或 Ctrl+C）
+    if (data === '\x1b' || data === '\x03') {
+      this.onCancel?.()
+      return
+    }
+    // 快捷键 y/Y
+    if (data === 'y' || data === 'Y') {
+      const yes = this.options.find(o => o.value === 'y' || o.label.toLowerCase() === 'yes')
+      if (yes) { this.onSelect?.(yes); return }
+    }
+    // 快捷键 n/N
+    if (data === 'n' || data === 'N') {
+      const no = this.options.find(o => o.value === 'n' || o.label.toLowerCase() === 'no')
+      if (no) { this.onSelect?.(no); return }
     }
   }
 
