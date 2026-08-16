@@ -55,6 +55,7 @@ my-easy-pi/
 │       └── tools/
 │
 ├── docs/                  # 学习文档
+├── examples/extensions/   # 扩展示例（自定义工具教学案例，如 web_fetch.ts）
 ├── scripts/               # 工具脚本
 ├── Dockerfile             # 沙箱镜像
 ├── package.json           # 项目配置

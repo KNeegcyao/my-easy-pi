@@ -1,6 +1,10 @@
 # docs/ 变更日志
 
 ## 2026-08-16
+- 重构：`web_fetch` 从内置工具（`src/tools/builtin/web_fetch.ts`）迁出为**扩展示例**（`examples/extensions/web_fetch.ts`），内置工具由 8 个变为 7 个
+- 重构：`src/cli.ts` 接入 `ExtensionLoader`，启动时自动扫描 `.pi/extensions/` 与 `~/.my-easy-pi/extensions/` 加载扩展
+- 重构：`src/agent/loop.ts` 的 `AgentLoopConfig` 支持注入外部 `ToolRegistry`，使扩展注册的工具与内置工具共用同一注册表
+- 更新：README / 01-project-structure / 04-tools-layer / 10-advanced-topics 文档同步 web_fetch 的扩展化定位
 - 改名：教学文档项目名全面统一为 `my-easy-pi`（51 篇文档，235 处 `piagent` → `my-easy-pi`）
 - 改名：存储路径 `~/.piagent/` → `~/.my-easy-pi/`、Docker 镜像 `piagent-sandbox` → `my-easy-pi-sandbox`
 - 改名：CLI 命令示例 `piagent -m/-p/--rpc` → `my-easy-pi -m/-p/--rpc`、`npx piagent` → `npx my-easy-pi`

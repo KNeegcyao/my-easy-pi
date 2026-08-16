@@ -89,7 +89,7 @@ export interface Tool {
 | `find` | `src/tools/builtin/find.ts` | 查找文件 | `find -name` |
 | `ls` | `src/tools/builtin/ls.ts` | 列出目录 | `fs.readdir` |
 
-> 💡 **`web_fetch` 不是内置工具**，而是项目中**自定义工具的教学案例**——它演示了如何在不需要修改内核的情况下新增一个工具。完整的创建流程见 [添加自定义工具](../10-advanced-topics/01-adding-new-tool.md) 第 4 章"真实案例：web_fetch 工具"。
+> 💡 **`web_fetch` 不是内置工具**，而是项目中**自定义工具的教学案例**——它演示了如何在不需要修改内核的情况下新增一个工具。它的源码在 `examples/extensions/web_fetch.ts`，通过扩展机制（`ExtensionLoader` 自动发现 + `ExtensionAPI.registerTool`）注册进 `ToolRegistry`。完整的创建流程见 [添加自定义工具](../10-advanced-topics/01-adding-new-tool.md)，扩展机制详解见 [扩展层](../06-extension-layer/README.md)。
 
 ### 3.4 与 Agent 层的集成方式
 

@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import * as readline from 'node:readline'
 import { ModelRegistry, AnthropicProvider, DeepSeekProvider, OpenAIProvider } from './ai/index.js'
-import { ToolRegistry, LocalOperations, createBashTool, createReadTool, createWriteTool, createEditTool, createGrepTool, createFindTool, createLsTool, createWebFetchTool } from './tools/index.js'
+import { ToolRegistry, LocalOperations, createBashTool, createReadTool, createWriteTool, createEditTool, createGrepTool, createFindTool, createLsTool } from './tools/index.js'
 import { Agent, PermissionManager, type ConfirmFn, RiskLevel } from './agent/index.js'
 import { isAppError, AUTH_API_KEY_MISSING, PROVIDER_NOT_FOUND, MODEL_NOT_FOUND, type AppError } from './ai/errors.js'
 import { createPrintInterface, createJSONInterface, startRPC } from './interface/index.js'
 import { startTUI } from './tui/index.js'
 import { ConfigManager, runInit } from './config/index.js'
 import { SessionManager, Compactor } from './session/index.js'
+import { ExtensionLoader, ExtensionAPI } from './extension/index.js'
 import { recordTokenUsage } from './interface/tui/commands.js'
 import type { Model } from './ai/types.js'
 import type { AgentTool } from './agent/types.js'
@@ -93,7 +94,7 @@ my-easy-pi — 简易 AI Coding Agent
 // 几个职责单一的纯/半纯函数，供 main 编排 + 独立单测
 // ============================================================
 
-/** 装配内置 ToolRegistry（8 个工具，注入 LocalOperations） */
+/** 装配内置 ToolRegistry（7 个工具，注入 LocalOperations） */
 export function buildTools(ops?: import('./tools/operations.js').Operations): ToolRegistry {
   const registry = new ToolRegistry()
   const opsImpl = ops ?? new LocalOperations()
@@ -105,7 +106,6 @@ export function buildTools(ops?: import('./tools/operations.js').Operations): To
     createGrepTool(opsImpl),
     createFindTool(opsImpl),
     createLsTool(opsImpl),
-    createWebFetchTool(opsImpl),
   ]
   for (const t of tools) registry.registerTool(t)
   return registry
@@ -174,14 +174,16 @@ export function buildConfirmFn(isTTY: boolean = process.stdin.isTTY ?? false): C
 export function buildAgent(opts: {
   model: Model
   tools: AgentTool[]
+  registry?: ToolRegistry
   permission: PermissionManager
   compactor: Compactor
 }): Agent {
-  const { model, tools, permission, compactor } = opts
+  const { model, tools, registry, permission, compactor } = opts
   return new Agent({
-    systemPrompt: '你是 my-easy-pi — 一个 AI 编程助手。\n\n你有以下工具可用：\n- bash：执行 shell 命令\n- read：读取文件内容\n- write：写入文件内容\n- edit：替换文件中的文本\n- grep：在文件中搜索关键词\n- find：查找文件名\n- ls：列出目录内容\n- web_fetch：读取网页内容（用于在线查看 GitHub 文件、文档等）\n\n请用中文回答用户的问题。保持回答简洁、准确，不要回复冗余的模型元信息。',
+    systemPrompt: '你是 my-easy-pi — 一个 AI 编程助手。\n\n你有以下内置工具可用：\n- bash：执行 shell 命令\n- read：读取文件内容\n- write：写入文件内容\n- edit：替换文件中的文本\n- grep：在文件中搜索关键词\n- find：查找文件名\n- ls：列出目录内容\n\n此外，通过扩展机制（.pi/extensions/）加载的自定义工具同样可以直接调用。\n\n请用中文回答用户的问题。保持回答简洁、准确，不要回复冗余的模型元信息。',
     model,
     tools,
+    registry,
     beforeToolCall: (ctx) => permission.check(ctx),
     transformContext: async (messages) => compactor.compact(messages),
   })
@@ -330,9 +332,16 @@ async function main(): Promise<void> {
   const agent = buildAgent({
     model: modelResult.model,
     tools: toolRegistry.listTools(),
+    registry: toolRegistry,
     permission,
     compactor,
   })
+
+  // 加载扩展：自动发现 .pi/extensions/ 与 ~/.my-easy-pi/extensions/ 下的扩展文件。
+  // 扩展通过 ExtensionAPI.registerTool 注册自定义工具（与内置工具共用一个 ToolRegistry）。
+  const extensionApi = new ExtensionAPI(toolRegistry, agent)
+  const loader = new ExtensionLoader(extensionApi)
+  await loader.loadAll()
 
   if (initialMessages) { agent.state.messages = initialMessages }
 
