@@ -1,6 +1,6 @@
 {
   "name": "my-easy-pi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "简易 AI Coding Agent（教学项目）",
   "type": "module",
   "bin": {
