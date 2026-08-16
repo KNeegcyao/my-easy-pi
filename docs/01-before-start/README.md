@@ -52,10 +52,13 @@
 
 建议按以下顺序阅读本章各节：
 
-```
-01-what-is-coding-agent.md  ──→  02-environment-setup.md  ──→  03-project-structure.md
-     ↓                               ↓                               ↓
- 理解什么是 Coding Agent        搭建并验证开发环境               了解项目整体结构
+```mermaid flowchart TD
+    A["01-what-is-coding-agent.md"] --> B["02-environment-setup.md"]
+    B --> C["03-project-structure.md"]
+
+    A -.-> D["理解什么是 Coding Agent"]
+    B -.-> E["搭建并验证开发环境"]
+    C -.-> F["了解项目整体结构"]
 ```
 
 ### 各节简介

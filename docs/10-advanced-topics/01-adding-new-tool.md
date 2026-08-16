@@ -77,24 +77,15 @@ export interface Tool {
 
 ### 3.3 工具的工作流程
 
-```
-LLM 生成回复
-    │
-    ├── LLM 判断：需要获取外部信息 → 调用 web_fetch
-    │         │
-    │         ├── LLM 根据 parameters 生成参数
-    │         │   {"url": "https://example.com/api"}
-    │         │
-    │         ▼
-    │    Agent 收到 tool_call 事件
-    │         │
-    │         ├── ToolRegistry.getTool("web_fetch")  ← 查找工具
-    │         │
-    │         ├── tool.execute("tc-1", {url: "..."}, signal)  ← 执行
-    │         │
-    │         └── 执行结果以 ToolResult 返回给 LLM
-    │
-    └── LLM 根据工具结果生成最终回答
+```mermaid
+flowchart TD
+    LLMReply["LLM 生成回复"] --> Judge["LLM 判断：需要获取外部信息 → 调用 web_fetch"]
+    Judge --> GenParams["LLM 根据 parameters 生成参数<br/>{url: https://example.com/api}"]
+    GenParams --> AgentEvent["Agent 收到 tool_call 事件"]
+    AgentEvent --> FindTool["ToolRegistry.getTool('web_fetch') ← 查找工具"]
+    AgentEvent --> ExecTool["tool.execute('tc-1', {url: '...'}, signal) ← 执行"]
+    AgentEvent --> ReturnResult["执行结果以 ToolResult 返回给 LLM"]
+    LLMReply --> FinalAnswer["LLM 根据工具结果生成最终回答"]
 ```
 
 ### 3.4 工具描述的重要性
@@ -260,23 +251,17 @@ export default function registerWebFetchExtension(api: ExtensionAPI): void {
 
 ### 4.5 注册流程示意图
 
-```
-┌────────────────────────────────────────────────────────┐
-│               my-easy-pi 启动（cli.ts）                  │
-│                                                        │
-│  ① buildTools()  → 注册 7 个内置工具                    │
-│  ② buildAgent()  → Agent 复用同一个 ToolRegistry       │
-│  ③ ExtensionLoader.loadAll()                           │
-│       ├── 扫描 .pi/extensions/                          │
-│       ├── 扫描 ~/.my-easy-pi/extensions/               │
-│       ├── 找到 web_fetch.ts → import()                 │
-│       └── 调用 default(api) → api.registerTool()        │
-│                                                        │
-│  ToolRegistry = [bash, read, write, edit, grep,         │
-│                  find, ls, web_fetch]  ← 同一个注册表    │
-│                                                        │
-│  LLM: "需要读取网页内容 → 调用 web_fetch"               │
-└────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Start["my-easy-pi 启动（cli.ts）"] --> BuildTools["① buildTools()<br/>→ 注册 7 个内置工具"]
+    BuildTools --> BuildAgent["② buildAgent()<br/>→ Agent 复用同一个 ToolRegistry"]
+    BuildAgent --> LoadExt["③ ExtensionLoader.loadAll()"]
+    LoadExt --> Scan1["扫描 .pi/extensions/"]
+    LoadExt --> Scan2["扫描 ~/.my-easy-pi/extensions/"]
+    LoadExt --> Import["找到 web_fetch.ts → import()"]
+    LoadExt --> Register["调用 default(api) → api.registerTool()"]
+    Register --> ToolReg["ToolRegistry = [bash, read, write, edit, grep, find, ls, web_fetch]<br/>← 同一个注册表"]
+    ToolReg --> LLMCall["LLM: '需要读取网页内容 → 调用 web_fetch'"]
 ```
 
 ---

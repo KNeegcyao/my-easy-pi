@@ -42,11 +42,15 @@ JSONL（JSON Lines）是一种每行包含一个独立 JSON 对象的文本格�
 
 ### 3.3 存储路径
 
-```
-~/.my-easy-pi/sessions/
-  ├── session-1722428800000.jsonl
-  ├── session-1722428900000.jsonl
-  └── session-1722429000000.jsonl
+```mermaid graph TB
+    Sessions["~/.my-easy-pi/sessions/"]
+    S1["session-1722428800000.jsonl"]
+    S2["session-1722428900000.jsonl"]
+    S3["session-1722429000000.jsonl"]
+
+    Sessions --> S1
+    Sessions --> S2
+    Sessions --> S3
 ```
 
 每个会话对应一个 `.jsonl` 文件，文件名 = `sessionId.jsonl`。
@@ -55,18 +59,19 @@ JSONL（JSON Lines）是一种每行包含一个独立 JSON 对象的文本格�
 
 通过 `id` + `parentId` 实现树形结构：
 
-```
-root (parentId: null)
-  │
-  ├─ msg1 (id: "msg1", parentId: null)
-  │    │
-  │    ├─ msg2 (id: "msg2", parentId: "msg1")
-  │    │    │
-  │    │    └─ msg3 (id: "msg3", parentId: "msg2")  ← 当前活跃分支
-  │    │
-  │    └─ msg4 (id: "msg4", parentId: "msg1")       ← 分支点
-  │
-  └─ msg5 (id: "msg5", parentId: null)
+```mermaid graph TB
+    root["root (parentId: null)"]
+    msg1["msg1 (id: 'msg1', parentId: null)"]
+    msg2["msg2 (id: 'msg2', parentId: 'msg1')"]
+    msg3["msg3 (id: 'msg3', parentId: 'msg2')<br/>← 当前活跃分支"]
+    msg4["msg4 (id: 'msg4', parentId: 'msg1')<br/>← 分支点"]
+    msg5["msg5 (id: 'msg5', parentId: null)"]
+
+    root --> msg1
+    root --> msg5
+    msg1 --> msg2
+    msg1 --> msg4
+    msg2 --> msg3
 ```
 
 每一条消息通过 `parentId` 指向其父消息，形成一条从根到叶的路径。`getActiveBranch()` 从最后一条消息回溯到根，得到当前活跃分支。

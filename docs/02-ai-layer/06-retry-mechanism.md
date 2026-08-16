@@ -134,41 +134,25 @@ export async function fetchWithRetry(
 
 ### 4.2 重试流程图
 
-```
-开始
-  │
-  ▼
-attempt = 0
-  │
-  ▼
-fetch(url, options)
-  │
-  ├── 成功 (response.ok) ──────▶ 返回 response
-  │
-  ├── 不可重试 (4xx 非 429) ──▶ 返回 response
-  │
-  ├── 可重试 (429/502/503/504)
-  │     │
-  │     ├── 已达最大重试次数 ──▶ 返回 response（不抛出）
-  │     │
-  │     └── 未达最大重试次数
-  │           │
-  │           ├── 429? ──▶ 使用 Retry-After 头
-  │           └── 其他 ──▶ 指数退避: 2^attempt * 1000ms
-  │                          │
-  │                          ▼
-  │                      sleep(delay)
-  │                          │
-  │                          ▼
-  │                      attempt++
-  │                          │
-  └──────────────────────────┘
-  │
-  └── 网络异常 (catch)
-        │
-        ├── 已达最大重试次数 ──▶ 抛出异常
-        │
-        └── 未达最大重试次数 ──▶ sleep → 重试
+```mermaid
+flowchart TD
+    Start([开始]) --> A[attempt = 0]
+    A --> B[fetch(url, options)]
+    B -->|成功<br>response.ok| C[返回 response]
+    B -->|不可重试<br>4xx 非 429| C
+    B -->|可重试<br>429/502/503/504| D{已达最大<br>重试次数?}
+    D -->|是| C
+    D -->|否| E{429?}
+    E -->|是| F[使用 Retry-After 头]
+    E -->|否| G[指数退避: 2^attempt * 1000ms]
+    F --> H[sleep(delay)]
+    G --> H
+    H --> I[attempt++]
+    I --> B
+    B -->|网络异常| J{已达最大<br>重试次数?}
+    J -->|是| K[抛出异常]
+    J -->|否| L[sleep → 重试]
+    L --> B
 ```
 
 ### 4.3 关键设计决策
@@ -240,34 +224,20 @@ EOF
 
 当 LLM API 返回 429 Too Many Requests 时，说明请求频率超过了服务商的配额限制。`fetchWithRetry` 会优先使用响应头的 `Retry-After` 字段决定等待时间。
 
-```
-用户                    my-easy-pi                   DeepSeek API
- │                        │                          │
- │   prompt("翻译这段")    │                          │
- │───────────────────────▶│                          │
- │                        │  fetch(chat/completions)  │
- │                        │ ─────────────────────────▶│
- │                        │                          │
- │                        │  ◀── 429 Too Many ────────│
- │                        │       Requests            │
- │                        │       Retry-After: 5      │
- │                        │                          │
- │                        │  ┌────────────────────┐   │
- │                        │  │ 读取 Retry-After   │   │
- │                        │  │ 等待 5 秒...       │   │
- │                        │  └────────────────────┘   │
- │                        │                          │
- │   [显示: 等待中...]     │                          │
- │◀───────────────────────│                          │
- │                        │  fetch(chat/completions)  │
- │                        │  ─────────────────────────▶│
- │                        │                          │
- │                        │  ◀── 200 OK ──────────────│
- │                        │       { choices: [...] }  │
- │                        │                          │
- │   [显示: 翻译结果]      │                          │
- │◀───────────────────────│                          │
- │                        │                          │
+```mermaid
+sequenceDiagram
+    participant 用户
+    participant my_easy_pi as my-easy-pi
+    participant DeepSeek_API as DeepSeek API
+
+    用户->>my_easy_pi: prompt("翻译这段")
+    my_easy_pi->>DeepSeek_API: fetch(chat/completions)
+    DeepSeek_API-->>my_easy_pi: 429 Too Many Requests<br>Retry-After: 5
+    Note over my_easy_pi: 读取 Retry-After<br>等待 5 秒...
+    my_easy_pi-->>用户: [显示: 等待中...]
+    my_easy_pi->>DeepSeek_API: fetch(chat/completions)
+    DeepSeek_API-->>my_easy_pi: 200 OK<br>{ choices: [...] }
+    my_easy_pi-->>用户: [显示: 翻译结果]
 ```
 
 **关键行为**：如果 LLM 没有返回 `Retry-After`，代码会使用指数退避默认值（第 1 次重试等 1 秒，第 2 次等 2 秒，第 3 次等 4 秒）。
@@ -276,22 +246,18 @@ EOF
 
 当 LLM API 返回 502 Bad Gateway 时，说明上游服务器暂时不可用。这通常发生在服务部署或流量高峰期间，是临时性问题。
 
-```
-  fetch 请求 ────▶  502 Bad Gateway
-                        │
-                  attempt = 1 (第 1 次重试)
-                        │
-                  sleep(1000ms)   ← 指数退避 2^0 * 1000
-                        │
-  fetch 请求 ────▶  502 Bad Gateway  (仍然失败)
-                        │
-                  attempt = 2 (第 2 次重试)
-                        │
-                  sleep(2000ms)   ← 指数退避 2^1 * 1000
-                        │
-  fetch 请求 ────▶  200 OK           (恢复成功)
-                        │
-                  返回 response
+```mermaid
+flowchart TD
+    A[fetch 请求] --> B[502 Bad Gateway]
+    B --> C[attempt = 1<br>第 1 次重试]
+    C --> D[sleep(1000ms)<br>指数退避 2^0 * 1000]
+    D --> E[fetch 请求]
+    E --> F[502 Bad Gateway<br>仍然失败]
+    F --> G[attempt = 2<br>第 2 次重试]
+    G --> H[sleep(2000ms)<br>指数退避 2^1 * 1000]
+    H --> I[fetch 请求]
+    I --> J[200 OK<br>恢复成功]
+    J --> K[返回 response]
 ```
 
 **与 429 的区别**：502 不会使用 `Retry-After` 头，统一用指数退避计算等待时间。如果三次重试都失败，`fetchWithRetry` 会返回最后一个 502 响应，由上层调用方决定如何处理。
@@ -300,22 +266,19 @@ EOF
 
 网络抖动是客户端到 API 服务之间的瞬时不稳定，表现为 `fetch` 抛出异常（而非返回 HTTP 响应）。这是 `fetchWithRetry` 的 `try/catch` 分支处理的场景。
 
-```
-  正常网络流                    网络抖动
-      │                          │
-      │                          │
-  ┌───── 请求 ─────┐        ┌───── 请求 ─────┐
-  │  响应 (200 OK) │        │  连接断开 ❌    │
-  └────────────────┘        └────────────────┘
-                                      │
-                              捕获 TypeError
-                              "fetch failed"
-                                      │
-                              sleep(1000ms)
-                                      │
-                              ┌───── 请求 ─────┐
-                              │  响应 (200 OK) │
-                              └────────────────┘
+```mermaid
+flowchart TD
+    subgraph 正常网络流
+        A1[请求] --> B1[响应 200 OK]
+    end
+
+    subgraph 网络抖动
+        A2[请求] --> B2[连接断开 ❌]
+        B2 --> C2[捕获 TypeError<br>"fetch failed"]
+        C2 --> D2[sleep(1000ms)]
+        D2 --> E2[请求]
+        E2 --> F2[响应 200 OK]
+    end
 ```
 
 **网络错误 vs HTTP 错误的关键区别**：

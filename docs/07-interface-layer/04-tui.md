@@ -41,16 +41,15 @@ TUI 使用终端的 alternate screen 缓冲区（通过 `\x1b[?1049h` 进入，`
 
 ### 3.2 演进历程
 
-```
-早期（src/interface/tui/）             现在（src/tui/）
-┌─────────────────────┐            ┌─────────────────────────┐
-│ 5 个小模块（~200 行）│   重构→    │ 独立 TUI 框架（26 文件）│
-│ index/editor/       │            │ component/terminal/    │
-│ renderer/commands/  │            │ screen-buffer/csi2026  │
-│ theme               │            │ renderer-main/alt/     │
-│                     │            │ layout/ components/    │
-└─────────────────────┘            └─────────────────────────┘
-  依赖 readline 流式打印                零依赖 · 差分渲染 · 无闪烁
+```mermaid
+graph TB
+    E[早期<br/>src/interface/tui/<br/>5 个小模块（~200 行）<br/>index/editor/renderer/commands/theme]
+    N[现在<br/>src/tui/<br/>独立 TUI 框架（26 文件）<br/>component/terminal/screen-buffer/csi2026/renderer-main/alt/layout/components]
+
+    E -->|重构→| N
+
+    style E fill:#f5f5f5,stroke:#666
+    style N fill:#e3f2fd,stroke:#1565c0
 ```
 
 ### 3.3 分层架构

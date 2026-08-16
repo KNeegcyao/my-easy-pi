@@ -21,40 +21,24 @@ Agent 层将 AI 层（统一 LLM 接口）和工具层（文件系统等操作�
 
 ## 架构图
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Agent 层                              │
-│                                                         │
-│  ┌──────────────┐    ┌──────────────────┐               │
-│  │  MessageQueue │    │   AgentState     │               │
-│  │  (steering/   │◄───│   (状态管理)      │               │
-│  │   follow-up)  │    └──────────────────┘               │
-│  └──────┬───────┘                                       │
-│         │ 队列消息                               │
-│         ▼                                       │
-│  ┌──────────────────────────────────────────────┐│
-│  │           Agent Loop (loop.ts)               ││
-│  │                                              ││
-│  │  prompt() → runLoop() → processLLMStream()   ││
-│  │                 ↓                            ││
-│  │            executeToolCalls()                ││
-│  │                 ↓                            ││
-│  │            runLoop() 继续循环                 ││
-│  └──────────────────────────────────────────────┘│
-│         │                                        │
-│         ▼                                        │
-│  ┌──────────────────┐   ┌──────────────────────┐│
-│  │  Event System    │   │  PermissionManager   ││
-│  │  (emit/subscribe)│   │  (权限检查)           ││
-│  └──────────────────┘   └──────────────────────┘│
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-         │                        │
-         ▼                        ▼
-  ┌─────────────┐         ┌──────────────┐
-  │   AI 层     │         │  工具层      │
-  │  (LLM 调用) │         │  (工具执行)   │
-  └─────────────┘         └──────────────┘
+```mermaid
+graph TB
+    subgraph Agent层
+        MQ[MessageQueue<br/>steering/follow-up]
+        AS[AgentState<br/>状态管理]
+        AL[Agent Loop<br/>loop.ts<br/>prompt → runLoop → processLLMStream<br/>↓<br/>executeToolCalls<br/>↓<br/>runLoop 继续循环]
+        ES[Event System<br/>emit/subscribe]
+        PM[PermissionManager<br/>权限检查]
+    end
+    AI[AI层<br/>LLM调用]
+    TL[工具层<br/>工具执行]
+
+    AS --> MQ
+    MQ -->|队列消息| AL
+    AL --> ES
+    AL --> PM
+    AL --> AI
+    AL --> TL
 ```
 
 ## 文件列表

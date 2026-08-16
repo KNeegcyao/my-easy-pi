@@ -25,11 +25,14 @@
 
 如果你阅读了上一章中"用手机 App 来理解扩展"的类比，那么 `ExtensionLoader` 的角色就相当于**手机的开机启动过程**：
 
-```
-手机开机 ──► 系统扫描已安装的 App 列表 ──► 逐个启动 App
-    │                                          │
-    ▼                                          ▼
-my-easy-pi 启动 ──► ExtensionLoader 扫描目录 ──► 逐个加载扩展
+```mermaid
+flowchart TD
+    A[手机开机] --> B[系统扫描已安装的 App 列表]
+    B --> C[逐个启动 App]
+    A -.-> D[my-easy-pi 启动]
+    D --> E[ExtensionLoader 扫描目录]
+    E --> F[逐个加载扩展]
+    C -.-> F
 ```
 
 具体对应关系：
@@ -48,31 +51,22 @@ my-easy-pi 启动 ──► ExtensionLoader 扫描目录 ──► 逐个加载�
 
 ### 3.2 扩展加载器的工作流程
 
-```
-loadAll() 被调用
-    │
-    ▼
-getSearchDirs() 获取搜索目录列表
-    │
-    ├── 1. 项目目录:  {projectDir}/.pi/extensions/
-    ├── 2. 全局目录:  ~/.my-easy-pi/extensions/
-    │
-    ▼
-遍历每个目录，跳过不存在的目录
-    │
-    ▼
-loadDir() 读取目录下的所有文件
-    │
-    ├── 过滤 .ts / .js 文件
-    ├── 跳过已加载的文件（去重）
-    │
-    ▼
-对每个文件执行 import() 动态导入
-    │
-    ├── 检查 default 导出是否为函数
-    ├── 调用函数，传入 ExtensionAPI 实例
-    ├── 加载成功 → count++
-    └── 加载失败 → 捕获异常，继续下一个
+```mermaid
+flowchart TD
+    A[loadAll() 被调用] --> B[getSearchDirs() 获取搜索目录列表]
+    B --> C1["1. 项目目录: {projectDir}/.pi/extensions/"]
+    B --> C2["2. 全局目录: ~/.my-easy-pi/extensions/"]
+    C1 --> D[遍历每个目录，跳过不存在的目录]
+    C2 --> D
+    D --> E[loadDir() 读取目录下的所有文件]
+    E --> F1[过滤 .ts / .js 文件]
+    E --> F2[跳过已加载的文件（去重）]
+    F1 --> G[对每个文件执行 import() 动态导入]
+    F2 --> G
+    G --> H1[检查 default 导出是否为函数]
+    G --> H2[调用函数，传入 ExtensionAPI 实例]
+    G --> H3[加载成功 → count++]
+    G --> H4[加载失败 → 捕获异常，继续下一个]
 ```
 
 ### 3.3 加载优先级
@@ -336,80 +330,57 @@ private async loadDir(dir: string): Promise<number> {
 
 结合上一章的 `ExtensionAPI`，一个扩展从文件到可用的完整过程如下：
 
-```
-启动时                      ExtensionLoader                 扩展文件                 ExtensionAPI
-  │                             │                             │                       │
-  │  loadAll()                  │                             │                       │
-  ├────────────────────────────►│                             │                       │
-  │                             │                             │                       │
-  │                             ├── getSearchDirs()           │                       │
-  │                             │  返回 [".pi/extensions/",    │                       │
-  │                             │         "~/.my-easy-pi/ext/"]  │                       │
-  │                             │                             │                       │
-  │                             ├── loadDir(".pi/extensions") │                       │
-  │                             │                             │                       │
-  │                             ├── readdir() ──────────────►│                       │
-  │                             │◄──── [hello.ts, ...] ─────┤                       │
-  │                             │                             │                       │
-  │                             ├── file.endsWith('.ts')  ✓   │                       │
-  │                             │                             │                       │
-  │                             ├── loaded.has("hello.ts") ✗  │    （去重检查通过）     │
-  │                             │                             │                       │
-  │                             ├── import("./hello.ts") ───►│                       │
-  │                             │◄── { default: function } ──┤                       │
-  │                             │                             │                       │
-  │                             ├── typeof default === 'function'  ✓                 │
-  │                             │                             │                       │
-  │                             ├── default(api) ────────────►│                       │
-  │                             │                             ├── registerTool() ────►│
-  │                             │                             │                       ├── ToolRegistry
-  │                             │                             │                       │
-  │                             │                             ├── registerCommand() ──►│
-  │                             │                             │                       ├── commands Map
-  │                             │                             │                       │
-  │                             │                             ├── on() ──────────────►│
-  │                             │                             │                       ├── Agent.subscribe
-  │                             │                             │                       │
-  │                             │◄── 扩展初始化完成 ────────┤                       │
-  │                             │                             │                       │
-  │                             ├── count = 1                  │                       │
-  │                             │                             │                       │
-  │◄── 返回 1（加载成功数） ───┤                             │                       │
-  │                             │                             │                       │
-  │  （Agent 开始运行）          │                             │                       │
-  │                             │                             │                       │
-  │  LLM 调用 "hello" 工具      │                             │                       │
-  ├─────────────────────────────────────────────────────────────────────────────────►│
-  │                             │                             │   （从 ToolRegistry    │
-  │                             │                             │    查找并执行工具）    │
-  │◄── "你好，xxx！" ─────────┤                             │                       │
+```mermaid
+sequenceDiagram
+    participant 启动时
+    participant ExtensionLoader
+    participant 扩展文件
+    participant ExtensionAPI
+
+    启动时->>ExtensionLoader: loadAll()
+    Note over ExtensionLoader: getSearchDirs()<br/>返回 [".pi/extensions/",<br/>"~/.my-easy-pi/ext/"]
+    Note over ExtensionLoader: loadDir(".pi/extensions")
+    ExtensionLoader->>扩展文件: readdir()
+    扩展文件-->>ExtensionLoader: [hello.ts, ...]
+    Note over ExtensionLoader: file.endsWith('.ts') ✓
+    Note over ExtensionLoader: loaded.has("hello.ts") ✗<br/>（去重检查通过）
+    ExtensionLoader->>扩展文件: import("./hello.ts")
+    扩展文件-->>ExtensionLoader: { default: function }
+    Note over ExtensionLoader: typeof default === 'function' ✓
+    ExtensionLoader->>扩展文件: default(api)
+    扩展文件->>ExtensionAPI: registerTool()
+    Note over ExtensionAPI: ToolRegistry
+    扩展文件->>ExtensionAPI: registerCommand()
+    Note over ExtensionAPI: commands Map
+    扩展文件->>ExtensionAPI: on()
+    Note over ExtensionAPI: Agent.subscribe
+    扩展文件-->>ExtensionLoader: 扩展初始化完成
+    Note over ExtensionLoader: count = 1
+    ExtensionLoader-->>启动时: 返回 1（加载成功数）
+    Note over 启动时: （Agent 开始运行）
+    启动时->>ExtensionAPI: LLM 调用 "hello" 工具
+    Note over ExtensionAPI: （从 ToolRegistry<br/>查找并执行工具）
+    ExtensionAPI-->>启动时: "你好，xxx！"
 ```
 
 #### 4.3.1 加载阶段的容错流程
 
-```
-loadDir(dir)
-    │
-    ├── try:
-    │     ├── readdir(dir)         ← 可能失败（目录不存在、无权限）
-    │     │     └── 失败 → catch → 返回 0（跳过该目录）
-    │     │
-    │     ├── for each file:
-    │     │     ├── 过滤非 .ts/.js  ← 不报错，直接跳过
-    │     │     ├── 去重检查        ← 跳过已加载文件
-    │     │     │
-    │     │     ├── try:
-    │     │     │     ├── import()  ← 可能失败（语法错误、依赖缺失）
-    │     │     │     ├── 检查 default 导出 ← 非函数则跳过（不报错）
-    │     │     │     └── 执行 default()    ← 可能失败（扩展内部错误）
-    │     │     │
-    │     │     └── catch:          ← 静默捕获，继续下一个文件
-    │     │           跳过此文件，不影响其他扩展
-    │     │
-    │     └── 返回 count
-    │
-    └── catch:
-          跳过此目录，继续下一个搜索目录
+```mermaid
+flowchart TD
+    A[loadDir(dir)] --> B[try:]
+    B --> C[readdir(dir)]
+    C -->|"可能失败（目录不存在、无权限）"| D[catch]
+    D --> E[返回 0（跳过该目录）]
+    B --> F[for each file:]
+    F --> G[过滤非 .ts/.js<br/>不报错，直接跳过]
+    F --> H[去重检查<br/>跳过已加载文件]
+    F --> I[try:]
+    I --> J[import()<br/>可能失败（语法错误、依赖缺失）]
+    I --> K[检查 default 导出<br/>非函数则跳过（不报错）]
+    I --> L[执行 default()<br/>可能失败（扩展内部错误）]
+    I --> M[catch:<br/>静默捕获，继续下一个文件<br/>跳过此文件，不影响其他扩展]
+    B --> N[返回 count]
+    A --> O[catch:<br/>跳过此目录，继续下一个搜索目录]
 ```
 
 ## 5. 运行与验证

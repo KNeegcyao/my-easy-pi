@@ -38,14 +38,13 @@ version: 1.0.0
 
 ### 3.2 三级风险等级
 
-```
-SAFE          ──→ 直接放行
-  │
-  ▼
-NORMAL        ──→ 需要用户确认
-  │
-  ▼
-DANGEROUS     ──→ 需要用户确认（显示红色警告）
+```mermaid
+flowchart TD
+    SAFE -->|直接放行| A[直接放行]
+    SAFE --> NORMAL
+    NORMAL -->|需要用户确认| B[用户确认]
+    NORMAL --> DANGEROUS
+    DANGEROUS -->|需要用户确认<br/>显示红色警告| B
 ```
 
 ## 4. 代码实现
@@ -138,22 +137,19 @@ export class PermissionManager {
 
 **检查流程：**
 
-```
-check(ctx) 被调用
-    │
-    ├── 工具不是 bash？→ 放行（return undefined）
-    │
-    ├── 命令是 SAFE 等级？→ 放行
-    │
-    ├── 命令已在缓存中？→ 放行
-    │
-    ├── 非 TTY 环境？→ 拒绝（block: true）
-    │
-    └── TTY 环境 → 提示用户确认
-            │
-            ├── 用户确认 → 加入缓存 → 放行
-            │
-            └── 用户拒绝 → 拒绝
+```mermaid
+flowchart TD
+    A[check(ctx) 被调用] --> B{工具不是 bash?}
+    B -->|是| C[放行<br/>return undefined]
+    B -->|否| D{命令是 SAFE 等级?}
+    D -->|是| C
+    D -->|否| E{命令已在缓存中?}
+    E -->|是| C
+    E -->|否| F{非 TTY 环境?}
+    F -->|是| G[拒绝<br/>block: true]
+    F -->|否| H[提示用户确认]
+    H -->|用户确认| I[加入缓存] --> C
+    H -->|用户拒绝| G
 ```
 
 ### 4.3 风险等级评估

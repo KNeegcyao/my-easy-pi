@@ -30,35 +30,22 @@ Print 模式的核心是 **增量输出**：每次收到 `message_update` 事件
 
 为了直观理解增量输出的过程，以下是 `message_update` 事件的时序图：
 
-```
-时间 ──────────────────────────────────────────────►
-                                                    
- Client                              LLM Agent                    
-   │                                     │                         
-   │  发送消息                            │                         
-   │─────────────────────────────────────►│                         
-   │                                     │                         
-   │     ◄─── message_start ─────────────│                         
-   │     重置 lastContentLength = 0      │                         
-   │                                     │                         
-   │     ◄─── message_update ────────────│                         
-   │     content = "De"                  │                         
-   │     newPart = content.slice(0)      │  输出 "De"              
-   │     lastContentLength = 2           │                         
-   │                                     │                         
-   │     ◄─── message_update ────────────│                         
-   │     content = "Design"              │                         
-   │     newPart = content.slice(2)      │  输出 "sign"            
-   │     lastContentLength = 6           │                         
-   │                                     │                         
-   │     ◄─── message_update ────────────│                         
-   │     content = "Design Patterns"     │                         
-   │     newPart = content.slice(6)      │  输出 " Patterns"       
-   │     lastContentLength = 20          │                         
-   │                                     │                         
-   │     ◄─── message_end ───────────────│                         
-   │     输出 EOL + EOL                  │                         
-   │                                     │                         
+```mermaid
+sequenceDiagram
+    participant Client
+    participant LLM Agent
+
+    Client->>LLM Agent: 发送消息
+    LLM Agent-->>Client: message_start
+    Note over Client: 重置 lastContentLength = 0
+    LLM Agent-->>Client: message_update
+    Note over Client: content = "De"<br/>newPart = content.slice(0)<br/>lastContentLength = 2<br/>输出 "De"
+    LLM Agent-->>Client: message_update
+    Note over Client: content = "Design"<br/>newPart = content.slice(2)<br/>lastContentLength = 6<br/>输出 "sign"
+    LLM Agent-->>Client: message_update
+    Note over Client: content = "Design Patterns"<br/>newPart = content.slice(6)<br/>lastContentLength = 20<br/>输出 " Patterns"
+    LLM Agent-->>Client: message_end
+    Note over Client: 输出 EOL + EOL
 ```
 
 ### 3.2 `lastContentLength` 的工作原理（类比理解）
@@ -96,16 +83,13 @@ Print 模式订阅了四个事件：
 
 ### 3.5 标准流分离
 
-```
-                        ┌─────────────┐
-        正常输出 ──────►│   stdout    │──────► 终端显示
-                        │    (fd 1)   │          │
-                        └─────────────┘          │
-                                                 ▼
-                        ┌─────────────┐     管道传递
-        错误信息 ──────►│   stderr    │──────► 终端显示（不进入管道）
-                        │    (fd 2)   │
-                        └─────────────┘
+```mermaid
+graph TB
+    A[正常输出] --> B[stdout<br/>(fd 1)]
+    B --> C[终端显示]
+    B --> D[管道传递]
+    E[错误信息] --> F[stderr<br/>(fd 2)]
+    F --> G[终端显示（不进入管道）]
 ```
 
 - **stdout**（文件描述符 1）：Agent 的正常输出内容

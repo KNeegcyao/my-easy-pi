@@ -38,39 +38,50 @@
 
 ## 2. 分层架构
 
-```
-┌─────────────────────────────────────────────────┐
-│  src/cli.ts                                     │  组装：选择模式、注入回调
-├─────────────────────────────────────────────────┤
-│  src/interface/                                 │  四种并列输出模式
-│    ├── print.ts    (stdout 增量)                │
-│    ├── json.ts     (JSONL)                      │
-│    ├── rpc.ts      (stdio JSON)                 │
-│    └── tui/        ← 本次重构对象               │
-│         ├── interactive-mode.ts  (业务组合层)   │  ← 业务侧只用 TUI 接口
-│         └── components/          (业务组件)     │     transcript / statusbar 等
-├─────────────────────────────────────────────────┤
-│  src/tui/                                       │  TUI 框架（与业务解耦）
-│    ├── component.ts    Component/TUI 接口       │
-│    ├── terminal.ts     终端能力探测 + 写入      │
-│    ├── screen-buffer.ts 行缓冲 + diff           │
-│    ├── csi2026.ts      同步输出（无闪烁）       │
-│    ├── renderer-main.ts TuiMainScreen           │
-│    ├── renderer-alt.ts  TuiAltScreen            │
-│    ├── layout/         VStack/HStack/ScrollView │
-│    └── components/     Text/Markdown/Editor/... │
-├─────────────────────────────────────────────────┤
-│  src/agent/                                     │  核心循环（无 UI 泄漏）⭐
-│    ├── loop.ts      Agent.emit → AgentEvent     │
-│    ├── state.ts     AgentState                  │
-│    ├── queue.ts                                 │
-│    ├── permission.ts 通过注入回调询问           │  ← Phase 1.1 重点
-│    └── types.ts                                 │
-├─────────────────────────────────────────────────┤
-│  src/ai/    src/tools/    src/session/  ...     │  底层服务
-└─────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph CLI["src/cli.ts"]
+        C1["组装：选择模式、注入回调"]
+    end
 
-依赖方向：只能向下。上层 import 下层，反之禁止。
+    subgraph Interface["src/interface/"]
+        I1["print.ts (stdout 增量)"]
+        I2["json.ts (JSONL)"]
+        I3["rpc.ts (stdio JSON)"]
+        I4["tui/ ← 本次重构对象"]
+        I5["interactive-mode.ts (业务组合层)<br/>← 业务侧只用 TUI 接口"]
+        I6["components/ (业务组件)<br/>transcript / statusbar 等"]
+    end
+
+    subgraph TUI["src/tui/"]
+        T1["component.ts — Component/TUI 接口"]
+        T2["terminal.ts — 终端能力探测 + 写入"]
+        T3["screen-buffer.ts — 行缓冲 + diff"]
+        T4["csi2026.ts — 同步输出（无闪烁）"]
+        T5["renderer-main.ts — TuiMainScreen"]
+        T6["renderer-alt.ts — TuiAltScreen"]
+        T7["layout/ — VStack/HStack/ScrollView"]
+        T8["components/ — Text/Markdown/Editor/..."]
+    end
+
+    subgraph Agent["src/agent/"]
+        A1["loop.ts — Agent.emit → AgentEvent"]
+        A2["state.ts — AgentState"]
+        A3["queue.ts"]
+        A4["permission.ts — 通过注入回调询问<br/>← Phase 1.1 重点"]
+        A5["types.ts"]
+    end
+
+    subgraph Services["底层服务"]
+        S1["src/ai/"]
+        S2["src/tools/"]
+        S3["src/session/"]
+    end
+
+    CLI --> Interface
+    Interface --> TUI
+    TUI --> Agent
+    Agent --> Services
 ```
 
 ---
@@ -128,20 +139,12 @@ export interface TUI {
 
 ## 4. 渲染管线
 
-```
-组件层（render(width) → string[]）
-        │
-        ▼
-layout 树（仅 alt screen 模式重组）
-        │
-        ▼
-ScreenBuffer.present(lines)         # 行 diff
-        │
-        ▼
-CSI 2026 帧（beginSync → 光标 + 覆写 → endSync）
-        │
-        ▼
-Terminal.write / flush
+```mermaid
+flowchart TD
+    Comp["组件层（render(width) → string[]）"] --> Layout["layout 树（仅 alt screen 模式重组）"]
+    Layout --> ScreenBuf["ScreenBuffer.present(lines) — 行 diff"]
+    ScreenBuf --> CSI["CSI 2026 帧（beginSync → 光标 + 覆写 → endSync）"]
+    CSI --> Term["Terminal.write / flush"]
 ```
 
 关键约束：

@@ -12,20 +12,15 @@ version: 1.0.0
 
 在 my-easy-pi 整体架构中，会话层处于 **CLI/接口层** 和 **Agent 核心** 之间，为整个系统提供"记忆"能力。
 
-```
-用户输入/输出
-      │
-      ▼
-┌─────────────────────────────────────────────┐
-│          CLI / 接口层 (cli.ts)               │
-│  (解析参数、调用 Agent、展示输出)            │
-├─────────────────────────────────────────────┤
-│          会话层 (session/)                   │◄── 本章重点
-│  (持久化、恢复、上下文压缩)                   │
-├─────────────────────────────────────────────┤
-│          Agent 核心 (agent/)                 │
-│  (Agent Loop、LLM 调用、工具执行)            │
-└─────────────────────────────────────────────┘
+```mermaid graph TB
+    User["用户输入/输出"]
+    CLI["CLI / 接口层 (cli.ts)<br/>解析参数、调用 Agent、展示输出"]
+    Session["会话层 (session/)<br/>持久化、恢复、上下文压缩<br/>本章重点"]
+    Agent["Agent 核心 (agent/)<br/>Agent Loop、LLM 调用、工具执行"]
+
+    User --> CLI
+    CLI --> Session
+    Session --> Agent
 ```
 
 每次 Agent Loop 产生新消息时，会话层自动将消息写入磁盘；当用户通过 `-c` 恢复会话时，会话层从 JSONL 文件读取历史消息，再通过 Compactor 压缩后交给 Agent Loop。
@@ -53,54 +48,50 @@ version: 1.0.0
 
 ### 会话层与 Agent Loop 的交互流程
 
-```
-  CLI 启动
-     │
-     ├── 新会话 (-m "你好")             用户用 -c 继续上次会话
-     │      │                                   │
-     │      ▼                                   ▼
-     │  SessionManager.createSession()    SessionManager.loadSession(sessionId)
-     │      │                                   │
-     │      ▼                                   ▼
-     │  Storage.writeMessages([meta])     Storage.readMessages(jsonlFilePath)
-     │      │                                   │
-     └──────┼───────────────────────────────────┘
-            │
-            ▼
-     Agent Loop 开始
-            │
-     ┌──────┴──────┐
-     │  Compactor   │◄── 压缩历史消息，控制上下文大小
-     │  compact()  │
-     └──────┬──────┘
-            │
-            ▼
-        发给 LLM
-            │
-            ▼
-      LLM 返回响应 / 触发工具调用
-            │
-            ▼
-     SessionManager.saveMessage(msg)
-            │
-            ▼
-     Storage.appendMessage(jsonlFile, msg)
-            │
-            ▼
-     Agent Loop 继续 / 结束
+```mermaid sequenceDiagram
+    participant CLI as CLI
+    participant SM as SessionManager
+    participant Storage as Storage
+    participant Agent as Agent Loop
+    participant LLM as LLM
+
+    alt 新会话 (-m "你好")
+        CLI->>SM: createSession()
+        SM->>Storage: writeMessages([meta])
+    else 用户用 -c 继续上次会话
+        CLI->>SM: loadSession(sessionId)
+        SM->>Storage: readMessages(jsonlFilePath)
+    end
+
+    Note over Agent: Agent Loop 开始
+    Agent->>Agent: Compactor.compact()<br/>压缩历史消息，控制上下文大小
+    Agent->>LLM: 发给 LLM
+    LLM-->>Agent: 返回响应 / 触发工具调用
+    Agent->>SM: saveMessage(msg)
+    SM->>Storage: appendMessage(jsonlFile, msg)
+    Note over Agent: Agent Loop 继续 / 结束
 ```
 
 ### 数据流向（三阶段）
 
-```
-阶段一：启动时读取
-  JSONL 文件 ──→ Storage.readMessages() ──→ Compactor.compact() ──→ Agent Loop
+```mermaid flowchart TD
+    subgraph 阶段一["阶段一：启动时读取"]
+        S1["JSONL 文件"] --> S2["Storage.readMessages()"]
+        S2 --> S3["Compactor.compact()"]
+        S3 --> S4["Agent Loop"]
+    end
 
-阶段二：运行时写入
-  Agent Loop ──→ saveMessage() ──→ Storage.appendMessage() ──→ JSONL 文件
+    subgraph 阶段二["阶段二：运行时写入"]
+        R1["Agent Loop"] --> R2["saveMessage()"]
+        R2 --> R3["Storage.appendMessage()"]
+        R3 --> R4["JSONL 文件"]
+    end
 
-阶段三：查看历史
-  CLI -l ──→ SessionManager.listSessions() ──→ Storage.listSessions() ──→ 会话列表
+    subgraph 阶段三["阶段三：查看历史"]
+        H1["CLI -l"] --> H2["SessionManager.listSessions()"]
+        H2 --> H3["Storage.listSessions()"]
+        H3 --> H4["会话列表"]
+    end
 ```
 
 ## 文件列表
@@ -137,12 +128,17 @@ JSONL（JSON Lines）是每行一个 JSON 对象的文本格式。my-easy-pi 选
 
 每条消息都携带 `id` 和 `parentId` 字段，形成一棵对话树：
 
-```
-meta (id: 'meta', parentId: null)
-  └─ user 消息 (id: 'msg-1', parentId: 'meta')
-       └─ assistant 回复 (id: 'msg-2', parentId: 'msg-1')
-            └─ tool 结果 (id: 'msg-3', parentId: 'msg-2')
-                 └─ assistant 最终回复 (id: 'msg-4', parentId: 'msg-3')
+```mermaid graph TB
+    meta["meta (id: 'meta', parentId: null)"]
+    msg1["user 消息 (id: 'msg-1', parentId: 'meta')"]
+    msg2["assistant 回复 (id: 'msg-2', parentId: 'msg-1')"]
+    msg3["tool 结果 (id: 'msg-3', parentId: 'msg-2')"]
+    msg4["assistant 最终回复 (id: 'msg-4', parentId: 'msg-3')"]
+
+    meta --> msg1
+    msg1 --> msg2
+    msg2 --> msg3
+    msg3 --> msg4
 ```
 
 这种设计支持对话分支 -- 如果用户想"回到某个节点重新开始"，只需指定不同的 parentId。

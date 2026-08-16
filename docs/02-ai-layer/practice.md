@@ -53,46 +53,40 @@
 
 **参考格式：**
 
-```
-┌──────────────────────────────────────────────┐
-│              <<interface>>                   │
-│              ProviderFactory                 │
-│──────────────────────────────────────────────│
-│ + create(config): ProviderInstance           │
-└──────────────────────────────────────────────┘
-          ▲           implements
-          │
-┌──────────────────────────────────────────────┐
-│         AnthropicProvider (const)            │
-│──────────────────────────────────────────────│
-│ + create(config): { name, listModels, ... }  │
-└──────────────────────────────────────────────┘
-          │ 创建
-          ▼
-┌──────────────────────────────────────────────┐
-│              <<interface>>                   │
-│                 Model                        │
-│──────────────────────────────────────────────│
-│ + id: string                                 │
-│ + provider: string                           │
-│ + stream(context): AsyncIterable<LLMEvent>   │
-│ + supportsTools(): boolean                   │
-│ + supportsThinking(): boolean                │
-└──────────────────────────────────────────────┘
-          ▲           implements
-          │
-┌──────────────────────────────────────────────┐
-│           AnthropicModel (class)             │
-│──────────────────────────────────────────────│
-│ - apiKey: string                             │
-│ - baseUrl: string                            │
-│ + stream(context): AsyncIterable<LLMEvent>   │
-│ + supportsTools(): boolean                   │
-│ + supportsThinking(): boolean                │
-│ - buildRequestBody(context): object          │
-│ - parseSSELine(line): LLMEvent | null        │
-│ - convertAnthropicEvent(data): LLMEvent|null │
-└──────────────────────────────────────────────┘
+```mermaid
+classDiagram
+    class ProviderFactory {
+        <<interface>>
+        +create(config) ProviderInstance
+    }
+
+    class AnthropicProvider {
+        +create(config) ~name, listModels, ...~
+    }
+
+    class Model {
+        <<interface>>
+        +id string
+        +provider string
+        +stream(context) AsyncIterable~LLMEvent~
+        +supportsTools() boolean
+        +supportsThinking() boolean
+    }
+
+    class AnthropicModel {
+        -apiKey string
+        -baseUrl string
+        +stream(context) AsyncIterable~LLMEvent~
+        +supportsTools() boolean
+        +supportsThinking() boolean
+        -buildRequestBody(context) object
+        -parseSSELine(line) LLMEvent|null
+        -convertAnthropicEvent(data) LLMEvent|null
+    }
+
+    ProviderFactory <|.. AnthropicProvider : implements
+    AnthropicProvider ..> Model : 创建
+    Model <|.. AnthropicModel : implements
 ```
 
 ---

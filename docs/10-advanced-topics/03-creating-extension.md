@@ -20,23 +20,26 @@
 
 ### 扩展系统架构
 
-```
-┌─────────────────────────────────────┐
-│  扩展文件 (.pi/extensions/*.ts)      │
-│  ── 默认导出函数，接收 ExtensionAPI  │
-├─────────────────────────────────────┤
-│  ExtensionAPI                       │
-│  ── registerTool()  注册工具         │
-│  ── unregisterTool() 注销工具        │
-│  ── registerCommand() 注册命令       │
-│  ── on() 监听 Agent 事件             │
-├─────────────────────────────────────┤
-│  ExtensionLoader                    │
-│  ── 自动发现并加载扩展文件            │
-│  ── 搜索路径：                      │
-│    1. .pi/extensions/*.ts（项目级）   │
-│    2. ~/.my-easy-pi/extensions/*.ts（全局）│
-└─────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph 扩展文件["扩展文件 (.pi/extensions/*.ts)"]
+        E1["默认导出函数，接收 ExtensionAPI"]
+    end
+
+    subgraph ExtensionAPI["ExtensionAPI"]
+        A1["registerTool() 注册工具"]
+        A2["unregisterTool() 注销工具"]
+        A3["registerCommand() 注册命令"]
+        A4["on() 监听 Agent 事件"]
+    end
+
+    subgraph ExtensionLoader["ExtensionLoader"]
+        L1["自动发现并加载扩展文件"]
+        L2["搜索路径：<br/>1. .pi/extensions/*.ts（项目级）<br/>2. ~/.my-easy-pi/extensions/*.ts（全局）"]
+    end
+
+    扩展文件 --> ExtensionAPI
+    ExtensionAPI --> ExtensionLoader
 ```
 
 ### 扩展能做什么

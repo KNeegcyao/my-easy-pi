@@ -31,24 +31,14 @@
 
 ### 3.2 组装式架构
 
-```
-                 ┌─────────────────────┐
-                 │    CLI 入口 (cli.ts)  │
-                 │    组装所有模块        │
-                 └──────────┬──────────┘
-          ┌─────────────────┼─────────────────────┐
-          │                 │                     │
-          ▼                 ▼                     ▼
-    ┌──────────┐     ┌──────────┐          ┌──────────┐
-    │  Config   │     │  Model   │          │   Tool   │
-    │ Manager   │     │ Registry │          │ Registry │
-    └──────────┘     └──────────┘          └──────────┘
-          │                 │                     │
-          ▼                 ▼                     ▼
-    ┌──────────┐     ┌──────────┐          ┌──────────┐
-    │ Session  │     │  Agent   │          │Interface │
-    │ Manager  │     │  核心     │          │  TUI/Print│
-    └──────────┘     └──────────┘          └──────────┘
+```mermaid
+graph TB
+    CLI["CLI 入口 (cli.ts)\n组装所有模块"] --> ConfigM["Config\nManager"]
+    CLI --> ModelR["Model\nRegistry"]
+    CLI --> ToolR["Tool\nRegistry"]
+    ConfigM --> SessionM["Session\nManager"]
+    ModelR --> Agent["Agent\n核心"]
+    ToolR --> Interface["Interface\nTUI/Print"]
 ```
 
 ### 3.3 初始化顺序的重要性

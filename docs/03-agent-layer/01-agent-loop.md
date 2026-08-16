@@ -42,64 +42,20 @@ Agent Loop 就像一家餐厅的运作流程：
 
 ### 3.2 核心循环流程
 
-```
-用户输入
-    │
-    ▼
-┌─────────────────────┐
-│  prompt()           │
-│  - 创建用户消息     │
-│  - 设置 streaming   │
-│  - 发射 agent_start │
-│  - 调用 runLoop()   │
-└─────────┬───────────┘
-          │
-          ▼
-┌─────────────────────┐
-│  runLoop()          │  ← ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
-│  (while true)       │                                                  │
-│                     │                                                  │
-│  1. 发射 turn_start │                                                  │
-│  2. 转换上下文      │                                                  │
-│  3. 转 LLM 消息格式 │                                                  │
-│  4. 构建 context    │                                                  │
-│  5. 调用 LLM 流     │                                                  │
-│  6. 创建 assistant  │                                                  │
-│     消息            │                                                  │
-│                     │                                                  │
-│  ┌─ 有 tool_call? ──┤                                                  │
-│  │        │         │                                                  │
-│  │  是    │  否     │                                                  │
-│  │        │         │                                                  │
-│  │        ▼         ▼                                                  │
-│  │  executeTool     │                                                  │
-│  │  Calls()         │ 检查队列                                         │
-│  │        │         │    │                                             │
-│  │        │         │ 有消息?  ─────────────────────────────────────────┘
-│  │        │         │    │
-│  │        │         │ 无消息
-│  │        │         │    │
-│  │        │         │    ▼
-│  │        │         │  break (结束)
-│  │        │         │
-│  │        ▼         │
-│  │  all terminate?  │
-│  │    │      │      │
-│  │  是    否 │      │
-│  │    │      │      │
-│  │    ▼      │      │
-│  │  break    └──────┘
-│  │          继续循环
-│  └──────────────────
-│
-▼
-┌─────────────────────┐
-│  prompt() 收尾      │
-│  - 发射 agent_end   │
-│  - 设置 isStreaming │
-│     = false          │
-│  - 触发 idleResolve │
-└─────────────────────┘
+```mermaid
+flowchart TD
+    A[用户输入] --> B[prompt<br/>- 创建用户消息<br/>- 设置 streaming<br/>- 发射 agent_start<br/>- 调用 runLoop]
+    B --> C[runLoop<br/>while true]
+    C --> D[1. 发射 turn_start<br/>2. 转换上下文<br/>3. 转 LLM 消息格式<br/>4. 构建 context<br/>5. 调用 LLM 流<br/>6. 创建 assistant 消息]
+    D --> E{有 tool_call?}
+    E -->|是| F[executeToolCalls]
+    E -->|否| G{检查队列<br/>有消息?}
+    G -->|有消息| C
+    G -->|无消息| H[break<br/>结束]
+    F --> I{all terminate?}
+    I -->|是| H
+    I -->|否| C
+    H --> J[prompt 收尾<br/>- 发射 agent_end<br/>- 设置 isStreaming = false<br/>- 触发 idleResolve]
 ```
 
 ## 4. 代码实现
