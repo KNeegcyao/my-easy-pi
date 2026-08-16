@@ -29,21 +29,23 @@
 - **工厂模式（ProviderFactory）** — 负责创建具体的 Model 实例，封装了创建逻辑
 - **注册表模式（ModelRegistry）** — 负责管理哪些工厂可用，提供查询和获取接口
 
-```
-┌──────────────────────────────────────────────┐
-│              ModelRegistry                    │
-│                                              │
-│  Map<string, ProviderFactory>                │
-│  ┌──────────┬──────────────────────────────┐ │
-│  │anthropic │ AnthropicProvider            │ │
-│  │deepseek  │ DeepSeekProvider             │ │
-│  │openai    │ OpenAIProvider               │ │
-│  └──────────┴──────────────────────────────┘ │
-│                                              │
-│  getModel("anthropic", "claude-sonnet-4")     │
-│    → factory.create(config).createModel(id)  │
-│    → AnthropicModel                          │
-└──────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph MR["ModelRegistry"]
+        MAP["Map<string, ProviderFactory>"]
+        A["anthropic → AnthropicProvider"]
+        D["deepseek → DeepSeekProvider"]
+        O["openai → OpenAIProvider"]
+        GM["getModel('anthropic', 'claude-sonnet-4')"]
+        FLOW["factory.create(config).createModel(id)"]
+        RESULT["AnthropicModel"]
+    end
+
+    MAP --> A
+    MAP --> D
+    MAP --> O
+    GM --> FLOW
+    FLOW --> RESULT
 ```
 
 ## 4. 代码实现

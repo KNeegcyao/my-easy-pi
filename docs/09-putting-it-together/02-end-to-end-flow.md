@@ -39,23 +39,26 @@ Agent Loop 在以下两种情况下结束：
 
 ### 3.3 事件流概览
 
-```
-用户输入
-  │
-  ▼
-agent_start ─────────────→ 订阅者(界面/日志/扩展)
-  │
-  ├→ turn_start ─────────→ 订阅者
-  │   ├→ message_update ─→ 订阅者 (流式输出)
-  │   ├→ message_end ────→ 订阅者 (assistant 回复完成)
-  │   ├→ tool_execution_start ─→ 订阅者
-  │   ├→ tool_execution_end ───→ 订阅者
-  │   └→ turn_end ───────→ 订阅者
-  │
-  ├→ turn_start (第二轮)
-  │   └→ ...
-  │
-  └→ agent_end ──────────→ 订阅者
+```mermaid
+flowchart TD
+    Input[用户输入] --> AgentStart[agent_start]
+    AgentStart --> Sub1[订阅者<br/>界面/日志/扩展]
+    AgentStart --> TurnStart[turn_start]
+    TurnStart --> SubTurn[订阅者]
+    TurnStart --> MsgUpdate[message_update]
+    MsgUpdate --> SubStream[订阅者 流式输出]
+    TurnStart --> MsgEnd[message_end]
+    MsgEnd --> SubAssist[订阅者 assistant回复完成]
+    TurnStart --> ToolExecStart[tool_execution_start]
+    ToolExecStart --> SubToolStart[订阅者]
+    TurnStart --> ToolExecEnd[tool_execution_end]
+    ToolExecEnd --> SubToolEnd[订阅者]
+    TurnStart --> TurnEnd[turn_end]
+    TurnEnd --> SubTurnEnd[订阅者]
+    AgentStart --> TurnStart2[turn_start 第二轮]
+    TurnStart2 --> Dot[...]
+    AgentStart --> AgentEnd1[agent_end]
+    AgentEnd1 --> SubEnd[订阅者]
 ```
 
 ## 4. 代码实现与链路追踪
@@ -72,59 +75,15 @@ echo "帮我读 config.json 并总结" | node dist/cli.js -p "请用中文回答
 
 **流程图**：
 
-```
-[用户输入]
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ parseArgs()                                          │
-│  ├─ args.prompt = "请用中文回答"                      │
-│  ├─ args.output = "print" (默认)                     │
-│  └─ process.stdin 非 TTY → args.tui = false          │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ConfigManager.load()                                  │
-│  ├─ 读取 ~/.my-easy-pi/config.json                      │
-│  ├─ 获取默认 provider 和 apiKey                       │
-│  └─ 环境变量检查                                     │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ModelRegistry + ToolRegistry 初始化                   │
-│  ├─ 注册 3 个 Provider                               │
-│  ├─ 注册 7 个内置工具                                 │
-│  └─ 获取 Model 实例                                  │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ 读取 stdin 消息                                      │
-│  ├─ 管道: "帮我读 config.json 并总结"                 │
-│  └─ userMessage = "请用中文回答\n\n帮我读 config.json 并总结"│
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ Agent 创建 + Session 创建 + 订阅                      │
-│  ├─ Agent(model, tools, beforeToolCall, transform)   │
-│  ├─ sessionManager.createSession()                   │
-│  └─ agent.subscribe(自动保存)                         │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ createPrintInterface(agent)                           │
-│  └─ agent.subscribe(流式输出)                         │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ agent.prompt("请用中文回答\n\n帮我读 config.json 并总结") │
-│  ← 进入 Agent 核心循环！                              │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Input[用户输入] --> ParseArgs["parseArgs()<br/>• args.prompt = '请用中文回答'<br/>• args.output = 'print'（默认）<br/>• process.stdin 非 TTY → args.tui = false"]
+    ParseArgs --> ConfigLoad["ConfigManager.load()<br/>• 读取 ~/.my-easy-pi/config.json<br/>• 获取默认 provider 和 apiKey<br/>• 环境变量检查"]
+    ConfigLoad --> InitRegistry["ModelRegistry + ToolRegistry 初始化<br/>• 注册 3 个 Provider<br/>• 注册 7 个内置工具<br/>• 获取 Model 实例"]
+    InitRegistry --> ReadStdin["读取 stdin 消息<br/>• 管道: '帮我读 config.json 并总结'<br/>• userMessage = 组合消息"]
+    ReadStdin --> CreateAgent["Agent 创建 + Session 创建 + 订阅<br/>• Agent(model, tools, hooks)<br/>• sessionManager.createSession()<br/>• agent.subscribe(自动保存)"]
+    CreateAgent --> PrintInterface["createPrintInterface(agent)<br/>• agent.subscribe(流式输出)"]
+    PrintInterface --> Prompt["agent.prompt(msg)<br/>← 进入 Agent 核心循环！"]
 ```
 
 **关键代码**（`src/cli.ts` 第 203-205 行）：
@@ -142,41 +101,12 @@ try { await agent.prompt(userMessage!); console.log('\n--- 完成 ---') }
 
 **流程图**：
 
-```
-agent.prompt("帮我读 config.json 并总结")
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ① 检查是否正在流式处理                                  │
-│    if (this.state.isStreaming) → 抛出错误              │
-│    设置 this.state.isStreaming = true                  │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ② 创建用户消息对象                                     │
-│    { id: "msg-1", parentId: null,                     │
-│      role: "user", content: "帮我读...",              │
-│      createdAt: 1734567890000 }                       │
-│    → 加入 state.messages                               │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ③ 发射 agent_start 事件                               │
-│    emit({ type: "agent_start" })                      │
-│    → 订阅者收到：界面显示 "思考中..."                   │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ④ 进入 runLoop([userMessage])                         │
-│    ┌───────────────────────────────────────────────┐  │
-│    │  while (true) {  ← 核心循环！                   │  │
-│    │    emit({ type: "turn_start" })                 │  │
-│    │    → 第1轮开始                                  │  │
-│    └───────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Prompt["agent.prompt('帮我读 config.json 并总结')"] --> CheckStream["① 检查是否正在流式处理<br/>if (this.state.isStreaming) → 抛出错误<br/>设置 this.state.isStreaming = true"]
+    CheckStream --> CreateUserMsg["② 创建用户消息对象<br/>{ id: 'msg-1', parentId: null,<br/>role: 'user', content: '帮我读...',<br/>createdAt: 1734567890000 }<br/>→ 加入 state.messages"]
+    CreateUserMsg --> EmitAgentStart["③ 发射 agent_start 事件<br/>emit({ type: 'agent_start' })<br/>→ 订阅者收到：界面显示 '思考中...'"]
+    EmitAgentStart --> RunLoop["④ 进入 runLoop([userMessage])<br/>while (true) { ← 核心循环！<br/>emit({ type: 'turn_start' })<br/>→ 第1轮开始 }"]
 ```
 
 **关键代码**（`src/agent/loop.ts` 第 123-161 行）：
@@ -218,39 +148,12 @@ async prompt(text: string): Promise<void> {
 
 **流程图**：
 
-```
-runLoop 内部 (第1轮)
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ① 上下文压缩 (可选)                                    │
-│    transformContextFn? → Compactor.compact()          │
-│    消息数少于阈值 → 不压缩，直接返回                     │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ② 消息格式转换                                        │
-│    convertToLlmFn(this.state.messages)                │
-│    → 过滤掉 notification/thinking 消息                │
-│    → 将 AgentMessage 转为 LLMMessage 格式             │
-│    → 返回 [{role: "user", content: "帮我读..."}]      │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ③ 构建 ModelContext                                    │
-│    { systemPrompt, messages, tools: [...] }            │
-│    → tools 包含所有 7 个内置工具的 name/description/   │
-│      input_schema，供 LLM 理解如何调用                 │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ④ 调用 LLM：model.stream(context, options)            │
-│    ● 进入 Provider 内部！                              │
-│    ● 这是 AI 层的核心职责                              │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Start["runLoop 内部 (第1轮)"] --> Compact["① 上下文压缩 (可选)<br/>transformContextFn? → Compactor.compact()<br/>消息数少于阈值 → 不压缩，直接返回"]
+    Compact --> Convert["② 消息格式转换<br/>convertToLlmFn(this.state.messages)<br/>→ 过滤掉 notification/thinking 消息<br/>→ 将 AgentMessage 转为 LLMMessage 格式<br/>→ 返回 [{role: 'user', content: '帮我读...'}]"]
+    Convert --> BuildCtx["③ 构建 ModelContext<br/>{ systemPrompt, messages, tools: [...] }<br/>→ tools 包含所有 7 个内置工具的 name/description/<br/>input_schema，供 LLM 理解如何调用"]
+    BuildCtx --> Stream["④ 调用 LLM：model.stream(context, options)<br/>● 进入 Provider 内部！<br/>● 这是 AI 层的核心职责"]
 ```
 
 **关键代码**（`src/agent/loop.ts` 第 170-190 行）：
@@ -302,51 +205,13 @@ function defaultConvertToLlm(messages: AgentMessage[]): LLMMessage[] {
 
 **流程图**（以 OpenAI Provider 为例）：
 
-```
-model.stream(context, options)
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ① 构建 API 请求体                                      │
-│    buildRequestBody(context)                           │
-│    → { model: "gpt-4o", stream: true,                 │
-│        messages: [{role:"system",content:"..."},       │
-│                   {role:"user",content:"帮我读..."}],   │
-│        tools: [{type:"function",function:{...}}] }    │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ② fetchWithRetry 发送 HTTP 请求                        │
-│    POST /v1/chat/completions                           │
-│    Headers: Authorization: Bearer sk-xxx               │
-│    Body: JSON (上面构建的请求体)                         │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ③ 解析 SSE 流 (Server-Sent Events)                    │
-│    data: {"choices":[{"delta":{"content":"我"}}]}     │
-│    data: {"choices":[{"delta":{"content":"来"}}]}     │
-│    data: {"choices":[{"delta":{"content":"读"}}]}     │
-│    data: {"choices":[{"delta":{}}]}                   │
-│    data: {"choices":[{"delta":{"tool_calls":[{...}}]}]}│
-│    data: [DONE]                                       │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ④ 转换为标准 LLMEvent 格式                             │
-│    parseSSELine() → convertEvent()                     │
-│    → { type: "text_delta", delta: "我" }              │
-│    → { type: "text_delta", delta: "来" }              │
-│    → { type: "tool_call_start", id: "call_1",         │
-│         name: "read", args: {path: "config.json"} }   │
-│    → { type: "done", stopReason: "tool_use" }         │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-    yield event  (AsyncIterable 输出)
+```mermaid
+flowchart TD
+    Start["model.stream(context, options)"] --> BuildBody["① 构建 API 请求体<br/>buildRequestBody(context)<br/>→ { model: 'gpt-4o', stream: true,<br/>messages: [...],<br/>tools: [...] }"]
+    BuildBody --> Fetch["② fetchWithRetry 发送 HTTP 请求<br/>POST /v1/chat/completions<br/>Headers: Authorization: Bearer sk-xxx<br/>Body: JSON (上面构建的请求体)"]
+    Fetch --> ParseSSE["③ 解析 SSE 流 (Server-Sent Events)<br/>data: {choices:[{delta:{content:'我'}}]}<br/>data: {choices:[{delta:{content:'来'}}]}<br/>data: {choices:[{delta:{content:'读'}}]}<br/>data: {choices:[{delta:{tool_calls:[{...}}]}]}<br/>data: [DONE]"]
+    ParseSSE --> ConvertEvent["④ 转换为标准 LLMEvent 格式<br/>parseSSELine() → convertEvent()<br/>→ { type: 'text_delta', delta: '我' }<br/>→ { type: 'tool_call_start', id: 'call_1',<br/>name: 'read', args: {path: 'config.json'} }<br/>→ { type: 'done', stopReason: 'tool_use' }"]
+    ConvertEvent --> Yield["yield event<br/>(AsyncIterable 输出)"]
 ```
 
 **关键代码**（`src/ai/providers/openai.ts` 第 65-115 行）：
@@ -391,26 +256,14 @@ async *stream(context: ModelContext, options?: StreamOptions): AsyncIterable<LLM
 
 **流程图**：
 
-```
-processLLMStream 接收 LLMEvent 流
-    │
-    ├→ text_delta: "我"  →  content += "我"
-    │                      emit({ type: "message_update", message: { content: "我" } })
-    │                      → Print 界面输出 "我"
-    │
-    ├→ text_delta: "来"  →  content += "来"
-    │                      emit({ type: "message_update", message: { content: "我来" } })
-    │                      → Print 界面输出 "来"
-    │
-    ├→ text_delta: "读"  →  content += "读"
-    │                      ...
-    │
-    ├→ tool_call_start   → 记录 tool_call
-    │   { id: "call_1", name: "read", args: { path: "config.json" } }
-    │
-    ├→ tool_call_delta   → 累积参数（流式工具调用）
-    │
-    └→ done              → 返回 { content: "我来读", toolCalls: [call_1] }
+```mermaid
+flowchart TD
+    Start["processLLMStream 接收 LLMEvent 流"] --> Delta1["text_delta: '我'<br/>→ content += '我'<br/>→ emit(message_update)<br/>→ Print 界面输出 '我'"]
+    Start --> Delta2["text_delta: '来'<br/>→ content += '来'<br/>→ emit(message_update)<br/>→ Print 界面输出 '来'"]
+    Start --> Delta3["text_delta: '读'<br/>→ content += '读'<br/>→ ..."]
+    Start --> ToolStart["tool_call_start<br/>→ 记录 tool_call<br/>{ id: 'call_1', name: 'read', args: { path: 'config.json' } }"]
+    Start --> ToolDelta["tool_call_delta<br/>→ 累积参数（流式工具调用）"]
+    Start --> Done["done<br/>→ 返回 { content: '我来读', toolCalls: [call_1] }"]
 ```
 
 **关键代码**（`src/agent/loop.ts` 第 261-343 行）：
@@ -473,57 +326,13 @@ private async processLLMStream(context: ModelContext): Promise<{
 
 **流程图**：
 
-```
-runLoop 中收到 processLLMStream 结果
-    │
-    │ { content: "我来读", toolCalls: [{ id: "call_1", name: "read", args: { path: "config.json" } }] }
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ① 创建 assistant 消息                                 │
-│    { id: "msg-2", role: "assistant",                  │
-│      content: "我来读",                               │
-│      toolCalls: [{id:"call_1", name:"read", ...}],   │
-│      parentId: "msg-1" }                             │
-│    → 加入 state.messages                              │
-│    → emit({ type: "message_end", message: ... })      │
-│    → 自动保存订阅者收到 → 写入 JSONL 文件               │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ② 检查 toolCalls.length                               │
-│    toolCalls.length > 0 → 进入工具执行阶段              │
-│    ┌───────────────────────────────────────────────┐  │
-│    │ 进入 executeToolCalls(toolCalls)               │  │
-│    └───────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ③ 工具预检 (beforeToolCall)                           │
-│    PermissionManager.check()                          │
-│    ├─ 工具名: read (不是 bash) → 直接放行              │
-│    └─ return undefined (允许执行)                      │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ④ 发射 tool_execution_start 事件                      │
-│    emit({ type: "tool_execution_start",               │
-│           toolCallId: "call_1",                       │
-│           toolName: "read",                           │
-│           args: { path: "config.json" } })            │
-│    → 订阅者收到：界面显示 "⚙ 正在读取 config.json..."    │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ⑤ 执行工具：tool.execute()                            │
-│    readTool.execute("call_1", { path: "config.json" },│
-│                      signal, onUpdate)                │
-│    → 调用 fs.readFile("config.json", "utf-8")         │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Start["runLoop 中收到 processLLMStream 结果<br/>{ content: '我来读', toolCalls: [...] }"] --> CreateMsg["① 创建 assistant 消息<br/>{ id: 'msg-2', role: 'assistant',<br/>content: '我来读', toolCalls: [...],<br/>parentId: 'msg-1' }<br/>→ 加入 state.messages<br/>→ emit(message_end)<br/>→ 自动保存订阅者收到 → 写入 JSONL 文件"]
+    CreateMsg --> CheckTools["② 检查 toolCalls.length<br/>toolCalls.length > 0 → 进入工具执行阶段<br/>→ 进入 executeToolCalls(toolCalls)"]
+    CheckTools --> BeforeTool["③ 工具预检 (beforeToolCall)<br/>PermissionManager.check()<br/>├─ 工具名: read (不是 bash) → 直接放行<br/>└─ return undefined (允许执行)"]
+    BeforeTool --> EmitToolStart["④ 发射 tool_execution_start 事件<br/>emit({ type: 'tool_execution_start',<br/>toolCallId: 'call_1', toolName: 'read',<br/>args: { path: 'config.json' } })<br/>→ 订阅者收到：界面显示 '⚙ 正在读取 config.json...'"]
+    EmitToolStart --> ExecuteTool["⑤ 执行工具：tool.execute()<br/>readTool.execute('call_1', { path: 'config.json' },<br/>signal, onUpdate)<br/>→ 调用 fs.readFile('config.json', 'utf-8')"]
 ```
 
 **关键代码**（`src/agent/loop.ts` 第 225-256 行）：
@@ -567,30 +376,10 @@ turnMessages = []  // 继续 while(true) 进入下一轮
 
 **流程图**：
 
-```
-readTool.execute("call_1", { path: "config.json" }, signal)
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ fs.readFile("config.json", "utf-8")                   │
-│    │                                                   │
-│    ├─ 成功: 返回文件内容                                │
-│    │  return { content: [{ type: "text",              │
-│    │    text: '{ "name": "my-easy-pi", "version": "1.0" }' │
-│    │  }]}                                              │
-│    │                                                   │
-│    └─ 失败: 返回错误信息                                │
-│      return { content: [{ type: "text",                │
-│        text: "读取失败: ENOENT: no such file..." }]   │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ emit({ type: "tool_execution_end",                    │
-│        toolCallId: "call_1",                          │
-│        result: { content: [...] } })                  │
-│    → 订阅者收到：界面显示工具执行结果                    │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Start["readTool.execute('call_1', { path: 'config.json' }, signal)"] --> ReadFile["fs.readFile('config.json', 'utf-8')<br/>├─ 成功: 返回文件内容<br/>│ return { content: [{ type: 'text',<br/>│ text: '{ 'name': 'my-easy-pi', 'version': '1.0' }' }] }<br/>│<br/>└─ 失败: 返回错误信息<br/>return { content: [{ type: 'text',<br/>text: '读取失败: ENOENT: no such file...' }] }"]
+    ReadFile --> EmitEnd["emit({ type: 'tool_execution_end',<br/>toolCallId: 'call_1',<br/>result: { content: [...] } })<br/>→ 订阅者收到：界面显示工具执行结果"]
 ```
 
 **关键代码**（`src/tools/builtin/read.ts`）：
@@ -625,92 +414,30 @@ export const readTool: AgentTool = {
 
 **流程图**：
 
-```
-工具执行完成，toolResult 已加入 messages
-    │
-    └→ while(true) 继续下一轮
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ① turn_start (第二轮)                                 │
-│    emit({ type: "turn_start" })                       │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ② 消息转换 (第二轮)                                    │
-│    messages 现在包含:                                   │
-│    [0] { role: "system", content: "你是 my-easy-pi..." }  │
-│    [1] { role: "user", content: "帮我读 config.json 并总结" }│
-│    [2] { role: "assistant", content: "我来读",         │
-│          toolCalls: [{ id: "call_1", name: "read", ... }] }│
-│    [3] { role: "toolResult", content: '{ "name": ... }',│
-│          toolCallId: "call_1" }                        │
-│    → 转换为 LLMMessage 格式                             │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ③ 调用 LLM (第二轮)                                    │
-│    LLM 看到 toolResult 中的文件内容                     │
-│    → 生成最终回答：                                     │
-│      "config.json 的内容如下：                          │
-│       - name: my-easy-pi                                  │
-│       - version: 1.0                                   │
-│       总结：这是一个 AI Coding Agent 项目..."           │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ④ 处理流式事件 (第二轮)                                 │
-│    text_delta: "config.json" → 界面输出               │
-│    text_delta: " 的内容如下：" → 界面输出              │
-│    ...                                                │
-│    done → 无 tool_calls → 本轮结束                     │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ⑤ 检查 toolCalls.length === 0                         │
-│    → 检查消息队列                                      │
-│      ├─ steering 队列空                                │
-│      └─ followUp 队列空                                │
-│    → break (退出循环)                                  │
-└──────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────┐
-│ ⑥ agent_end                                          │
-│    emit({ type: "agent_end", messages: [...] })       │
-│    → 订阅者收到：界面显示 "--- 完成 ---"                 │
-│    → 自动保存订阅者收到：所有消息已保存到 JSONL          │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Start["工具执行完成，toolResult 已加入 messages"] --> TurnStart["① turn_start (第二轮)<br/>emit({ type: 'turn_start' })"]
+    TurnStart --> Convert["② 消息转换 (第二轮)<br/>messages 现在包含:<br/>[0] system 消息<br/>[1] user 消息<br/>[2] assistant 消息 + toolCalls<br/>[3] toolResult 消息<br/>→ 转换为 LLMMessage 格式"]
+    Convert --> CallLLM["③ 调用 LLM (第二轮)<br/>LLM 看到 toolResult 中的文件内容<br/>→ 生成最终回答:<br/>'config.json 的内容如下：<br/>- name: my-easy-pi<br/>- version: 1.0<br/>总结：这是一个 AI Coding Agent 项目...'"]
+    CallLLM --> ProcessStream["④ 处理流式事件 (第二轮)<br/>text_delta → 界面输出<br/>...<br/>done → 无 tool_calls → 本轮结束"]
+    ProcessStream --> CheckTools["⑤ 检查 toolCalls.length === 0<br/>→ 检查消息队列<br/>├─ steering 队列空<br/>└─ followUp 队列空<br/>→ break (退出循环)"]
+    CheckTools --> AgentEnd["⑥ agent_end<br/>emit({ type: 'agent_end', messages: [...] })<br/>→ 订阅者收到：界面显示 '--- 完成 ---'<br/>→ 自动保存订阅者收到：所有消息已保存到 JSONL"]
 ```
 
 ### 4.9 阶段九：接口层 — 渲染输出
 
 **流程图**：
 
-```
-Print 界面订阅者收到事件
-    │
-    ├→ agent_start      → 无操作（print 模式不显示开始）
-    │
-    ├→ message_update   → process.stdout.write(新增文本)
-    │   (第一轮: "我来读")
-    │
-    ├→ tool_execution_start → 无操作（print 模式不显示工具开始）
-    │
-    ├→ tool_execution_end   → 无操作
-    │
-    ├→ message_update   → process.stdout.write(新增文本)
-    │   (第二轮: "config.json 的内容如下：...")
-    │
-    ├→ message_end      → process.stdout.write("\n\n")
-    │
-    ├→ agent_end        → 控制台输出 "--- 完成 ---"
-    │
-    └→ error            → process.stderr.write("[error] ...")
+```mermaid
+flowchart TD
+    Start["Print 界面订阅者收到事件"] --> AgentStart["agent_start<br/>→ 无操作（print 模式不显示开始）"]
+    Start --> MsgUpdate1["message_update<br/>→ process.stdout.write(新增文本)<br/>(第一轮: '我来读')"]
+    Start --> ToolStart["tool_execution_start<br/>→ 无操作（print 模式不显示工具开始）"]
+    Start --> ToolEnd["tool_execution_end<br/>→ 无操作"]
+    Start --> MsgUpdate2["message_update<br/>→ process.stdout.write(新增文本)<br/>(第二轮: 'config.json 的内容如下：...')"]
+    Start --> MsgEnd["message_end<br/>→ process.stdout.write('\\n\\n')"]
+    Start --> AgentEnd["agent_end<br/>→ 控制台输出 '--- 完成 ---'"]
+    Start --> Error["error<br/>→ process.stderr.write('[error] ...')"]
 ```
 
 **关键代码**（`src/interface/print.ts`）：
@@ -745,124 +472,131 @@ export function createPrintInterface(agent: Agent): void {
 
 ## 5. 完整链路时序图
 
-```
-用户                          CLI                       Agent                      AI Provider               Tool
- │                            │                          │                           │                        │
- │  echo "帮我读config.json"    │                          │                           │                        │
- │ ─────────────────────────→ │                          │                           │                        │
- │                            │  parseArgs()              │                           │                        │
- │                            │  ConfigManager.load()     │                           │                        │
- │                            │  ModelRegistry 初始化     │                           │                        │
- │                            │  ToolRegistry 注册        │                           │                        │
- │                            │  SessionManager 创建      │                           │                        │
- │                            │  Agent 创建               │                           │                        │
- │                            │  subscribe (自动保存)     │                           │                        │
- │                            │  createPrintInterface     │                           │                        │
- │                            │  agent.prompt(msg)        │                           │                        │
- │                            │ ────────────────────────→ │                           │                        │
- │                            │                          │  agent_start              │                        │
- │                            │                          │  turn_start               │                        │
- │                            │                          │  transformContext         │                        │
- │                            │                          │  convertToLlm             │                        │
- │                            │                          │  model.stream(context)    │                        │
- │                            │                          │ ────────────────────────→ │                        │
- │                            │                          │                           │  HTTP POST /chat/completions
- │                            │                          │                           │  SSE 流解析中...        │
- │                            │                          │  ◄── text_delta:"我来读" ─ │                        │
- │                            │  ◄── message_update ──── │                           │                        │
- │  ◄── stdout:"我来读" ──── │                          │                           │                        │
- │                            │                          │  ◄── tool_call_start ──── │                        │
- │                            │                          │     (read, config.json)   │                        │
- │                            │                          │  ◄── done ────────────── │                        │
- │                            │                          │                           │                        │
- │                            │                          │  message_end              │                        │
- │                            │                          │  executeToolCalls()       │                        │
- │                            │                          │  beforeToolCall (通过)    │                        │
- │                            │                          │  tool_execution_start     │                        │
- │                            │                          │  readTool.execute()       │                        │
- │                            │                          │ ────────────────────────────────────────────────→ │
- │                            │                          │                           │                        │
- │                            │                          │                           │    fs.readFile("config.json")
- │                            │                          │                           │                        │
- │                            │                          │  ◄── tool_execution_end ────────────────────────── │
- │                            │                          │                           │                        │
- │                            │                          │  turn_end                 │                        │
- │                            │                          │  toolResult 入 messages    │                        │
- │                            │                          │                           │                        │
- │                            │                          │  turn_start (第二轮)       │                        │
- │                            │                          │  model.stream(context)    │                        │
- │                            │                          │ ────────────────────────→ │                        │
- │                            │                          │                           │  HTTP POST (含 toolResult)
- │                            │                          │  ◄── text_delta ───────── │                        │
- │  ◄── stdout: "config.json" ◄── message_update ────── │                           │                        │
- │  ◄── stdout: "的内容"     ◄── message_update ────── │                           │                        │
- │  ◄── stdout: "如下：..."  ◄── message_update ────── │                           │                        │
- │                            │                          │  ◄── done ────────────── │                        │
- │                            │                          │                           │                        │
- │                            │                          │  无 tool_calls, 队列空     │                        │
- │                            │                          │  agent_end                │                        │
- │                            │                          │  isStreaming = false      │                        │
- │                            │                          │                           │                        │
- │  ◄── stdout: "--- 完成---" │                          │                           │                        │
+```mermaid
+sequenceDiagram
+    participant 用户
+    participant CLI
+    participant Agent
+    participant AIProvider as AI Provider
+    participant Tool
+
+    用户->>CLI: echo "帮我读config.json"
+    CLI->>CLI: parseArgs()
+    CLI->>CLI: ConfigManager.load()
+    CLI->>CLI: ModelRegistry 初始化
+    CLI->>CLI: ToolRegistry 注册
+    CLI->>CLI: SessionManager 创建
+    CLI->>Agent: Agent 创建
+    CLI->>Agent: subscribe (自动保存)
+    CLI->>CLI: createPrintInterface
+    CLI->>Agent: agent.prompt(msg)
+
+    Agent->>Agent: agent_start
+    Agent->>Agent: turn_start
+    Agent->>Agent: transformContext
+    Agent->>Agent: convertToLlm
+    Agent->>AIProvider: model.stream(context)
+
+    AIProvider->>AIProvider: HTTP POST /chat/completions
+    AIProvider->>AIProvider: SSE 流解析中...
+    AIProvider-->>Agent: text_delta:"我来读"
+    Agent-->>CLI: message_update
+    CLI-->>用户: stdout:"我来读"
+
+    AIProvider-->>Agent: tool_call_start (read, config.json)
+    AIProvider-->>Agent: done
+
+    Agent->>Agent: message_end
+    Agent->>Agent: executeToolCalls()
+    Agent->>Agent: beforeToolCall (通过)
+    Agent->>Agent: tool_execution_start
+    Agent->>Tool: readTool.execute()
+
+    Tool->>Tool: fs.readFile("config.json")
+    Tool-->>Agent: tool_execution_end
+
+    Agent->>Agent: turn_end
+    Agent->>Agent: toolResult 入 messages
+
+    Agent->>Agent: turn_start (第二轮)
+    Agent->>AIProvider: model.stream(context)
+    AIProvider->>AIProvider: HTTP POST (含 toolResult)
+    AIProvider-->>Agent: text_delta
+    Agent-->>CLI: message_update
+    CLI-->>用户: stdout: "config.json"
+    CLI-->>用户: stdout: "的内容"
+    CLI-->>用户: stdout: "如下：..."
+
+    AIProvider-->>Agent: done
+
+    Agent->>Agent: 无 tool_calls, 队列空
+    Agent->>Agent: agent_end
+    Agent->>Agent: isStreaming = false
+
+    CLI-->>用户: stdout: "--- 完成---"
 ```
 
 ## 6. 完整的代码调用栈
 
 当用户输入"帮我读 config.json 并总结"时，完整的调用链如下：
 
-```
-1. main()                                         [cli.ts:73]
-   ├── parseArgs()                                [cli.ts:13]
-   ├── ConfigManager.load()                       [config/settings.ts:55]
-   ├── SessionManager()                           [session/manager.ts:24]
-   ├── ModelRegistry.setProvider() ×3             [ai/registry.ts:19]
-   ├── ModelRegistry.getModel()                   [ai/registry.ts:29]
-   ├── ToolRegistry.registerTool() ×7             [tools/registry.ts:17]
-   ├── SessionManager.createSession()             [session/manager.ts:26]
-   ├── new Agent(config)                          [agent/loop.ts:83]
-   ├── agent.subscribe()                          [agent/loop.ts:105]
-   ├── createPrintInterface(agent)                [interface/print.ts:11]
-   └── agent.prompt(msg)                          [agent/loop.ts:123]
-        │
-        ├── emit(agent_start)                     [agent/loop.ts:111]
-        │
-        ├── runLoop([userMessage])                [agent/loop.ts:164]
-        │    │
-        │    ├── [第1轮] turn_start               [agent/loop.ts:168]
-        │    ├── Compactor.compact()              [session/compaction.ts:35]
-        │    ├── defaultConvertToLlm()            [agent/loop.ts:505]
-        │    ├── processLLMStream(context)        [agent/loop.ts:261]
-        │    │    │
-        │    │    ├── Model.stream()              [ai/providers/openai.ts:65]
-        │    │    │    ├── buildRequestBody()     [openai.ts:117]
-        │    │    │    ├── fetchWithRetry()       [ai/retry.ts]
-        │    │    │    ├── parseSSELine()         [openai.ts:176]
-        │    │    │    └── convertEvent()         [openai.ts:193]
-        │    │    │
-        │    │    ├── emit(message_update)        [loop.ts:280]
-        │    │    └── return { content, toolCalls }
-        │    │
-        │    ├── emit(message_end)                [loop.ts:203]
-        │    ├── executeToolCalls(toolCalls)      [loop.ts:346]
-        │    │    │
-        │    │    ├── beforeToolCall (权限检查)    [agent/permission.ts:57]
-        │    │    ├── emit(tool_execution_start)  [loop.ts:392]
-        │    │    ├── readTool.execute()          [tools/builtin/read.ts:18]
-        │    │    │    └── fs.readFile()          [Node.js fs]
-        │    │    ├── emit(tool_execution_end)    [loop.ts:417]
-        │    │    └── return toolResult
-        │    │
-        │    ├── turn_end                         [loop.ts:228]
-        │    ├── toolResult 入 messages            [loop.ts:245]
-        │    │
-        │    ├── [第2轮] turn_start               [loop.ts:168]
-        │    ├── processLLMStream(context)         [loop.ts:261]
-        │    │    └── (LLM 看到 toolResult 生成最终回答)
-        │    ├── emit(message_end)                 [loop.ts:203]
-        │    ├── 无 tool_calls, 队列空             [loop.ts:206]
-        │    └── break                            [loop.ts:221]
-        │
-        └── emit(agent_end)                      [agent/loop.ts:154]
+```mermaid
+flowchart TD
+    subgraph CLI_INIT["CLI 初始化"]
+        M[main<br/>cli.ts:73] --> A[parseArgs<br/>cli.ts:13]
+        M --> B[ConfigManager.load<br/>config/settings.ts:55]
+        M --> C[SessionManager<br/>session/manager.ts:24]
+        M --> D[ModelRegistry.setProvider x3<br/>ai/registry.ts:19]
+        M --> E[ModelRegistry.getModel<br/>ai/registry.ts:29]
+        M --> F[ToolRegistry.registerTool x7<br/>tools/registry.ts:17]
+        M --> G[SessionManager.createSession<br/>session/manager.ts:26]
+        M --> H[new Agent config<br/>agent/loop.ts:83]
+        M --> I[agent.subscribe<br/>agent/loop.ts:105]
+        M --> J[createPrintInterface<br/>interface/print.ts:11]
+    end
+
+    CLI_INIT --> P[agent.prompt msg<br/>agent/loop.ts:123]
+    P --> EA[emit agent_start<br/>agent/loop.ts:111]
+    P --> RL[runLoop<br/>agent/loop.ts:164]
+
+    subgraph ROUND1["第 1 轮循环"]
+        RL --> TS1[turn_start<br/>agent/loop.ts:168]
+        TS1 --> CP[Compactor.compact<br/>session/compaction.ts:35]
+        CP --> CV[defaultConvertToLlm<br/>agent/loop.ts:505]
+        CV --> PS[processLLMStream<br/>agent/loop.ts:261]
+
+        subgraph LLM_CALL["LLM 调用"]
+            PS --> MS[Model.stream<br/>ai/providers/openai.ts:65]
+            MS --> BR[buildRequestBody<br/>openai.ts:117]
+            MS --> FR[fetchWithRetry<br/>ai/retry.ts]
+            MS --> PL[parseSSELine<br/>openai.ts:176]
+            MS --> CE[convertEvent<br/>openai.ts:193]
+        end
+
+        PS --> EM1[emit message_update<br/>loop.ts:280]
+        PS --> RCT[return content toolCalls]
+        RCT --> EM2[emit message_end<br/>loop.ts:203]
+        EM2 --> EX[executeToolCalls<br/>loop.ts:346]
+
+        subgraph TOOL_EXEC["工具执行"]
+            EX --> BTC[beforeToolCall 权限检查<br/>agent/permission.ts:57]
+            EX --> ETS[emit tool_execution_start<br/>loop.ts:392]
+            EX --> RE[readTool.execute<br/>tools/builtin/read.ts:18]
+            RE --> RF[fs.readFile<br/>Node.js fs]
+            EX --> ETE[emit tool_execution_end<br/>loop.ts:417]
+            EX --> RT[return toolResult]
+        end
+
+        RT --> TE[turn_end<br/>loop.ts:228]
+        TE --> TM[toolResult 入 messages<br/>loop.ts:245]
+    end
+
+    TM --> ROUND2["第 2 轮循环"]
+    ROUND2 --> TS2[turn_start]
+    TS2 --> PS2[processLLMStream]
+    PS2 --> EM3[emit message_end]
+    EM3 --> END[无 tool_calls 队列空 → break<br/>loop.ts:206]
+    END --> EAE[emit agent_end<br/>agent/loop.ts:154]
 ```
 
 ## 7. 运行与验证

@@ -300,57 +300,46 @@ export default async function (api: ExtensionAPI) {
 
 ### 5.1 生命周期时序图
 
-```
-时间 ────────────────────────────────────────────────────────────►
+```mermaid
+sequenceDiagram
+    autonumber
+    participant EL as ExtensionLoader
+    participant NJ as Node.js import()
+    participant EX as 扩展 (hello.ts)
+    participant TR as ToolRegistry
+    participant CM as Commands Map
+    participant AG as Agent
+    participant LLM as LLM
 
-╔══════════════════ 加载阶段 ═════════════════╗
-                                              │
-  ExtensionLoader        扫描目录 ──► 找到 hello.ts
-       │                                      │
-       ├── import("./hello.ts") ──────────────►  动态导入模块（Node.js import()）
-       │   │                                    │
-       │   ◄──── 获取模块对象 ────────────────┤
-       │   │         { default: function }      │
-       │   │                                    │
-       │   ├── typeof mod.default === 'function'  ✓  验证导出是否为函数
-       │   │                                    │
-       │   ├── mod.default(api) ───────────────►  执行扩展初始化函数
-       │   │   │                                    │
-╔══════╧═══╧══════╤══════════════════════════════╗  │
-║  扩展初始化内部   │                              ║  │
-║                 │                              ║  │
-║  api.registerTool({                            ║  │
-║    name: 'hello',  ──► ToolRegistry ────────►   ║  │  注册工具到注册表
-║    ...                                          ║  │
-║  })                                             ║  │
-║                 │                              ║  │
-║  api.registerCommand('hello:status', {          ║  │
-║    ...           ──► 内部 commands Map ──────►   ║  │  注册 CLI 命令
-║  })                                             ║  │
-║                 │                              ║  │
-║  api.on('*', handler) ──► Agent.subscribe ──►   ║  │  注册事件监听器
-║                                                 ║  │
-╚═════════════════════════════════════════════════╝  │
-                                                    │
-╔══════════════════ 使用阶段 ═══════════════════╗    │
-                                                 │
-  Agent 运行中...                                 │
-       │                                          │
-  用户提问 ──► LLM 思考 ──► 选择工具 ──► 查找 ToolRegistry
-       │                                          │
-       ├── 找到 hello 工具 ──► 执行 hello.execute()  LLM 调用扩展工具
-       │   │                                    │
-       │   ◄── 返回 "你好！欢迎使用 my-easy-pi！" ─┤
-       │                                          │
-  Agent 发出事件 ──► 扩展的 on() 监听器收到通知   事件流到达扩展
-       │                                          │
-╚═════════════════════════════════════════════════╝
-                                                    │
-╔══════════════════ 卸载阶段 ══════════════════╗    │
-                                              │     │
-  当前局限：扩展卸载后无法移除已注册的工具和命令       （未来改进方向）
-  重启 my-easy-pi 是"卸载"的等效操作
-╚══════════════════════════════════════════════╝
+    rect rgb(224, 242, 254)
+        Note over EL, LLM: 🔵 加载阶段
+        EL->>EL: 扫描扩展目录
+        EL->>NJ: import("./hello.ts")
+        activate NJ
+        NJ-->>EL: 返回模块对象<br/>{ default: function }
+        deactivate NJ
+        EL->>EL: ✓ 验证 mod.default 是否为函数
+        EL->>EX: mod.default(api)
+        activate EX
+        EX->>TR: api.registerTool({ name: 'hello', ... })
+        EX->>CM: api.registerCommand('hello:status', ...)
+        EX->>AG: api.on('*', handler)
+        deactivate EX
+    end
+
+    rect rgb(254, 243, 199)
+        Note over EL, LLM: 🟡 使用阶段
+        AG->>LLM: 转发用户提问
+        LLM-->>AG: 选择调用 hello 工具
+        AG->>TR: 查找并执行 hello.execute()
+        TR-->>AG: 返回 "你好！欢迎使用 my-easy-pi！"
+        AG->>EX: 触发事件通知
+    end
+
+    rect rgb(243, 244, 246)
+        Note over EL, LLM: ⚪ 卸载阶段（当前局限）
+        Note over AG, EX: 重启 my-easy-pi 是"卸载"的等效操作
+    end
 ```
 
 ### 5.2 各阶段详解

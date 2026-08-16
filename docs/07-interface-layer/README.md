@@ -30,48 +30,24 @@ version: 1.0.0
 
 ## Architecture diagram
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Agent 核心 (agent/)                           │
-│                                                                 │
-│  Agent Loop 产生事件:                                            │
-│  emit('agent_start')             ───┐                           │
-│  emit('message_start')           ───┤                           │
-│  emit('message_update') [流式]   ───┤── AgentEvent 事件总线      │
-│  emit('message_end')             ───┤                           │
-│  emit('tool_execution_start')    ───┤                           │
-│  emit('tool_execution_update')   ───┤                           │
-│  emit('tool_execution_end')      ───┤                           │
-│  emit('error')                   ───┤                           │
-│  emit('agent_end')               ───┘                           │
-└─────────────────────────────────┬───────────────────────────────┘
-                                  │
-                                  ▼
-                    AgentEvent 事件流 (契约)
-                                  │
-                                  │
-         ┌────────────────────────┼────────────────────────────┐
-         │                        │                            │
-         ▼                        ▼                            ▼
-  ┌──────────────┐        ┌──────────────┐             ┌──────────────┐
-  │  Print 模式  │        │  JSON 模式   │             │  TUI 模式    │
-  │  print.ts    │        │  json.ts     │             │  tui/index.ts│
-  │              │        │              │             │              │
-  │  纯文本流式   │        │  JSONL 事件流 │             │  全屏交互式  │
-  │  适合终端直用 │        │  适合程序消费 │             │  适合日常开发 │
-  └──────┬───────┘        └──────┬───────┘             └──────┬───────┘
-         │                       │                            │
-         │              ┌────────┴────────┐                   │
-         │              │  RPC 模式       │                   │
-         │              │  rpc.ts         │                   │
-         │              │                 │                   │
-         │              │  stdin/stdout   │                   │
-         │              │  双向 JSONL 协议│                   │
-         │              │  适合远程/跨语言 │                   │
-         │              └─────────────────┘                   │
-         │                       │                            │
-         ▼                       ▼                            ▼
-    stdout 文本            stdout JSONL                 全屏终端 ANSI
+```mermaid
+graph TB
+    subgraph Agent核心
+        A[Agent Loop 产生事件]
+    end
+
+    A -->|AgentEvent 事件总线| Bus[AgentEvent 事件流 契约]
+
+    Bus --> P[Print 模式<br/>print.ts<br/>纯文本流式 适合终端直用]
+    Bus --> J[JSON 模式<br/>json.ts<br/>JSONL 事件流 适合程序消费]
+    Bus --> T[TUI 模式<br/>tui/index.ts<br/>全屏交互式 适合日常开发]
+
+    J --> R[RPC 模式<br/>rpc.ts<br/>stdin/stdout 双向 JSONL 协议<br/>适合远程/跨语言]
+
+    P --> O1[stdout 文本]
+    J --> O2[stdout JSONL]
+    R --> O2
+    T --> O3[全屏终端 ANSI]
 ```
 
 ## 文件列表

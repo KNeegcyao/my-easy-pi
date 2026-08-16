@@ -39,23 +39,13 @@ AgentState 就像飞机的仪表盘：
 
 ### 3.2 状态的生命周期
 
-```
-创建 Agent
-    │
-    ▼
-createAgentState()  ──→ 初始状态（messages: [], isStreaming: false）
-    │
-    ▼
-agent.prompt()     ──→ isStreaming = true, messages 追加用户消息
-    │
-    ▼
-runLoop() 循环     ──→ messages 不断追加 assistant/toolResult 消息
-    │                  pendingToolCalls 增删
-    ▼
-prompt() 结束      ──→ isStreaming = false
-    │
-    ▼
-agent.reset()      ──→ 回到初始状态（清空所有）
+```mermaid
+flowchart TD
+    A[创建 Agent] --> B[createAgentState<br/>初始状态<br/>messages: [], isStreaming: false]
+    B --> C[agent.prompt<br/>isStreaming = true<br/>messages 追加用户消息]
+    C --> D[runLoop 循环<br/>messages 不断追加 assistant/toolResult 消息<br/>pendingToolCalls 增删]
+    D --> E[prompt 结束<br/>isStreaming = false]
+    E --> F[agent.reset<br/>回到初始状态<br/>清空所有]
 ```
 
 ## 4. 代码实现

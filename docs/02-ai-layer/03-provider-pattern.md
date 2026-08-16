@@ -34,24 +34,12 @@ export interface ProviderFactory {
 
 ### 3.2 策略模式在这里的应用
 
-```
-上层代码（ModelRegistry / Agent）
-      │
-      │ 调用 create() / listModels() / createModel()
-      ▼
-┌─────────────────────────────────────────────────────────┐
-│              ProviderFactory 接口                        │
-│  (定义策略的"形状"，不关心具体实现)                         │
-└─────────────────────────────────────────────────────────┘
-      │                    │                    │
-      ▼                    ▼                    ▼
-┌─────────────┐  ┌──────────────┐  ┌────────────────┐
-│AnthropicProvider││DeepSeekProvider││OpenAIProvider  │
-│              │  │              │  │                │
-│ Messages API │  │ OpenAI 格式  │  │ Chat Completions│
-│ content_block│  │ SSE 流式解析  │  │ SSE 流式解析    │
-│ thinking_delta│  │ 无 thinking  │  │ 无 thinking     │
-└─────────────┘  └──────────────┘  └────────────────┘
+```mermaid
+graph TB
+    A["上层代码（ModelRegistry / Agent）"] -->|"调用 create() / listModels() / createModel()"| B["ProviderFactory 接口<br>(定义策略的'形状'，不关心具体实现)"]
+    B --> C["AnthropicProvider<br>Messages API<br>content_block<br>thinking_delta"]
+    B --> D["DeepSeekProvider<br>OpenAI 格式<br>SSE 流式解析<br>无 thinking"]
+    B --> E["OpenAIProvider<br>Chat Completions<br>SSE 流式解析<br>无 thinking"]
 ```
 
 ### 3.3 各 Provider 的差异对比

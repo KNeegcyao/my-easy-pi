@@ -34,25 +34,15 @@ version: 1.0.0
 
 ### 3.2 决策逻辑流程
 
-```
-Agent turn 结束
-    │
-    ├── LLM 调用了工具？→ 执行工具 → 继续下一轮
-    │
-    └── LLM 没有调用工具？
-            │
-            ├── Steering 队列有消息？
-            │       │
-            │       ▼
-            │   注入 Steering 消息 → 继续下一轮
-            │
-            └── Follow-up 队列有消息？
-                    │
-                    ▼
-                注入 Follow-up 消息 → 继续下一轮
-                    │
-                    ▼
-                都为空 → agent_end
+```mermaid
+flowchart TD
+    A[Agent turn 结束] --> B{LLM 调用了工具?}
+    B -->|是| C[执行工具] --> D[继续下一轮]
+    B -->|否| E{Steering 队列有消息?}
+    E -->|是| F[注入 Steering 消息] --> D
+    E -->|否| G{Follow-up 队列有消息?}
+    G -->|是| H[注入 Follow-up 消息] --> D
+    G -->|否| I[agent_end]
 ```
 
 **优先级规则：`Steering > Follow-up > 结束`**

@@ -27,36 +27,25 @@
 
 配置层和沙箱层是 my-easy-pi 的 **基础设施层**，位于架构的最底层，为上层所有模块提供服务。
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                    my-easy-pi 分层架构                          │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │                 Interface 层 (07)                     │   │
-│  │         Print / JSON / RPC / TUI                     │   │
-│  └─────────────────────────┬────────────────────────────┘   │
-│                            │                                 │
-│  ┌─────────────────────────▼────────────────────────────┐   │
-│  │                   Agent 层 (03)                      │   │
-│  │           Agent Loop · 状态管理 · 队列 · 权限        │   │
-│  └────────┬──────────────┬──────────────┬───────────────┘   │
-│           │              │              │                    │
-│  ┌────────▼──┐  ┌───────▼───────┐  ┌───▼────────────┐      │
-│  │  AI 层   │  │  工具层       │  │  会话层        │      │
-│  │  (02)    │  │  (04)         │  │  (05)          │      │
-│  │ LLM 调用 │  │ Bash/FS/Git   │  │ 持久化         │      │
-│  └──────────┘  └───────┬───────┘  └────────────────┘      │
-│                        │                                    │
-│         ┌──────────────┴──────────────┐                     │
-│         │                             │                     │
-│  ┌──────▼──────┐              ┌──────▼──────┐              │
-│  │  配置层     │              │  沙箱层     │              │
-│  │  (08)      │◄─────────────┤  (08)      │              │
-│  │  Config    │  使用配置     │  Docker     │              │
-│  │  Logger    │               │  Local 降级  │              │
-│  └─────────────┘              └─────────────┘              │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph my-easy-pi分层架构
+        I[Interface 层 (07)<br/>Print / JSON / RPC / TUI]
+        A[Agent 层 (03)<br/>Agent Loop · 状态管理 · 队列 · 权限]
+        AI[AI 层 (02)<br/>LLM 调用]
+        T[工具层 (04)<br/>Bash/FS/Git]
+        S[会话层 (05)<br/>持久化]
+        C[配置层 (08)<br/>Config / Logger]
+        SB[沙箱层 (08)<br/>Docker / Local 降级]
+
+        I --> A
+        A --> AI
+        A --> T
+        A --> S
+        T --> C
+        T --> SB
+        SB -->|使用配置| C
+    end
 ```
 
 ### 2.2 核心职责
@@ -68,21 +57,12 @@
 
 #### 分层配置优先级
 
-```
- 高                    1. CLI 参数 (--model, --provider ...)
- 优                      │
- 先                      ▼
- 级                2. 环境变量 (DEEPSEEK_API_KEY, ANTHROPIC_API_KEY ...)
-                        │
-                        ▼
-                  3. 用户配置 (~/.my-easy-pi/config.json)
-                        │
-                        ▼
-                  4. 项目配置 (.my-easy-pi/settings.json)
-                        │
-                        ▼
-                  5. 硬编码默认值 (fallbackModel)
- 低
+```mermaid
+flowchart TD
+    A[1. CLI 参数<br/>--model, --provider ...] --> B[2. 环境变量<br/>DEEPSEEK_API_KEY, ANTHROPIC_API_KEY ...]
+    B --> C[3. 用户配置<br/>~/.my-easy-pi/config.json]
+    C --> D[4. 项目配置<br/>.my-easy-pi/settings.json]
+    D --> E[5. 硬编码默认值<br/>fallbackModel]
 ```
 
 每个配置项从高优先级层读取，找到即返回。这种设计让用户可以灵活地在不同层级覆盖配置，而不需要修改所有层的配置。
@@ -102,17 +82,13 @@
 
 沙箱层遵循 **功能可用性优先于安全隔离** 的设计哲学：
 
-```
-checkDocker() ──┬── 可用 ──► executeInDocker() ──┬── 成功 ──► 返回沙箱结果
-                │                                  │
-                │                                  └── 失败 ──┐
-                └── 不可用 ────────────────────────────────────┤
-                                                               ▼
-                                                     executeLocal() ◄── 降级
-                                                               │
-                                                               ▼
-                                                      返回本地结果
-                                                        (runtime: 'local')
+```mermaid
+flowchart TD
+    A[checkDocker] -->|可用| B[executeInDocker]
+    A -->|不可用| D[executeLocal<br/>降级]
+    B -->|成功| C[返回沙箱结果]
+    B -->|失败| D
+    D --> E[返回本地结果<br/>runtime: local]
 ```
 
 降级对上层调用者完全透明 —— 调用者通过 `result.runtime` 字段获知实际执行环境，但不需要为此调整自己的逻辑。
@@ -194,23 +170,12 @@ getApiKey(provider: string): string | undefined {
 
 ### 5.1 调用链路
 
-```
-Agent Loop (src/agent/loop.ts)
-       │
-       │  检测到 LLM 要调用 bash 工具
-       ▼
-bash 工具 (src/tools/builtin/bash.ts)
-       │
-       │  1. 调用 getSandbox() 获取沙箱单例
-       │  2. 调用 sandbox.isAvailable() 检查 Docker
-       │  3. 发送执行状态通知（onUpdate）
-       │  4. 调用 sandbox.execute(command, timeout)
-       ▼
-DockerSandbox (src/sandbox/docker.ts)
-       │
-       ├── Docker 可用 ──► docker run --rm ... base64-decode | sh
-       │
-       └── Docker 不可用 ──► /bin/sh -c <command> (本地执行)
+```mermaid
+flowchart TD
+    A[Agent Loop<br/>src/agent/loop.ts] -->|检测到 LLM 要调用 bash 工具| B[bash 工具<br/>src/tools/builtin/bash.ts]
+    B -->|1. 调用 getSandbox 获取沙箱单例<br/>2. 调用 sandbox.isAvailable 检查 Docker<br/>3. 发送执行状态通知 onUpdate<br/>4. 调用 sandbox.execute command, timeout| C[DockerSandbox<br/>src/sandbox/docker.ts]
+    C -->|Docker 可用| D[docker run --rm ... base64-decode | sh]
+    C -->|Docker 不可用| E[/bin/sh -c command<br/>本地执行]
 ```
 
 ### 5.2 审计日志示例

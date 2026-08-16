@@ -35,35 +35,17 @@ Pi（生产级）                  my-easy-pi（学习版）
 
 ## 🗺️ 路线图总览
 
-```
-01-before-start/      前置准备
-      │
-      ▼
-02-ai-layer/          AI 层 — 统一 LLM 调用接口
-      │
-      ▼
-03-agent-layer/       Agent 层 — ⭐ 核心循环
-      │
-      ▼
-04-tools-layer/       工具层 — 让 LLM 能操作文件系统
-      │
-      ▼
-05-session-layer/     会话层 — 持久化与上下文管理
-      │
-      ▼
-06-extension-layer/   扩展层 — 插件化扩展
-      │
-      ▼
-07-interface-layer/   接口层 — 多种交互模式
-      │
-      ▼
-08-config-and-sandbox/ 配置与沙箱
-      │
-      ▼
-09-putting-it-together/ 串联一切
-      │
-      ▼
-10-advanced-topics/   进阶主题与实践
+```mermaid
+flowchart TD
+    S1[01-before-start/ 前置准备] --> S2[02-ai-layer/ AI 层 — 统一 LLM 调用接口]
+    S2 --> S3[03-agent-layer/ Agent 层 — ⭐ 核心循环]
+    S3 --> S4[04-tools-layer/ 工具层 — 让 LLM 能操作文件系统]
+    S4 --> S5[05-session-layer/ 会话层 — 持久化与上下文管理]
+    S5 --> S6[06-extension-layer/ 扩展层 — 插件化扩展]
+    S6 --> S7[07-interface-layer/ 接口层 — 多种交互模式]
+    S7 --> S8[08-config-and-sandbox/ 配置与沙箱]
+    S8 --> S9[09-putting-it-together/ 串联一切]
+    S9 --> S10[10-advanced-topics/ 进阶主题与实践]
 ```
 
 ---

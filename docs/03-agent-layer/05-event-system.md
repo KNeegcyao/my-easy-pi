@@ -41,30 +41,18 @@ version: 1.0.0
 
 ### 3.2 事件流生命周期
 
-```
-agent_start
-    │
-    ▼
-turn_start (可能多次)
-    │
-    ├── message_update (0 到多次, LLM 流式输出文本)
-    │
-    ├── message_end (LLM 完成一条消息)
-    │
-    ├── tool_execution_start (0 到多次, 开始执行工具)
-    │
-    ├── tool_execution_update (可选, 工具执行中间更新)
-    │
-    ├── tool_execution_end (工具执行完成)
-    │
-    └── turn_end (本轮结束)
-    │
-    ├── 继续下一轮 → turn_start
-    │
-    └── 所有轮次结束
-            │
-            ▼
-        agent_end
+```mermaid
+flowchart TD
+    A[agent_start] --> B[turn_start<br/>可能多次]
+    B --> C[message_update<br/>0 到多次<br/>LLM 流式输出文本]
+    C --> D[message_end<br/>LLM 完成一条消息]
+    D --> E[tool_execution_start<br/>0 到多次<br/>开始执行工具]
+    E --> F[tool_execution_update<br/>可选<br/>工具执行中间更新]
+    F --> G[tool_execution_end<br/>工具执行完成]
+    G --> H[turn_end<br/>本轮结束]
+    H --> I{继续下一轮?}
+    I -->|是| B
+    I -->|所有轮次结束| J[agent_end]
 ```
 
 ## 4. 代码实现

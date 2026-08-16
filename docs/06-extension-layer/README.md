@@ -77,26 +77,15 @@ CLI 指定路径  →  项目目录 .pi/extensions/  →  全局目录 ~/.my-eas
 
 ## 5. 架构概览
 
-```
-┌─────────────────────────────────────────────────┐
-│                   扩展层                          │
-│                                                   │
-│   ┌──────────────┐    ┌──────────────────┐       │
-│   │ ExtensionAPI  │    │ ExtensionLoader  │       │
-│   │  ───────────  │    │  ─────────────── │       │
-│   │ • registerTool│    │ • loadAll()      │       │
-│   │ • unregister  │    │ • 按优先级扫描   │       │
-│   │ • registerCmd │    │ • 动态导入加载   │       │
-│   │ • on()        │    │ • 容错处理       │       │
-│   └──────┬───────┘    └────────┬─────────┘       │
-│          │                      │                  │
-│          ▼                      ▼                  │
-│   ┌──────────────────────────────────────┐        │
-│   │           扩展文件（.ts / .js）        │        │
-│   │   ~/.my-easy-pi/extensions/hello.ts     │        │
-│   │   .pi/extensions/custom-tool.ts      │        │
-│   └──────────────────────────────────────┘        │
-└─────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph 扩展层
+        A[ExtensionAPI<br/>───────────<br/>• registerTool<br/>• unregister<br/>• registerCmd<br/>• on()]
+        B[ExtensionLoader<br/>───────────────<br/>• loadAll()<br/>• 按优先级扫描<br/>• 动态导入加载<br/>• 容错处理]
+        C[扩展文件（.ts / .js）<br/>~/.my-easy-pi/extensions/hello.ts<br/>.pi/extensions/custom-tool.ts]
+    end
+    A --> C
+    B --> C
 ```
 
 ## 6. 小结

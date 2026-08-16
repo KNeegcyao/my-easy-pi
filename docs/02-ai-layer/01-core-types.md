@@ -32,15 +32,24 @@ LLM 调用涉及多个环节：
 
 ### 3.2 类型分层架构
 
-```
-底层通用类型（与提供商无关）
-  └─ ModelInfo, ContentBlock, ToolCall, ModelTool
-       └─ LLMMessage（发给 LLM 的消息格式）
-            └─ ModelContext（完整的 LLM 调用上下文）
-                 └─ LLMEvent（LLM 返回的流式事件）
-上层扩展类型（Agent 层使用）
-  └─ AgentMessage（比 LLMMessage 多了 UI 相关角色）
-       └─ AgentEvent（Agent 生命周期事件）
+```mermaid
+graph TB
+    subgraph 底层通用类型["底层通用类型（与提供商无关）"]
+        A["ModelInfo, ContentBlock, ToolCall, ModelTool"]
+        B["LLMMessage（发给 LLM 的消息格式）"]
+        C["ModelContext（完整的 LLM 调用上下文）"]
+        D["LLMEvent（LLM 返回的流式事件）"]
+    end
+
+    subgraph 上层扩展类型["上层扩展类型（Agent 层使用）"]
+        E["AgentMessage（比 LLMMessage 多了 UI 相关角色）"]
+        F["AgentEvent（Agent 生命周期事件）"]
+    end
+
+    A --> B
+    B --> C
+    C --> D
+    E --> F
 ```
 
 ## 4. 代码实现
