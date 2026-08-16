@@ -114,7 +114,7 @@ export const OllamaProvider: ProviderFactory = {
 
 ```typescript
 import { Type } from '@sinclair/typebox'
-import type { ExtensionAPI } from 'piagent'
+import type { ExtensionAPI } from 'my-easy-pi'
 
 export default function (api: ExtensionAPI) {
   api.registerTool({

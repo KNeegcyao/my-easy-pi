@@ -2,9 +2,9 @@
 // Logger — 分层日志系统
 //
 // 日志文件：
-//   ~/.piagent/logs/access-YYYY-MM-DD.jsonl   ← 访问日志
-//   ~/.piagent/logs/error-YYYY-MM-DD.jsonl    ← 错误日志
-//   ~/.piagent/logs/audit-YYYY-MM-DD.jsonl    ← 操作审计
+//   ~/.my-easy-pi/logs/access-YYYY-MM-DD.jsonl   ← 访问日志
+//   ~/.my-easy-pi/logs/error-YYYY-MM-DD.jsonl    ← 错误日志
+//   ~/.my-easy-pi/logs/audit-YYYY-MM-DD.jsonl    ← 操作审计
 //
 // 日志级别（终端输出用）：
 //   error > warn > info > debug
@@ -15,7 +15,7 @@ import { existsSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 
-const LOG_DIR = join(homedir(), '.piagent', 'logs')
+const LOG_DIR = join(homedir(), '.my-easy-pi', 'logs')
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 

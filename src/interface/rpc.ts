@@ -1,7 +1,7 @@
 // ============================================================
 // RPC 模式 — stdin/stdout JSONL 协议
 //
-// 允许其他程序（Python、Go 等）通过标准输入输出与 piagent 通信。
+// 允许其他程序（Python、Go 等）通过标准输入输出与 my-easy-pi 通信。
 //
 // 输入格式（stdin）：
 //   {"type":"message","content":"hello"}

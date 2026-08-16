@@ -17,14 +17,14 @@
 1. 创建全局扩展目录：
 
 ```bash
-mkdir -p ~/.piagent/extensions
+mkdir -p ~/.my-easy-pi/extensions
 ```
 
-2. 创建扩展文件 `~/.piagent/extensions/hello-world.ts`：
+2. 创建扩展文件 `~/.my-easy-pi/extensions/hello-world.ts`：
 
 ```typescript
-// ~/.piagent/extensions/hello-world.ts
-import type { ExtensionAPI } from 'piagent'
+// ~/.my-easy-pi/extensions/hello-world.ts
+import type { ExtensionAPI } from 'my-easy-pi'
 
 export default async function (api: ExtensionAPI) {
   console.log('🌍 Hello World 扩展已加载！')
@@ -44,12 +44,12 @@ export default async function (api: ExtensionAPI) {
 
 ```bash
 # 检查文件是否在正确的位置
-ls -la ~/.piagent/extensions/hello-world.ts
+ls -la ~/.my-easy-pi/extensions/hello-world.ts
 ```
 
 ### 验证标准
 
-- [ ] 扩展文件位于 `~/.piagent/extensions/` 目录下
+- [ ] 扩展文件位于 `~/.my-easy-pi/extensions/` 目录下
 - [ ] 扩展使用 `export default` 导出一个函数
 - [ ] 函数接收 `ExtensionAPI` 类型的参数
 - [ ] 注册了 `hello:greet` 命令
@@ -62,11 +62,11 @@ ls -la ~/.piagent/extensions/hello-world.ts
 
 ### 步骤
 
-1. 创建扩展文件 `~/.piagent/extensions/weather.ts`：
+1. 创建扩展文件 `~/.my-easy-pi/extensions/weather.ts`：
 
 ```typescript
-// ~/.piagent/extensions/weather.ts
-import type { ExtensionAPI, AgentTool } from 'piagent'
+// ~/.my-easy-pi/extensions/weather.ts
+import type { ExtensionAPI, AgentTool } from 'my-easy-pi'
 
 /**
  * 模拟天气查询工具
@@ -140,7 +140,7 @@ export default async function (api: ExtensionAPI) {
 
 ```bash
 # 检查类型是否正确
-npx tsc --noEmit ~/.piagent/extensions/weather.ts
+npx tsc --noEmit ~/.my-easy-pi/extensions/weather.ts
 ```
 
 ### 验证标准
@@ -163,11 +163,11 @@ npx tsc --noEmit ~/.piagent/extensions/weather.ts
 
 ### 步骤
 
-1. 创建扩展文件 `~/.piagent/extensions/event-logger.ts`：
+1. 创建扩展文件 `~/.my-easy-pi/extensions/event-logger.ts`：
 
 ```typescript
-// ~/.piagent/extensions/event-logger.ts
-import type { ExtensionAPI, AgentEvent } from 'piagent'
+// ~/.my-easy-pi/extensions/event-logger.ts
+import type { ExtensionAPI, AgentEvent } from 'my-easy-pi'
 
 export default async function (api: ExtensionAPI) {
   console.log('[event-logger] 事件日志扩展已加载')
@@ -226,7 +226,7 @@ export default async function (api: ExtensionAPI) {
 
 ```bash
 # 检查文件语法
-npx tsc --noEmit ~/.piagent/extensions/event-logger.ts
+npx tsc --noEmit ~/.my-easy-pi/extensions/event-logger.ts
 ```
 
 ### 验证标准
@@ -250,8 +250,8 @@ npx tsc --noEmit ~/.piagent/extensions/event-logger.ts
 将练习 1-3 整合成一个完整的扩展，同时包含工具、命令和事件监听。
 
 ```typescript
-// ~/.piagent/extensions/piagent-starter-kit.ts
-import type { ExtensionAPI, AgentTool, AgentEvent } from 'piagent'
+// ~/.my-easy-pi/extensions/my-easy-pi-starter-kit.ts
+import type { ExtensionAPI, AgentTool, AgentEvent } from 'my-easy-pi'
 
 // ===== 工具定义 =====
 

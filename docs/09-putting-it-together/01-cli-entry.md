@@ -120,9 +120,9 @@ async function main(): Promise<void> {
 async load(): Promise<Settings> {
   const merged: Settings = {}
   // 1. 项目配置（最低优先级）
-  this.projectConfig = await this.loadFile(PROJECT_CONFIG_PATH)  // .piagent/settings.json
+  this.projectConfig = await this.loadFile(PROJECT_CONFIG_PATH)  // .my-easy-pi/settings.json
   // 2. 用户配置（中等优先级）
-  this.userConfig = await this.loadFile(USER_CONFIG_PATH)       // ~/.piagent/config.json
+  this.userConfig = await this.loadFile(USER_CONFIG_PATH)       // ~/.my-easy-pi/config.json
 
   Object.assign(merged, this.projectConfig)  // 项目配置作为基础
   Object.assign(merged, this.userConfig)     // 用户配置覆盖项目配置
@@ -132,8 +132,8 @@ async load(): Promise<Settings> {
 ```
 
 **配置优先级**（从低到高）：
-1. 项目配置 `.piagent/settings.json`（最低）
-2. 用户配置 `~/.piagent/config.json`（中等）
+1. 项目配置 `.my-easy-pi/settings.json`（最低）
+2. 用户配置 `~/.my-easy-pi/config.json`（中等）
 3. 环境变量 `DEEPSEEK_API_KEY` 等（高）
 4. CLI 参数 `--model gpt-4o`（最高，在 `parseArgs` 中处理）
 
@@ -255,7 +255,7 @@ if (args.continue) {                          // pi -c：继续上次会话
 
 **SessionManager 内部**（`src/session/manager.ts`）：
 
-- `getLastSession()`：读取 `~/.piagent/last-session` 文件中的会话 ID
+- `getLastSession()`：读取 `~/.my-easy-pi/last-session` 文件中的会话 ID
 - `loadSession(id)`：读取 `sessions/{id}.jsonl` 文件，反序列化为 `AgentMessage[]`
 - JSONL 文件每行一个 JSON 对象，追加写入，天然支持大文件
 
@@ -271,7 +271,7 @@ const permission = new PermissionManager()     // 创建权限管理器
 const compactor = new Compactor()              // 创建上下文压缩器
 
 const agent = new Agent({
-  systemPrompt: `你是 piagent — 一个 AI 编程助手。\n当前使用的模型: ${modelId}（提供商: ${provider}）\n\n你有以下工具可用：\n...`,  // 系统提示词
+  systemPrompt: `你是 my-easy-pi — 一个 AI 编程助手。\n当前使用的模型: ${modelId}（提供商: ${provider}）\n\n你有以下工具可用：\n...`,  // 系统提示词
   model: model!,                                // 传入 Model 实例
   tools: toolRegistry.listTools(),              // 传入所有工具
   beforeToolCall: (ctx) => permission.check(ctx),  // 工具调用前检查权限
@@ -434,11 +434,11 @@ node dist/cli.js -m "你好" --output json
 
 ```bash
 # 1. 验证配置加载
-ls -la ~/.piagent/config.json       # 用户配置
-ls -la .piagent/settings.json       # 项目配置（如果存在）
+ls -la ~/.my-easy-pi/config.json       # 用户配置
+ls -la .my-easy-pi/settings.json       # 项目配置（如果存在）
 
 # 2. 验证会话目录
-ls -la .piagent/sessions/           # 会话文件
+ls -la .my-easy-pi/sessions/           # 会话文件
 
 # 3. 验证会话列表
 node dist/cli.js -l                  # 列出所有会话
@@ -490,7 +490,7 @@ $ node dist/cli.js -l
 1. 如果要在启动时加载一个自定义工具，应该在 `main()` 函数的哪个位置添加代码？为什么？
 2. `PermissionManager` 和 `Compactor` 作为钩子注入有什么好处？如果直接在 Agent 构造函数中硬编码会怎样？
 3. 为什么 `parseArgs` 的默认 output 是 `'print'`，但代码中又会检测 `process.stdin.isTTY` 来决定是否使用 TUI？
-4. 尝试修改 `cli.ts`，让 Agent 启动时自动加载 `~/.piagent/extensions/` 目录下的所有扩展文件，应该在哪里添加代码？
+4. 尝试修改 `cli.ts`，让 Agent 启动时自动加载 `~/.my-easy-pi/extensions/` 目录下的所有扩展文件，应该在哪里添加代码？
 5. 如果用户同时传了 `-m "你好"` 和 `-i`（TUI）两个参数，代码会优先使用哪个模式？为什么？
 
 > ← [上一节](../09-putting-it-together/README.md) · [下一节](./02-end-to-end-flow.md) →

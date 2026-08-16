@@ -74,7 +74,7 @@ export class Stack implements Component {
 
   render(width: number): string[] {
     const vh = this.viewportHeight ?? 0
-    // HStack 本期不实现（piagent TUI 只用 VStack）；直接拼自然行
+    // HStack 本期不实现（my-easy-pi TUI 只用 VStack）；直接拼自然行
     if (this.direction === 'horizontal') {
       return this.renderHorizontal(width)
     }
@@ -154,7 +154,7 @@ export class Stack implements Component {
     return out
   }
 
-  /** HStack 简化：单行，各子 render(width) 取首行拼接（本期 piagent 不用，占位） */
+  /** HStack 简化：单行，各子 render(width) 取首行拼接（本期 my-easy-pi 不用，占位） */
   private renderHorizontal(_width: number): string[] {
     const out: string[] = []
     for (const ch of this.children) {

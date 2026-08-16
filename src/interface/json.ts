@@ -3,7 +3,7 @@
 //
 // 将 Agent 的事件以 JSONL（每行一个 JSON）格式输出到 stdout。
 // 适合与其他工具配合使用：
-//   pi -m "xxx" --output json | jq '.type'
+//   my-easy-pi -m "xxx" --output json | jq '.type'
 // ============================================================
 
 import { EOL } from 'os'

@@ -35,7 +35,7 @@
 │  ── 自动发现并加载扩展文件            │
 │  ── 搜索路径：                      │
 │    1. .pi/extensions/*.ts（项目级）   │
-│    2. ~/.piagent/extensions/*.ts（全局）│
+│    2. ~/.my-easy-pi/extensions/*.ts（全局）│
 └─────────────────────────────────────┘
 ```
 
@@ -85,7 +85,7 @@ Agent 退出，扩展自动清理
 // ============================================================
 
 import { Type } from '@sinclair/typebox'
-import type { ExtensionAPI } from 'piagent'  // 实际使用时为相对路径
+import type { ExtensionAPI } from 'my-easy-pi'  // 实际使用时为相对路径
 
 // 扩展的默认导出函数
 // 在扩展被加载时，my-easy-pi 会调用这个函数，并传入 ExtensionAPI 实例
@@ -212,7 +212,7 @@ ExtensionLoader 的加载逻辑（`src/extension/loader.ts`）：
 private getSearchDirs(): string[] {
   return [
     join(this.projectDir, '.pi', 'extensions'),     // 项目级扩展
-    join(homedir(), '.piagent', 'extensions'),       // 全局扩展
+    join(homedir(), '.my-easy-pi', 'extensions'),       // 全局扩展
   ]
 }
 
@@ -233,7 +233,7 @@ private async loadDir(dir: string): Promise<number> {
 
 关键点：
 - 扩展文件可以是 `.ts` 或 `.js`
-- 优先加载项目级扩展（`.pi/extensions/`），再加载全局扩展（`~/.piagent/extensions/`）
+- 优先加载项目级扩展（`.pi/extensions/`），再加载全局扩展（`~/.my-easy-pi/extensions/`）
 - 默认导出必须是函数
 - 单个扩展加载失败不影响其他扩展
 
@@ -258,7 +258,7 @@ private async loadDir(dir: string): Promise<number> {
 
 ```typescript
 import { Type } from '@sinclair/typebox'
-import type { ExtensionAPI } from 'piagent'
+import type { ExtensionAPI } from 'my-easy-pi'
 
 export default async function (api: ExtensionAPI) {
   // 注册多个工具

@@ -36,7 +36,7 @@ my-easy-pi 启动 ──► ExtensionLoader 扫描目录 ──► 逐个加载�
 
 | 手机 App 安装流程 | ExtensionLoader 的对应步骤 |
 |-------------------|---------------------------|
-| 从 App Store 下载 App 安装包 | 用户将扩展文件放入 `~/.piagent/extensions/` |
+| 从 App Store 下载 App 安装包 | 用户将扩展文件放入 `~/.my-easy-pi/extensions/` |
 | 手机开机 | my-easy-pi 启动，调用 `loadAll()` |
 | 系统扫描已安装的 App 列表 | `getSearchDirs()` 获取扩展目录 |
 | 系统检查 App 的签名和 manifest | 检查文件是否为 `.ts/.js`、`default` 导出是否为函数 |
@@ -55,7 +55,7 @@ loadAll() 被调用
 getSearchDirs() 获取搜索目录列表
     │
     ├── 1. 项目目录:  {projectDir}/.pi/extensions/
-    ├── 2. 全局目录:  ~/.piagent/extensions/
+    ├── 2. 全局目录:  ~/.my-easy-pi/extensions/
     │
     ▼
 遍历每个目录，跳过不存在的目录
@@ -82,7 +82,7 @@ loadDir() 读取目录下的所有文件
 | 优先级 | 目录 | 路径 | 适用场景 |
 |--------|------|------|----------|
 | 高 | 项目目录 | `{projectDir}/.pi/extensions/` | 项目级扩展，随项目分发 |
-| 低 | 全局目录 | `~/.piagent/extensions/` | 用户级扩展，全局可用 |
+| 低 | 全局目录 | `~/.my-easy-pi/extensions/` | 用户级扩展，全局可用 |
 
 > **注意**: 当前实现中，`getSearchDirs()` 返回的目录列表只有两个。如果后续需要支持 CLI 参数指定路径，可以在该方法中增加一个动态注入的路径。
 
@@ -107,7 +107,7 @@ loadDir() 读取目录下的所有文件
 //
 // 搜索路径（按优先级）：
 //   1. 项目目录  .pi/extensions/*.ts   ← 随项目版本控制的扩展
-//   2. 全局目录  ~/.piagent/extensions/*.ts  ← 用户全局安装的扩展
+//   2. 全局目录  ~/.my-easy-pi/extensions/*.ts  ← 用户全局安装的扩展
 //
 // 加载流程（对每个文件）：
 //   1. 过滤：只接受 .ts 和 .js 文件
@@ -186,12 +186,12 @@ export class ExtensionLoader {
    * 扩展路径说明：
    *   - .pi/extensions/：点开头的目录，通常会被 git 忽略
    *     但 .pi/ 本身可以被版本控制，方便团队共享扩展
-   *   - ~/.piagent/extensions/：用户级别的扩展，所有项目共用
+   *   - ~/.my-easy-pi/extensions/：用户级别的扩展，所有项目共用
    */
   private getSearchDirs(): string[] {
     return [
       join(this.projectDir, '.pi', 'extensions'),     // ← 优先级高
-      join(homedir(), '.piagent', 'extensions'),       // ← 优先级低
+      join(homedir(), '.my-easy-pi', 'extensions'),       // ← 优先级低
     ]
   }
 
@@ -287,12 +287,12 @@ async loadAll(): Promise<number> {
 private getSearchDirs(): string[] {
   return [
     join(this.projectDir, '.pi', 'extensions'),
-    join(homedir(), '.piagent', 'extensions'),
+    join(homedir(), '.my-easy-pi', 'extensions'),
   ]
 }
 ```
 - 项目级扩展放在 `.pi/extensions/` 目录下，随项目一起版本控制
-- 全局扩展放在 `~/.piagent/extensions/` 目录下，用户全局可用
+- 全局扩展放在 `~/.my-easy-pi/extensions/` 目录下，用户全局可用
 - 数组顺序即优先级顺序
 
 **loadDir**（第 47-72 行）：
@@ -344,7 +344,7 @@ private async loadDir(dir: string): Promise<number> {
   │                             │                             │                       │
   │                             ├── getSearchDirs()           │                       │
   │                             │  返回 [".pi/extensions/",    │                       │
-  │                             │         "~/.piagent/ext/"]  │                       │
+  │                             │         "~/.my-easy-pi/ext/"]  │                       │
   │                             │                             │                       │
   │                             ├── loadDir(".pi/extensions") │                       │
   │                             │                             │                       │
@@ -419,7 +419,7 @@ loadDir(dir)
 ```bash
 # 创建测试目录结构
 mkdir -p /tmp/test-extensions/.pi/extensions
-mkdir -p /tmp/test-extensions-global/.piagent/extensions
+mkdir -p /tmp/test-extensions-global/.my-easy-pi/extensions
 
 # 创建测试扩展
 cat > /tmp/test-extensions/.pi/extensions/hello.ts << 'EOF'
@@ -428,7 +428,7 @@ export default async function (api: any) {
 }
 EOF
 
-cat > /tmp/test-extensions-global/.piagent/extensions/hello.ts << 'EOF'
+cat > /tmp/test-extensions-global/.my-easy-pi/extensions/hello.ts << 'EOF'
 export default async function (api: any) {
   console.log('[扩展] 全局扩展加载成功')
 }

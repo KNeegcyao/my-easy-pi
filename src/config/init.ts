@@ -1,8 +1,8 @@
 // ============================================================
-// init — piagent 初始化命令
+// init — my-easy-pi 初始化命令
 //
 // 创建配置文件、Docker 沙箱镜像、验证环境。
-// 使用方式：pi --init
+// 使用方式：my-easy-pi --init
 // ============================================================
 
 import { writeFile, mkdir } from 'fs/promises'
@@ -15,7 +15,7 @@ import { logger } from './logger.js'
 
 const execAsync = promisify(exec)
 
-const CONFIG_DIR = join(homedir(), '.piagent')
+const CONFIG_DIR = join(homedir(), '.my-easy-pi')
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json')
 
 const DEFAULT_CONFIG = {
@@ -33,12 +33,12 @@ async function ensureDir(): Promise<void> {
 
 async function createConfig(): Promise<boolean> {
   if (existsSync(CONFIG_PATH)) {
-    console.log('  ⏭️  配置文件已存在: ~/.piagent/config.json')
+    console.log('  ⏭️  配置文件已存在: ~/.my-easy-pi/config.json')
     return true
   }
   await ensureDir()
   await writeFile(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2) + '\n', 'utf-8')
-  console.log('  ✅ 已创建配置文件: ~/.piagent/config.json')
+  console.log('  ✅ 已创建配置文件: ~/.my-easy-pi/config.json')
   return true
 }
 
@@ -47,18 +47,18 @@ async function buildDockerImage(): Promise<boolean> {
     await execAsync('docker info', { timeout: 5000 })
   } catch {
     console.log('  ⏭️  Docker 不可用，跳过沙箱镜像构建')
-    console.log('  提示: 安装 Docker Desktop 后运行 pi --init 可自动构建')
+    console.log('  提示: 安装 Docker Desktop 后运行 my-easy-pi --init 可自动构建')
     return false
   }
 
   try {
-    await execAsync('docker image inspect piagent-sandbox:latest', { timeout: 5000 })
-    console.log('  ⏭️  Docker 沙箱镜像已存在: piagent-sandbox:latest')
+    await execAsync('docker image inspect my-easy-pi-sandbox:latest', { timeout: 5000 })
+    console.log('  ⏭️  Docker 沙箱镜像已存在: my-easy-pi-sandbox:latest')
     return true
   } catch {
     console.log('  🔨 正在构建 Docker 沙箱镜像...')
     try {
-      await execAsync('docker build -t piagent-sandbox:latest -f Dockerfile .', {
+      await execAsync('docker build -t my-easy-pi-sandbox:latest -f Dockerfile .', {
         timeout: 120_000,
       })
       console.log('  ✅ Docker 沙箱镜像构建完成')
@@ -106,11 +106,11 @@ async function checkEnvironment(): Promise<void> {
 }
 
 export async function runInit(): Promise<void> {
-  console.log('\n初始化 piagent...\n')
+  console.log('\n初始化 my-easy-pi...\n')
 
   await createConfig()
   await buildDockerImage()
   await checkEnvironment()
 
-  console.log('\n初始化完成！运行 pi 开始使用 🚀\n')
+  console.log('\n初始化完成！运行 my-easy-pi 开始使用 🚀\n')
 }

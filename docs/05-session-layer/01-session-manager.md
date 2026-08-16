@@ -248,7 +248,7 @@ async listSessions(): Promise<SessionSummary[]> {
 /** 保存最后活跃的会话 ID */
 async saveLastSession(sessionId: string): Promise<void> {
   try {
-    const dir = join(homedir(), '.piagent')
+    const dir = join(homedir(), '.my-easy-pi')
     if (!existsSync(dir)) await mkdir(dir, { recursive: true })
     await writeFile(LAST_SESSION_PATH, sessionId, 'utf-8')
   } catch { /* 不影响主流程 */ }
@@ -264,7 +264,7 @@ async getLastSession(): Promise<string | null> {
 ```
 
 **关键设计**：
-- `last-session` 文件保存在 `~/.piagent/` 目录下
+- `last-session` 文件保存在 `~/.my-easy-pi/` 目录下
 - 异常被静默捕获，不影响主流程
 - 这是 `-c` 继续会话功能的基础
 
@@ -419,7 +419,7 @@ node dist/cli.js --delete session-1722428800000
 ### 5.4 查看 last-session 文件
 
 ```bash
-cat ~/.piagent/last-session
+cat ~/.my-easy-pi/last-session
 # 输出类似：session-1722428800000
 ```
 

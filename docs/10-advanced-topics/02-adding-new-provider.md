@@ -414,7 +414,7 @@ Gemini 使用 Google AI Studio 的 API Key。配置方式：
 # 环境变量方式
 export GEMINI_API_KEY=your-gemini-api-key-here
 
-# 或配置文件方式（~/.piagent/config.json）
+# 或配置文件方式（~/.my-easy-pi/config.json）
 {
   "defaultProvider": "gemini",
   "defaultModel": "gemini-2.0-flash",

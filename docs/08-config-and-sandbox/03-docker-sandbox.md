@@ -67,7 +67,7 @@ interface SandboxResult {
 ### 4.1 Dockerfile — 沙箱镜像
 
 ```dockerfile
-# piagent 沙箱镜像
+# my-easy-pi 沙箱镜像
 # 基于 Alpine Linux，只安装最小工具集
 
 FROM alpine:latest
@@ -355,8 +355,8 @@ async function buildDockerImage(): Promise<boolean> {
 
   // 2. 检查镜像是否已存在
   try {
-    await execAsync('docker image inspect piagent-sandbox:latest', { timeout: 5000 })
-    console.log('  ⏭️  Docker 沙箱镜像已存在: piagent-sandbox:latest')
+    await execAsync('docker image inspect my-easy-pi-sandbox:latest', { timeout: 5000 })
+    console.log('  ⏭️  Docker 沙箱镜像已存在: my-easy-pi-sandbox:latest')
     return true
   } catch {
     // 3. 构建镜像
@@ -377,7 +377,7 @@ async function buildDockerImage(): Promise<boolean> {
 pi --init
 
 # 或手动构建
-docker build -t piagent-sandbox:latest -f Dockerfile .
+docker build -t my-easy-pi-sandbox:latest -f Dockerfile .
 ```
 
 ### 5.2 验证沙箱隔离效果

@@ -127,7 +127,7 @@ version: 1.0.0
 | 流式输出 | ✅ | ✅ | ✅ | ✅ |
 | 交互性 | 无 | 无 | 通过协议 | 全屏交互 |
 | 依赖 | 无 | 无 | 无 | 无（纯 ANSI） |
-| 典型场景 | `echo "你好" \| piagent -p "翻译"` | CI 集成、日志分析 | Python/Go 调用 | 日常开发使用 |
+| 典型场景 | `echo "你好" \| my-easy-pi -p "翻译"` | CI 集成、日志分析 | Python/Go 调用 | 日常开发使用 |
 
 ### 选型指南：何时使用哪种模式
 
@@ -136,7 +136,7 @@ version: 1.0.0
 | 日常命令行交互 | **Print**（默认） | 最简单的文本输入输出，无需学习 |
 | 管道集成到其他命令 | **Print** | 纯文本输出自然支持管道 `\|` |
 | 在 CI/CD 中使用 | **JSON** | 可解析的事件流，便于提取日志和结果 |
-| 用脚本/程序调用 piagent | **JSON** | 无需处理 ANSI 控制字符，直接解析 JSONL |
+| 用脚本/程序调用 my-easy-pi | **JSON** | 无需处理 ANSI 控制字符，直接解析 JSONL |
 | 跨语言集成（Python/Go 调用） | **RPC** | 标准化的 stdin/stdout 协议 |
 | 远程调用 | **RPC** | 协议可映射到 WebSocket 或 HTTP 传输层 |
 | 日常开发使用 | **TUI** | 全屏交互，支持 Slash 命令、多行编辑 |
@@ -195,16 +195,16 @@ export function createXxxInterface(agent: Agent): void {
 
 ```bash
 # Print 模式（默认）
-echo "你好" | npx piagent -p "翻译成英文"
+echo "你好" | npx my-easy-pi -p "翻译成英文"
 
 # JSON 模式
-npx piagent -m "你好" --output json
+npx my-easy-pi -m "你好" --output json
 
 # RPC 模式
-echo '{"type":"message","content":"你好"}' | npx piagent --rpc
+echo '{"type":"message","content":"你好"}' | npx my-easy-pi --rpc
 
 # TUI 模式（默认无参数时启动）
-npx piagent
+npx my-easy-pi
 ```
 
 ### 事件机制的观察
@@ -212,7 +212,7 @@ npx piagent
 使用 JSON 模式可以最直观地看到完整的事件流：
 
 ```bash
-npx piagent -m "你好" --output json | jq '.type'
+npx my-easy-pi -m "你好" --output json | jq '.type'
 ```
 
 输出示例：

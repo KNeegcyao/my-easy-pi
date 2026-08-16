@@ -207,7 +207,7 @@ import('./dist/tools/builtin/write.js').then(({ writeTool }) => {
 # 4. 测试 edit 工具
 node -e "
 import('./dist/tools/builtin/edit.js').then(({ editTool }) => {
-  editTool.execute('test-3', { path: '/tmp/test.txt', old: 'World', new: 'piagent' })
+  editTool.execute('test-3', { path: '/tmp/test.txt', old: 'World', new: 'my-easy-pi' })
     .then(r => console.log(r.content[0].text))
 })
 "

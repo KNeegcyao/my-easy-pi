@@ -198,13 +198,13 @@ export function createJSONInterface(agent: Agent): void {
 
 ```bash
 # 启动 JSON 模式
-piagent -m "你好" --output json
+my-easy-pi -m "你好" --output json
 ```
 
 预期输出（实例如下，以 `jq` 格式化后展示）：
 
 ```bash
-$ piagent -m "用中文说 hello" --output json | jq '.type'
+$ my-easy-pi -m "用中文说 hello" --output json | jq '.type'
 "agent_start"
 "message_start"
 "message_update"
@@ -221,7 +221,7 @@ $ piagent -m "用中文说 hello" --output json | jq '.type'
 
 ```bash
 # 只查看 message_update 事件
-piagent -m "你好" --output json \
+my-easy-pi -m "你好" --output json \
   | jq 'select(.type == "message_update")'
 
 # 输出：
@@ -234,7 +234,7 @@ piagent -m "你好" --output json \
 
 ```bash
 # 从 message_update 中提取内容（去除外层引号）
-piagent -m "你好" --output json \
+my-easy-pi -m "你好" --output json \
   | jq -r 'select(.type == "message_update") | .message.content'
 
 # 输出：
@@ -247,7 +247,7 @@ piagent -m "你好" --output json \
 
 ```bash
 # 统计各类事件的数量
-piagent -m "搜索天气" --output json \
+my-easy-pi -m "搜索天气" --output json \
   | jq -r '.type' \
   | sort \
   | uniq -c \
@@ -267,7 +267,7 @@ piagent -m "搜索天气" --output json \
 
 ```bash
 # 提取 message_end 中的完整内容
-piagent -m "你好" --output json \
+my-easy-pi -m "你好" --output json \
   | jq -r 'select(.type == "message_end") | .message.content'
 ```
 
@@ -275,7 +275,7 @@ piagent -m "你好" --output json \
 
 ```bash
 # 使用 jq 的格式化能力，让每条事件更清晰
-piagent -m "你好" --output json \
+my-easy-pi -m "你好" --output json \
   | jq 'select(.type == "message_end") | {type, role: .message.role, content_preview: (.message.content[:50])}'
 
 # 输出：
@@ -290,7 +290,7 @@ piagent -m "你好" --output json \
 
 ```bash
 # 每 5 秒检查一次最新事件
-watch -n 5 "piagent -m '查看系统状态' --output json \
+watch -n 5 "my-easy-pi -m '查看系统状态' --output json \
   | jq -r 'select(.type == \"message_end\") | .message.content'"
 ```
 
@@ -300,7 +300,7 @@ watch -n 5 "piagent -m '查看系统状态' --output json \
 
 ```bash
 # 在 CI 脚本中获取 Agent 输出并提取关键信息
-piagent -m "分析 CHANGELOG.md 并提取最近的版本号" --output json \
+my-easy-pi -m "分析 CHANGELOG.md 并提取最近的版本号" --output json \
   | jq -r 'select(.type == "message_end") | .message.content' \
   > release_notes.md
 ```
@@ -314,9 +314,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run piagent analysis
+      - name: Run my-easy-pi analysis
         run: |
-          piagent -m "审查代码变更" --output json > events.jsonl
+          my-easy-pi -m "审查代码变更" --output json > events.jsonl
           # 提取最终结论
           jq -r 'select(.type == "message_end") | .message.content' events.jsonl > conclusion.md
           # 提取工具调用结果
@@ -335,7 +335,7 @@ jobs:
 
 ```bash
 # 将 JSONL 输出追加到日志文件
-piagent -m "执行巡检任务" --output json >> agent-audit-$(date +%Y%m%d).jsonl
+my-easy-pi -m "执行巡检任务" --output json >> agent-audit-$(date +%Y%m%d).jsonl
 
 # 事后分析：查询某天的所有工具调用
 jq -r 'select(.type == "tool_execution_start") | "\(.name): \(.arguments)"' agent-audit-20260810.jsonl
@@ -345,7 +345,7 @@ jq -r 'select(.type == "tool_execution_start") | "\(.name): \(.arguments)"' agen
 
 ```bash
 # 多层管道处理
-piagent -m "找出最大的三个文件" --output json \
+my-easy-pi -m "找出最大的三个文件" --output json \
   | jq -r 'select(.type == "message_end") | .message.content' \
   | head -5 \
   | awk '{print $1, $2}'
@@ -357,13 +357,13 @@ JSON 模式完整保留了工具调用信息，非常适合调试：
 
 ```bash
 # 查看工具执行事件
-piagent -m "搜索今天的天气" --output json \
+my-easy-pi -m "搜索今天的天气" --output json \
   | jq 'select(.type | startswith("tool_execution"))'
 ```
 
 ```bash
 # 查看完整的请求-响应周期
-piagent -m "帮我搜索 piagent 文档" --output json \
+my-easy-pi -m "帮我搜索 my-easy-pi 文档" --output json \
   | jq -c 'select(.type | test("^(agent|turn|tool_execution)"))'
 ```
 

@@ -119,7 +119,7 @@ version: 1.0.0
 一个会话对应一次用户与 Agent 的完整对话。每个会话由三个要素唯一标识：
 
 - **sessionId** -- 格式为 `session-{timestamp}`，例如 `session-1692000000000`
-- **JSONL 文件** -- 存储在 `~/.piagent/sessions/{sessionId}.jsonl`
+- **JSONL 文件** -- 存储在 `~/.my-easy-pi/sessions/{sessionId}.jsonl`
 - **元数据消息** -- 文件中的第一条消息（`id: 'meta'`）记录会话名称、创建时间、模型信息等
 
 ### 2. JSONL 存储格式

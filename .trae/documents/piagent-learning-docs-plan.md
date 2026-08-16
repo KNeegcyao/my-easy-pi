@@ -1,8 +1,8 @@
-# piagent 学习文档计划
+# my-easy-pi 学习文档计划
 
 ## 概述
 
-为 piagent 项目创建一套完整的**中文学习文档**，像 GitHub 上流行的教学项目（如 `pguso/ai-agents-from-scratch`、`ShiboSusu/LLM-from-scratch`）一样，采用**按模块分章节、逐步深入**的结构，让学习者可以跟着文档从零理解并自己实现一个 AI Coding Agent。
+为 my-easy-pi 项目创建一套完整的**中文学习文档**，像 GitHub 上流行的教学项目（如 `pguso/ai-agents-from-scratch`、`ShiboSusu/LLM-from-scratch`）一样，采用**按模块分章节、逐步深入**的结构，让学习者可以跟着文档从零理解并自己实现一个 AI Coding Agent。
 
 ---
 

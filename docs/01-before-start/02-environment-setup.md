@@ -55,7 +55,7 @@
 ```bash
 # 克隆项目
 git clone <项目地址>
-cd piagent
+cd my-easy-pi
 
 # 查看项目结构（确认克隆成功）
 ls -la
@@ -106,7 +106,7 @@ source ~/.zshrc
 npx tsx src/cli.ts --init
 ```
 
-这会在 `~/.piagent/config.json` 创建配置文件，你可以手动编辑：
+这会在 `~/.my-easy-pi/config.json` 创建配置文件，你可以手动编辑：
 
 ```json
 {
@@ -125,8 +125,8 @@ npx tsx src/cli.ts --init
 ```
 CLI 参数（--provider openai）     ← 最高优先级
 环境变量（DEEPSEEK_API_KEY）
-用户配置（~/.piagent/config.json）
-项目配置（.piagent/settings.json）
+用户配置（~/.my-easy-pi/config.json）
+项目配置（.my-easy-pi/settings.json）
 硬编码默认值                       ← 最低优先级
 ```
 
@@ -254,9 +254,9 @@ echo "✅ 首次对话: 手动运行 pi -m '你好' 确认"
 
 | 错误信息 | 可能原因 | 解决方法 |
 |---------|---------|---------|
-| `AUTH_API_KEY_MISSING` | 未设置 API 密钥的环境变量 | 执行 `export DEEPSEEK_API_KEY=sk-xxx`，或将密钥写入 `~/.piagent/config.json` |
+| `AUTH_API_KEY_MISSING` | 未设置 API 密钥的环境变量 | 执行 `export DEEPSEEK_API_KEY=sk-xxx`，或将密钥写入 `~/.my-easy-pi/config.json` |
 | `AUTH_API_KEY_INVALID` | API 密钥格式错误或已过期 | 检查密钥前后是否有空格；登录对应 LLM 官网确认密钥仍然有效 |
-| `CONFIG_INVALID` | `~/.piagent/config.json` 格式不正确（如缺少逗号、多余引号） | 用 `cat ~/.piagent/config.json` 查看内容，确保是合法 JSON；可使用在线 JSON 校验工具检查 |
+| `CONFIG_INVALID` | `~/.my-easy-pi/config.json` 格式不正确（如缺少逗号、多余引号） | 用 `cat ~/.my-easy-pi/config.json` 查看内容，确保是合法 JSON；可使用在线 JSON 校验工具检查 |
 | `PROVIDER_NOT_FOUND` | `--provider` 参数使用了不支持的 LLM 提供商名称 | 使用 `deepseek` / `anthropic` / `openai` 之一；检查拼写是否完全匹配 |
 | `MODEL_NOT_FOUND` | 指定的模型在当前提供商中不存在 | 确认模型名拼写正确（如 `deepseek-chat` 而非 `deepseek-chat-v2`）；查阅对应 API 文档获取可用模型列表 |
 | `PROVIDER_RATE_LIMITED` | API 请求频率过高，触发限流 | `fetchWithRetry` 会自动处理 429 响应并等待 `Retry-After` 头指定的时间后重试；如持续出现，降低请求频率 |

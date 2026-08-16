@@ -35,14 +35,14 @@
 
 ### 3.2 协议消息格式
 
-**请求（stdin → piagent）：**
+**请求（stdin → my-easy-pi）：**
 
 | 消息类型 | 格式 | 说明 |
 |----------|------|------|
 | `message` | `{"type":"message","content":"你好"}` | 发送用户消息 |
 | `exit` | `{"type":"exit"}` | 优雅退出 |
 
-**响应（piagent → stdout）：**
+**响应（my-easy-pi → stdout）：**
 
 与 JSON 模式相同的事件流，包括 `message_update`、`message_end`、`agent_end`、`error` 等。
 
@@ -139,10 +139,10 @@ export function startRPC(agent: Agent): void {
 
 ```bash
 # 通过 echo 发送消息
-echo '{"type":"message","content":"你好"}' | piagent --rpc
+echo '{"type":"message","content":"你好"}' | my-easy-pi --rpc
 
 # 发送多条消息
-printf '{"type":"message","content":"你好"}\n{"type":"message","content":"继续"}\n{"type":"exit"}\n' | piagent --rpc
+printf '{"type":"message","content":"你好"}\n{"type":"message","content":"继续"}\n{"type":"exit"}\n' | my-easy-pi --rpc
 ```
 
 ### 5.2 Python 集成示例
@@ -153,7 +153,7 @@ import json
 
 # 启动 my-easy-pi RPC 进程
 proc = subprocess.Popen(
-    ['piagent', '--rpc'],
+    ['my-easy-pi', '--rpc'],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
@@ -204,7 +204,7 @@ type Event struct {
 }
 
 func main() {
-    cmd := exec.Command("piagent", "--rpc")
+    cmd := exec.Command("my-easy-pi", "--rpc")
     stdin, _ := cmd.StdinPipe()
     stdout, _ := cmd.StdoutPipe()
     cmd.Start()
@@ -235,7 +235,7 @@ func main() {
 ```bash
 # 将 stdout 和 stderr 分别重定向
 echo '{"type":"message","content":"你好"}' \
-  | piagent --rpc \
+  | my-easy-pi --rpc \
   2>rpc_debug.log \
   1>rpc_output.jsonl
 

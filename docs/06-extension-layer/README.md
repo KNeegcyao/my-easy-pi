@@ -63,7 +63,7 @@ my-easy-pi 强调"扩展优先"的设计理念：
 扩展文件按以下优先级从高到低搜索：
 
 ```
-CLI 指定路径  →  项目目录 .pi/extensions/  →  全局目录 ~/.piagent/extensions/
+CLI 指定路径  →  项目目录 .pi/extensions/  →  全局目录 ~/.my-easy-pi/extensions/
 ```
 
 ## 4. 文件列表
@@ -93,7 +93,7 @@ CLI 指定路径  →  项目目录 .pi/extensions/  →  全局目录 ~/.piagen
 │          ▼                      ▼                  │
 │   ┌──────────────────────────────────────┐        │
 │   │           扩展文件（.ts / .js）        │        │
-│   │   ~/.piagent/extensions/hello.ts     │        │
+│   │   ~/.my-easy-pi/extensions/hello.ts     │        │
 │   │   .pi/extensions/custom-tool.ts      │        │
 │   └──────────────────────────────────────┘        │
 └─────────────────────────────────────────────────┘

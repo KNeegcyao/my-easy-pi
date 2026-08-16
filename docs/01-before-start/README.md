@@ -81,7 +81,7 @@
 ```bash
 # 1. 克隆并安装依赖
 git clone <项目地址>
-cd piagent
+cd my-easy-pi
 npm install
 
 # 2. 类型检查通过

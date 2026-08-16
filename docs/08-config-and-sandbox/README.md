@@ -75,10 +75,10 @@
  级                2. 环境变量 (DEEPSEEK_API_KEY, ANTHROPIC_API_KEY ...)
                         │
                         ▼
-                  3. 用户配置 (~/.piagent/config.json)
+                  3. 用户配置 (~/.my-easy-pi/config.json)
                         │
                         ▼
-                  4. 项目配置 (.piagent/settings.json)
+                  4. 项目配置 (.my-easy-pi/settings.json)
                         │
                         ▼
                   5. 硬编码默认值 (fallbackModel)
@@ -154,10 +154,10 @@ checkDocker() ──┬── 可用 ──► executeInDocker() ──┬──
 
 ```typescript
 // 1. 项目配置（最低优先级） — 项目级默认值
-this.projectConfig = await this.loadFile(PROJECT_CONFIG_PATH)  // .piagent/settings.json
+this.projectConfig = await this.loadFile(PROJECT_CONFIG_PATH)  // .my-easy-pi/settings.json
 
 // 2. 用户配置（中等优先级）
-this.userConfig = await this.loadFile(USER_CONFIG_PATH)  // ~/.piagent/config.json
+this.userConfig = await this.loadFile(USER_CONFIG_PATH)  // ~/.my-easy-pi/config.json
 
 // 3. 合并：项目配置为底，用户配置覆盖
 Object.assign(merged, this.projectConfig)

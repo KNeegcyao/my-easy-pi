@@ -29,7 +29,7 @@ cd /workspace
 npm run build
 
 # 创建一个测试用的 config.json
-echo '{"name": "piagent", "version": "1.0.0"}' > /workspace/config.json
+echo '{"name": "my-easy-pi", "version": "1.0.0"}' > /workspace/config.json
 ```
 
 #### 2. 在关键位置设置断点
@@ -71,7 +71,7 @@ node --inspect-brk dist/cli.js -m "帮我读 config.json 并总结"
     {
       "type": "node",
       "request": "launch",
-      "name": "Debug piagent",
+      "name": "Debug my-easy-pi",
       "program": "${workspaceFolder}/dist/cli.js",
       "args": ["-m", "帮我读 config.json 并总结"],
       "sourceMaps": true

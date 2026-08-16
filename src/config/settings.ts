@@ -4,11 +4,11 @@
 // 配置加载优先级（高 → 低）：
 //   1. CLI 参数            （在 cli.ts 中处理）
 //   2. 环境变量             （process.env）
-//   3. 用户配置             ~/.piagent/config.json
-//   4. 项目配置             .piagent/settings.json
+//   3. 用户配置             ~/.my-easy-pi/config.json
+//   4. 项目配置             .my-easy-pi/settings.json
 //   5. 硬编码默认值
 //
-// 用户配置文件格式 (~/.piagent/config.json)：
+// 用户配置文件格式 (~/.my-easy-pi/config.json)：
 //   {
 //     "defaultProvider": "deepseek",
 //     "defaultModel": "deepseek-chat",
@@ -40,10 +40,10 @@ export interface Settings {
   [key: string]: unknown
 }
 
-const USER_CONFIG_DIR = join(homedir(), '.piagent')
+const USER_CONFIG_DIR = join(homedir(), '.my-easy-pi')
 const USER_CONFIG_PATH = join(USER_CONFIG_DIR, 'config.json')
 
-const PROJECT_CONFIG_DIR = join(process.cwd(), '.piagent')
+const PROJECT_CONFIG_DIR = join(process.cwd(), '.my-easy-pi')
 const PROJECT_CONFIG_PATH = join(PROJECT_CONFIG_DIR, 'settings.json')
 
 export class ConfigManager {

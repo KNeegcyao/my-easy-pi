@@ -11,7 +11,7 @@
 
 ## 1. 本节目标
 
-理解 TUI（Terminal User Interface）模式的设计与实现。my-easy-pi 的 TUI 已经从早期 `src/interface/tui/`（基于 readline 的 5 个小模块）演进为 `src/tui/` 下**独立的极简终端 UI 框架**（内部代号 `@piagent/tui`）：单接口双渲染器、三方法组件契约、差分渲染 + CSI 2026 同步输出。学习本节后，你将理解：
+理解 TUI（Terminal User Interface）模式的设计与实现。my-easy-pi 的 TUI 已经从早期 `src/interface/tui/`（基于 readline 的 5 个小模块）演进为 `src/tui/` 下**独立的极简终端 UI 框架**（内部代号 `@my-easy-pi/tui`）：单接口双渲染器、三方法组件契约、差分渲染 + CSI 2026 同步输出。学习本节后，你将理解：
 
 - 如何用 alternate screen 实现全屏交互
 - `Component` / `TUI` 核心契约如何让业务与渲染解耦
@@ -284,11 +284,11 @@ flowchart TB
 
 ```bash
 # 直接启动（默认进入 TUI alt-screen 模式）
-piagent
+my-easy-pi
 
 # 显式指定模式
-piagent --tui          # 全屏（默认）
-piagent --main-screen  # 主屏模式（保留终端原生 scrollback）
+my-easy-pi --tui          # 全屏（默认）
+my-easy-pi --main-screen  # 主屏模式（保留终端原生 scrollback）
 ```
 
 ### 5.2 基本操作

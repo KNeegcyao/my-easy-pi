@@ -12,7 +12,7 @@ import { homedir } from 'os'
 import { join } from 'path'
 import type { AgentMessage } from '../ai/types.js'
 
-const LAST_SESSION_PATH = join(homedir(), '.piagent', 'last-session')
+const LAST_SESSION_PATH = join(homedir(), '.my-easy-pi', 'last-session')
 
 export interface SessionSummary {
   id: string
@@ -88,7 +88,7 @@ export class SessionManager {
   /** 保存最后活跃的会话 ID */
   async saveLastSession(sessionId: string): Promise<void> {
     try {
-      const dir = join(homedir(), '.piagent')
+      const dir = join(homedir(), '.my-easy-pi')
       if (!existsSync(dir)) await mkdir(dir, { recursive: true })
       await writeFile(LAST_SESSION_PATH, sessionId, 'utf-8')
     } catch { /* 不影响主流程 */ }

@@ -29,10 +29,10 @@ pi -m "你好"
 
 ```bash
 # 创建用户配置目录
-mkdir -p ~/.piagent
+mkdir -p ~/.my-easy-pi
 
 # 创建配置文件
-cat > ~/.piagent/config.json << 'EOF'
+cat > ~/.my-easy-pi/config.json << 'EOF'
 {
   "defaultProvider": "deepseek",
   "defaultModel": "deepseek-chat",
@@ -76,16 +76,16 @@ pi -m "你好"
 pi -m "运行 ls -la 命令"
 
 # 2. 查看今日的访问日志
-cat ~/.piagent/logs/access-$(date +%Y-%m-%d).jsonl
+cat ~/.my-easy-pi/logs/access-$(date +%Y-%m-%d).jsonl
 
 # 3. 查看今日的审计日志（记录工具执行）
-cat ~/.piagent/logs/audit-$(date +%Y-%m-%d).jsonl
+cat ~/.my-easy-pi/logs/audit-$(date +%Y-%m-%d).jsonl
 
 # 4. 使用 jq 工具格式化 JSONL 日志（如果安装了 jq）
-cat ~/.piagent/logs/audit-$(date +%Y-%m-%d).jsonl | jq .
+cat ~/.my-easy-pi/logs/audit-$(date +%Y-%m-%d).jsonl | jq .
 
 # 5. 统计今日执行了多少次工具
-cat ~/.piagent/logs/audit-$(date +%Y-%m-%d).jsonl | grep '"tool_execution"' | wc -l
+cat ~/.my-easy-pi/logs/audit-$(date +%Y-%m-%d).jsonl | grep '"tool_execution"' | wc -l
 ```
 
 ### 预期输出
@@ -117,28 +117,28 @@ cat ~/.piagent/logs/audit-$(date +%Y-%m-%d).jsonl | grep '"tool_execution"' | wc
 docker info
 
 # 2. 手动构建沙箱镜像
-docker build -t piagent-sandbox:latest -f Dockerfile .
+docker build -t my-easy-pi-sandbox:latest -f Dockerfile .
 
 # 3. 查看镜像信息
-docker images piagent-sandbox:latest
+docker images my-easy-pi-sandbox:latest
 
 # 4. 手动启动一个沙箱容器，执行命令
-docker run --rm --name piagent-test \
+docker run --rm --name my-easy-pi-test \
   --network none --memory 512m --cpus 1 \
   --pids-limit 50 --read-only \
   --tmpfs /tmp:rw,size=10m \
-  piagent-sandbox:latest /bin/bash -c 'echo "Hello from sandbox" && ls /workspace'
+  my-easy-pi-sandbox:latest /bin/bash -c 'echo "Hello from sandbox" && ls /workspace'
 
 # 5. 验证沙箱限制
 # 尝试访问网络（应失败）
-docker run --rm --network none piagent-sandbox:latest curl https://example.com
+docker run --rm --network none my-easy-pi-sandbox:latest curl https://example.com
 
 # 尝试写入系统目录（应失败）
-docker run --rm --read-only piagent-sandbox:latest touch /test.txt
+docker run --rm --read-only my-easy-pi-sandbox:latest touch /test.txt
 
 # 6. 查看容器自动清理
 # 上面的容器都加了 --rm，退出后会被自动删除
-docker ps -a | grep piagent-test
+docker ps -a | grep my-easy-pi-test
 ```
 
 ### 预期结果
@@ -164,7 +164,7 @@ docker ps -a | grep piagent-test
 ### 提示
 
 1. 修改 `Dockerfile`，添加 `nodejs` 和 `python3` 包
-2. 重新构建镜像：`docker build -t piagent-sandbox:latest -f Dockerfile .`
+2. 重新构建镜像：`docker build -t my-easy-pi-sandbox:latest -f Dockerfile .`
 3. 验证沙箱中可以执行 `node -e "console.log('hello')"` 和 `python3 -c "print('hello')"`
 4. 思考：添加更多工具到沙箱中会带来什么安全风险？
 

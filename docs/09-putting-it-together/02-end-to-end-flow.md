@@ -86,7 +86,7 @@ echo "帮我读 config.json 并总结" | node dist/cli.js -p "请用中文回答
     ▼
 ┌──────────────────────────────────────────────────────┐
 │ ConfigManager.load()                                  │
-│  ├─ 读取 ~/.piagent/config.json                      │
+│  ├─ 读取 ~/.my-easy-pi/config.json                      │
 │  ├─ 获取默认 provider 和 apiKey                       │
 │  └─ 环境变量检查                                     │
 └──────────────────────────────────────────────────────┘
@@ -576,7 +576,7 @@ readTool.execute("call_1", { path: "config.json" }, signal)
 │    │                                                   │
 │    ├─ 成功: 返回文件内容                                │
 │    │  return { content: [{ type: "text",              │
-│    │    text: '{ "name": "piagent", "version": "1.0" }' │
+│    │    text: '{ "name": "my-easy-pi", "version": "1.0" }' │
 │    │  }]}                                              │
 │    │                                                   │
 │    └─ 失败: 返回错误信息                                │
@@ -640,7 +640,7 @@ export const readTool: AgentTool = {
 ┌──────────────────────────────────────────────────────┐
 │ ② 消息转换 (第二轮)                                    │
 │    messages 现在包含:                                   │
-│    [0] { role: "system", content: "你是 piagent..." }  │
+│    [0] { role: "system", content: "你是 my-easy-pi..." }  │
 │    [1] { role: "user", content: "帮我读 config.json 并总结" }│
 │    [2] { role: "assistant", content: "我来读",         │
 │          toolCalls: [{ id: "call_1", name: "read", ... }] }│
@@ -655,7 +655,7 @@ export const readTool: AgentTool = {
 │    LLM 看到 toolResult 中的文件内容                     │
 │    → 生成最终回答：                                     │
 │      "config.json 的内容如下：                          │
-│       - name: piagent                                  │
+│       - name: my-easy-pi                                  │
 │       - version: 1.0                                   │
 │       总结：这是一个 AI Coding Agent 项目..."           │
 └──────────────────────────────────────────────────────┘
@@ -885,11 +885,11 @@ node dist/cli.js -m "帮我读 config.json 并总结" --output json
 {"type":"message_update","message":{"content":"我来读"}}
 {"type":"message_end","message":{"role":"assistant","content":"我来读","toolCalls":[{"id":"call_1","name":"read","args":{"path":"config.json"}}]}}
 {"type":"tool_execution_start","toolCallId":"call_1","toolName":"read","args":{"path":"config.json"}}
-{"type":"tool_execution_end","toolCallId":"call_1","result":{"content":[{"type":"text","text":"{\n  \"name\": \"piagent\",\n  \"version\": \"1.0\"\n}"}]}}
+{"type":"tool_execution_end","toolCallId":"call_1","result":{"content":[{"type":"text","text":"{\n  \"name\": \"my-easy-pi\",\n  \"version\": \"1.0\"\n}"}]}}
 {"type":"turn_end","message":{"role":"assistant",...},"toolResults":[...]}
 {"type":"message_update","message":{"content":"config.json"}}
 {"type":"message_update","message":{"content":"config.json 的内容如下："}}
-{"type":"message_update","message":{"content":"config.json 的内容如下：\n\n- name: piagent\n- version: 1.0\n\n总结：..."}}
+{"type":"message_update","message":{"content":"config.json 的内容如下：\n\n- name: my-easy-pi\n- version: 1.0\n\n总结：..."}}
 {"type":"message_end","message":{"role":"assistant","content":"config.json 的内容如下：\n\n..."}}
 {"type":"turn_end","message":{...},"toolResults":[]}
 {"type":"agent_end","messages":[...]}

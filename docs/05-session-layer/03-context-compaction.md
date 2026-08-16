@@ -227,7 +227,7 @@ const compactor = new Compactor({ threshold: 10, keepRecent: 5 })
 # 启动交互模式，进行多轮对话后观察压缩效果
 node dist/cli.js -i
 # 进行 20+ 轮对话后，查看 JSONL 文件中是否出现 compact- 开头的消息
-cat ~/.piagent/sessions/session-*.jsonl | grep "compact-"
+cat ~/.my-easy-pi/sessions/session-*.jsonl | grep "compact-"
 ```
 
 ## 6. 小结

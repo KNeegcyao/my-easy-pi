@@ -24,4 +24,4 @@ export function hideCursor(): string { return '\x1b[?25l' }
 export function showCursor(): string { return '\x1b[?25h' }
 
 export const INPUT_PROMPT = '> '
-export const THINKING_TEXT = 'piagent is thinking...'
+export const THINKING_TEXT = 'my-easy-pi is thinking...'

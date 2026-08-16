@@ -15,7 +15,7 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 import type { AgentMessage } from '../ai/types.js'
 
-const SESSION_DIR = join(process.cwd(), '.piagent', 'sessions')
+const SESSION_DIR = join(process.cwd(), '.my-easy-pi', 'sessions')
 
 /** 确保会话目录存在 */
 async function ensureDir(): Promise<void> {

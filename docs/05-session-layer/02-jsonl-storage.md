@@ -43,7 +43,7 @@ JSONL（JSON Lines）是一种每行包含一个独立 JSON 对象的文本格�
 ### 3.3 存储路径
 
 ```
-~/.piagent/sessions/
+~/.my-easy-pi/sessions/
   ├── session-1722428800000.jsonl
   ├── session-1722428900000.jsonl
   └── session-1722429000000.jsonl
@@ -82,7 +82,7 @@ import { join } from 'path'
 import type { AgentMessage } from '../ai/types.js'
 
 // 会话文件存储目录，相对项目根目录
-const SESSION_DIR = join(process.cwd(), '.piagent', 'sessions')
+const SESSION_DIR = join(process.cwd(), '.my-easy-pi', 'sessions')
 
 /** 确保会话目录存在 */
 async function ensureDir(): Promise<void> {
@@ -93,7 +93,7 @@ async function ensureDir(): Promise<void> {
 ```
 
 - 使用 `fs/promises` 的异步 API，非阻塞
-- 目录路径为 `{cwd}/.piagent/sessions/`
+- 目录路径为 `{cwd}/.my-easy-pi/sessions/`
 - `ensureDir()` 在每次写操作前调用，确保目录存在
 
 ### 4.2 追加写入 — `appendMessage`
@@ -188,27 +188,27 @@ export async function listSessions(): Promise<string[]> {
 
 ```bash
 # 列出所有会话文件
-ls ~/.piagent/sessions/
+ls ~/.my-easy-pi/sessions/
 
 # 查看某个会话的内容
-cat ~/.piagent/sessions/session-1722428800000.jsonl
+cat ~/.my-easy-pi/sessions/session-1722428800000.jsonl
 
 # 使用 jq 格式化输出（如果安装了 jq）
-cat ~/.piagent/sessions/session-1722428800000.jsonl | jq .
+cat ~/.my-easy-pi/sessions/session-1722428800000.jsonl | jq .
 ```
 
 ### 5.2 统计会话消息数
 
 ```bash
 # 统计消息数量
-wc -l ~/.piagent/sessions/session-1722428800000.jsonl
+wc -l ~/.my-easy-pi/sessions/session-1722428800000.jsonl
 ```
 
 ### 5.3 用 grep 搜索历史对话
 
 ```bash
 # 在所有会话中搜索关键词
-grep -r "排序算法" ~/.piagent/sessions/
+grep -r "排序算法" ~/.my-easy-pi/sessions/
 ```
 
 ## 6. 小结

@@ -115,8 +115,8 @@ Print 模式订阅了四个事件：
 
 ```bash
 # stderr 仍然显示在终端上，但不会传递给 grep
-piagent -p "列出 .ts 文件" 2>/dev/null   # 丢弃 stderr
-piagent -p "列出 .ts 文件" | grep "test"  # stderr 不会混入 grep 的输入
+my-easy-pi -p "列出 .ts 文件" 2>/dev/null   # 丢弃 stderr
+my-easy-pi -p "列出 .ts 文件" | grep "test"  # stderr 不会混入 grep 的输入
 ```
 
 ---
@@ -276,10 +276,10 @@ export function createPrintInterface(agent: Agent): void {
 
 ```bash
 # 管道模式：将前一条命令的输出作为输入
-echo "Hello, world!" | piagent -p "翻译成中文"
+echo "Hello, world!" | my-easy-pi -p "翻译成中文"
 
 # 直接提问
-piagent -p "解释什么是事件驱动编程"
+my-easy-pi -p "解释什么是事件驱动编程"
 ```
 
 ### 5.2 观察流式效果
@@ -287,7 +287,7 @@ piagent -p "解释什么是事件驱动编程"
 Print 模式会逐字输出 LLM 的响应，你可以看到文字一个个出现，而不是一次性整段输出。实际终端效果如下：
 
 ```
-$ piagent -p "用中文说 Hello"
+$ my-easy-pi -p "用中文说 Hello"
 正  在  生  成...
 De
 Design
@@ -306,18 +306,18 @@ Design Patterns 是 ...
 
 ```bash
 # 正常输出走 stdout，错误走 stderr
-piagent -p "你好" 2>/dev/null   # 只看到正常输出，错误被丢弃
-piagent -p "你好" 1>/dev/null   # 只看到错误（如果有）
+my-easy-pi -p "你好" 2>/dev/null   # 只看到正常输出，错误被丢弃
+my-easy-pi -p "你好" 1>/dev/null   # 只看到错误（如果有）
 ```
 
 运行效果：
 
 ```bash
 # 丢弃 stderr，只看正常输出
-$ piagent -p "翻译 hello" 2>/dev/null
+$ my-easy-pi -p "翻译 hello" 2>/dev/null
 你好
 # 丢弃 stdout，只看错误
-$ piagent -p "触发错误" 1>/dev/null
+$ my-easy-pi -p "触发错误" 1>/dev/null
 [error] API 调用失败：Connection timeout
 ```
 
@@ -325,12 +325,12 @@ $ piagent -p "触发错误" 1>/dev/null
 
 ```bash
 # Print 模式天然适合管道链
-piagent -p "列出当前目录的文件" | grep "\.ts"
+my-easy-pi -p "列出当前目录的文件" | grep "\.ts"
 ```
 
 ```bash
 # 实际输出示例（筛选 .ts 后缀的文件列表）
-$ echo "列出当前 ts 文件" | piagent -p "提取文件名" | grep "\.ts"
+$ echo "列出当前 ts 文件" | my-easy-pi -p "提取文件名" | grep "\.ts"
 print.ts
 json.ts
 rpc.ts
