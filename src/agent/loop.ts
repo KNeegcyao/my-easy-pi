@@ -26,6 +26,12 @@ export interface AgentLoopConfig {
   systemPrompt: string
   model: Model
   tools: AgentTool[]
+  /**
+   * 可选：外部注入的 ToolRegistry。
+   * 默认 Agent 会自建一个私有注册表；注入后则复用传入的注册表，
+   * 让扩展（ExtensionAPI.registerTool）注册的工具在运行时立即可见。
+   */
+  registry?: ToolRegistry
   toolExecution?: 'parallel' | 'sequential'
   /** 可选：在发送消息给 LLM 之前转换/过滤消息 */
   convertToLlm?: (messages: AgentMessage[]) => LLMMessage[]
@@ -81,8 +87,8 @@ export class Agent {
   private afterToolCallFn?: (ctx: ToolCallResultContext) => Promise<AfterToolCallResult | undefined>
 
   constructor(config: AgentLoopConfig) {
-    // 创建 ToolRegistry 并注册所有工具
-    this.toolRegistry = new ToolRegistry()
+    // 创建 ToolRegistry 并注册所有工具（支持外部注入，供扩展复用）
+    this.toolRegistry = config.registry ?? new ToolRegistry()
     for (const tool of config.tools) {
       this.toolRegistry.registerTool(tool)
     }

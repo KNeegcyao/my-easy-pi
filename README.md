@@ -239,6 +239,7 @@ my-easy-pi/
 │   ├── config/            # ⚙️ 配置管理
 │   └── sandbox/           # 🐳 Docker 沙箱
 ├── docs/                  # 📖 10 章学习教程
+├── examples/              # 🧩 扩展示例（自定义工具教学案例，如 web_fetch）
 ├── tests/                 # ✅ 347 个测试用例（31 个文件）
 └── Dockerfile             # 🐳 沙箱镜像
 ```
