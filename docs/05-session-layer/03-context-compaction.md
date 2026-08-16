@@ -37,7 +37,8 @@ LLM 的上下文窗口是**有限**的。即使像 Claude 这样支持 200K toke
 
 ### 3.2 压缩策略
 
-```mermaid flowchart TD
+```mermaid
+flowchart TD
     subgraph 压缩前["压缩前（25 条消息）"]
         old1["消息 1-15<br/>早期消息（超过阈值）"]
         old2["消息 16-25<br/>最近 N 条（保留完整）"]

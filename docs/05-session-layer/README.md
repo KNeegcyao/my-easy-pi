@@ -12,11 +12,12 @@ version: 1.0.0
 
 在 my-easy-pi 整体架构中，会话层处于 **CLI/接口层** 和 **Agent 核心** 之间，为整个系统提供"记忆"能力。
 
-```mermaid graph TB
+```mermaid
+graph TB
     User["用户输入/输出"]
-    CLI["CLI / 接口层 (cli.ts)<br/>解析参数、调用 Agent、展示输出"]
-    Session["会话层 (session/)<br/>持久化、恢复、上下文压缩<br/>本章重点"]
-    Agent["Agent 核心 (agent/)<br/>Agent Loop、LLM 调用、工具执行"]
+    CLI["CLI / 接口层 （cli.ts）<br/>解析参数、调用 Agent、展示输出"]
+    Session["会话层 （session/）<br/>持久化、恢复、上下文压缩<br/>本章重点"]
+    Agent["Agent 核心 （agent/）<br/>Agent Loop、LLM 调用、工具执行"]
 
     User --> CLI
     CLI --> Session
@@ -48,7 +49,8 @@ version: 1.0.0
 
 ### 会话层与 Agent Loop 的交互流程
 
-```mermaid sequenceDiagram
+```mermaid
+sequenceDiagram
     participant CLI as CLI
     participant SM as SessionManager
     participant Storage as Storage
@@ -74,22 +76,23 @@ version: 1.0.0
 
 ### 数据流向（三阶段）
 
-```mermaid flowchart TD
+```mermaid
+flowchart TD
     subgraph 阶段一["阶段一：启动时读取"]
-        S1["JSONL 文件"] --> S2["Storage.readMessages()"]
-        S2 --> S3["Compactor.compact()"]
+        S1["JSONL 文件"] --> S2["Storage.readMessages（）"]
+        S2 --> S3["Compactor.compact（）"]
         S3 --> S4["Agent Loop"]
     end
 
     subgraph 阶段二["阶段二：运行时写入"]
-        R1["Agent Loop"] --> R2["saveMessage()"]
-        R2 --> R3["Storage.appendMessage()"]
+        R1["Agent Loop"] --> R2["saveMessage（）"]
+        R2 --> R3["Storage.appendMessage（）"]
         R3 --> R4["JSONL 文件"]
     end
 
     subgraph 阶段三["阶段三：查看历史"]
-        H1["CLI -l"] --> H2["SessionManager.listSessions()"]
-        H2 --> H3["Storage.listSessions()"]
+        H1["CLI -l"] --> H2["SessionManager.listSessions（）"]
+        H2 --> H3["Storage.listSessions（）"]
         H3 --> H4["会话列表"]
     end
 ```
@@ -128,12 +131,13 @@ JSONL（JSON Lines）是每行一个 JSON 对象的文本格式。my-easy-pi 选
 
 每条消息都携带 `id` 和 `parentId` 字段，形成一棵对话树：
 
-```mermaid graph TB
-    meta["meta (id: 'meta', parentId: null)"]
-    msg1["user 消息 (id: 'msg-1', parentId: 'meta')"]
-    msg2["assistant 回复 (id: 'msg-2', parentId: 'msg-1')"]
-    msg3["tool 结果 (id: 'msg-3', parentId: 'msg-2')"]
-    msg4["assistant 最终回复 (id: 'msg-4', parentId: 'msg-3')"]
+```mermaid
+graph TB
+    meta["meta （id: 'meta', parentId: null）"]
+    msg1["user 消息 （id: 'msg-1', parentId: 'meta'）"]
+    msg2["assistant 回复 （id: 'msg-2', parentId: 'msg-1'）"]
+    msg3["tool 结果 （id: 'msg-3', parentId: 'msg-2'）"]
+    msg4["assistant 最终回复 （id: 'msg-4', parentId: 'msg-3'）"]
 
     meta --> msg1
     msg1 --> msg2

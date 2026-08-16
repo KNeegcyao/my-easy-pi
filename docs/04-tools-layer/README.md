@@ -29,7 +29,8 @@
 
 工具层位于 Agent 层之下，是 LLM 与操作系统之间的"手"：
 
-```mermaid graph TB
+```mermaid
+graph TB
     Agent["Agent 层<br/>核心循环，决定'何时调用工具'"]
     subgraph 工具层["工具层"]
         ToolRegistry["ToolRegistry<br/>注册表，管理所有工具"]

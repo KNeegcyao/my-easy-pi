@@ -48,19 +48,19 @@ graph TB
     end
 
     subgraph Agent核心["Agent 核心循环 (src/agent/loop.ts)"]
-        AgentLoop["Agent Loop<br/>1. turn_start → 触发事件<br/>2. transformContext → 上下文压缩 (Compactor)<br/>3. convertToLlm → 过滤 UI 消息<br/>4. LLM.stream() → 调用 AI 层<br/>5. 处理流式事件 → 发射 message_update<br/>6. 检查 tool_calls<br/>   ├─ 无 → 检查队列 → agent_end<br/>   └─ 有 → executeToolCalls() → 工具执行<br/>7. 工具结果入消息队列 → 继续下一轮"]
+        AgentLoop["Agent Loop<br/>1. turn_start → 触发事件<br/>2. transformContext → 上下文压缩 （Compactor）<br/>3. convertToLlm → 过滤 UI 消息<br/>4. LLM.stream（） → 调用 AI 层<br/>5. 处理流式事件 → 发射 message_update<br/>6. 检查 tool_calls<br/>   ├─ 无 → 检查队列 → agent_end<br/>   └─ 有 → executeToolCalls（） → 工具执行<br/>7. 工具结果入消息队列 → 继续下一轮"]
         AgentState["Agent State: systemPrompt | model | tools | messages | isStreaming"]
         EventSys["Event System: subscribe/emit → 通知所有订阅者"]
         HookSys["Hook System: beforeToolCall / afterToolCall"]
-        MsgQueue["Message Queue: steering (高优先级) / followUp (低优先级)"]
+        MsgQueue["Message Queue: steering （高优先级） / followUp （低优先级）"]
     end
 
     subgraph AI层["AI 层 (src/ai/)"]
         ModelReg["ModelRegistry"]
         ProviderF["ProviderFactory"]
         Providers["Anthropic / OpenAI / DeepSeek"]
-        ModelStream["Model.stream()<br/>AsyncIterable&lt;LLMEvent&gt;<br/>- text_delta<br/>- tool_call_start<br/>- tool_call_delta<br/>- done"]
-        GetModel["ModelRegistry.getModel() → 具体的 Model 实例"]
+        ModelStream["Model.stream（）<br/>AsyncIterable&lt;LLMEvent&gt;<br/>- text_delta<br/>- tool_call_start<br/>- tool_call_delta<br/>- done"]
+        GetModel["ModelRegistry.getModel（） → 具体的 Model 实例"]
     end
 
     subgraph 工具层["工具层 (src/tools/)"]
@@ -69,9 +69,9 @@ graph TB
     end
 
     subgraph 基础设施层["基础设施层"]
-        SessionMgr["SessionManager (src/session/)<br/>├─ JSONL 追加写存储<br/>├─ 会话创建/加载/删除/列<br/>└─ Compactor 上下文压缩"]
-        ConfigMgr["ConfigManager (src/config/)<br/>├─ 分层配置加载 (环境变量 > 用户配置 > 项目配置)<br/>├─ API 密钥管理<br/>└─ 日志系统"]
-        Ext["Extension (src/extension/)<br/>├─ ExtensionAPI: registerTool / on / 钩子<br/>└─ Loader: 动态加载 .ts 扩展文件"]
+        SessionMgr["SessionManager （src/session/）<br/>├─ JSONL 追加写存储<br/>├─ 会话创建/加载/删除/列<br/>└─ Compactor 上下文压缩"]
+        ConfigMgr["ConfigManager （src/config/）<br/>├─ 分层配置加载 （环境变量 > 用户配置 > 项目配置）<br/>├─ API 密钥管理<br/>└─ 日志系统"]
+        Ext["Extension （src/extension/）<br/>├─ ExtensionAPI: registerTool / on / 钩子<br/>└─ Loader: 动态加载 .ts 扩展文件"]
     end
 
     CLI入口 -->|agent.prompt("消息")| Agent核心
@@ -104,12 +104,12 @@ Agent (loop.ts)
 
 ```mermaid
 flowchart TD
-    Input["用户输入 '帮我读 config.json 并总结'"] --> CLI["① CLI 层<br/>parseArgs → ConfigManager → ModelRegistry →<br/>ToolRegistry → SessionManager → Agent → subscribe<br/>→ 选择界面 (TUI/Print/JSON/RPC) → agent.prompt()"]
-    CLI --> Agent1["② Agent 层<br/>prompt() → 消息入队 → turn_start<br/>→ transformContext (Compactor)<br/>→ convertToLlm (过滤 UI 消息)<br/>→ LLM.stream()"]
-    Agent1 --> AI["③ AI 层<br/>Provider 向 LLM API 发送请求<br/>parseSSE → 流式事件 (text_delta / tool_call_start)"]
-    AI --> Agent2["④ Agent 层 (流式处理)<br/>text_delta → message_update (界面实时更新)<br/>tool_call_start → 记录 tool_call<br/>done → 检查 tool_calls<br/>├─ 无 → turn_end → agent_end<br/>└─ 有 → executeToolCalls()"]
-    Agent2 --> Tools["⑤ 工具层<br/>beforeToolCall (PermissionManager 权限检查)<br/>tool.execute() → 执行文件操作/命令<br/>→ afterToolCall → 生成 toolResult 消息"]
-    Tools --> Round2["⑥ 第二轮 (循环)<br/>toolResult 入 messages → 继续下一轮 turn_start<br/>→ LLM 看到工具结果 → 生成最终回答<br/>→ text_delta → 界面输出 → turn_end → agent_end"]
+    Input["用户输入 '帮我读 config.json 并总结'"] --> CLI["① CLI 层<br/>parseArgs → ConfigManager → ModelRegistry →<br/>ToolRegistry → SessionManager → Agent → subscribe<br/>→ 选择界面 （TUI/Print/JSON/RPC） → agent.prompt（）"]
+    CLI --> Agent1["② Agent 层<br/>prompt（） → 消息入队 → turn_start<br/>→ transformContext （Compactor）<br/>→ convertToLlm （过滤 UI 消息）<br/>→ LLM.stream（）"]
+    Agent1 --> AI["③ AI 层<br/>Provider 向 LLM API 发送请求<br/>parseSSE → 流式事件 （text_delta / tool_call_start）"]
+    AI --> Agent2["④ Agent 层 （流式处理）<br/>text_delta → message_update （界面实时更新）<br/>tool_call_start → 记录 tool_call<br/>done → 检查 tool_calls<br/>├─ 无 → turn_end → agent_end<br/>└─ 有 → executeToolCalls（）"]
+    Agent2 --> Tools["⑤ 工具层<br/>beforeToolCall （PermissionManager 权限检查）<br/>tool.execute（） → 执行文件操作/命令<br/>→ afterToolCall → 生成 toolResult 消息"]
+    Tools --> Round2["⑥ 第二轮 （循环）<br/>toolResult 入 messages → 继续下一轮 turn_start<br/>→ LLM 看到工具结果 → 生成最终回答<br/>→ text_delta → 界面输出 → turn_end → agent_end"]
     Round2 --> Interface["⑦ 接口层<br/>Print/JSON/TUI/RPC 渲染输出到终端<br/>subscribe 回调 → 自动保存消息到会话文件"]
 ```
 

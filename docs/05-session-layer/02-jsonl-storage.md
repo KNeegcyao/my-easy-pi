@@ -42,7 +42,8 @@ JSONL（JSON Lines）是一种每行包含一个独立 JSON 对象的文本格�
 
 ### 3.3 存储路径
 
-```mermaid graph TB
+```mermaid
+graph TB
     Sessions["~/.my-easy-pi/sessions/"]
     S1["session-1722428800000.jsonl"]
     S2["session-1722428900000.jsonl"]
@@ -59,13 +60,14 @@ JSONL（JSON Lines）是一种每行包含一个独立 JSON 对象的文本格�
 
 通过 `id` + `parentId` 实现树形结构：
 
-```mermaid graph TB
-    root["root (parentId: null)"]
-    msg1["msg1 (id: 'msg1', parentId: null)"]
-    msg2["msg2 (id: 'msg2', parentId: 'msg1')"]
-    msg3["msg3 (id: 'msg3', parentId: 'msg2')<br/>← 当前活跃分支"]
-    msg4["msg4 (id: 'msg4', parentId: 'msg1')<br/>← 分支点"]
-    msg5["msg5 (id: 'msg5', parentId: null)"]
+```mermaid
+graph TB
+    root["root （parentId: null）"]
+    msg1["msg1 （id: 'msg1', parentId: null）"]
+    msg2["msg2 （id: 'msg2', parentId: 'msg1'）"]
+    msg3["msg3 （id: 'msg3', parentId: 'msg2'）<br/>← 当前活跃分支"]
+    msg4["msg4 （id: 'msg4', parentId: 'msg1'）<br/>← 分支点"]
+    msg5["msg5 （id: 'msg5', parentId: null）"]
 
     root --> msg1
     root --> msg5

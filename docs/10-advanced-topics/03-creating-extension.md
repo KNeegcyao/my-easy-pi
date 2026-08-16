@@ -27,10 +27,10 @@ graph TB
     end
 
     subgraph ExtensionAPI["ExtensionAPI"]
-        A1["registerTool() 注册工具"]
-        A2["unregisterTool() 注销工具"]
-        A3["registerCommand() 注册命令"]
-        A4["on() 监听 Agent 事件"]
+        A1["registerTool（） 注册工具"]
+        A2["unregisterTool（） 注销工具"]
+        A3["registerCommand（） 注册命令"]
+        A4["on（） 监听 Agent 事件"]
     end
 
     subgraph ExtensionLoader["ExtensionLoader"]

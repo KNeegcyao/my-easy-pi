@@ -53,15 +53,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[loadAll() 被调用] --> B[getSearchDirs() 获取搜索目录列表]
+    A[loadAll（） 被调用] --> B[getSearchDirs（） 获取搜索目录列表]
     B --> C1["1. 项目目录: {projectDir}/.pi/extensions/"]
     B --> C2["2. 全局目录: ~/.my-easy-pi/extensions/"]
     C1 --> D[遍历每个目录，跳过不存在的目录]
     C2 --> D
-    D --> E[loadDir() 读取目录下的所有文件]
+    D --> E[loadDir（） 读取目录下的所有文件]
     E --> F1[过滤 .ts / .js 文件]
     E --> F2[跳过已加载的文件（去重）]
-    F1 --> G[对每个文件执行 import() 动态导入]
+    F1 --> G[对每个文件执行 import（） 动态导入]
     F2 --> G
     G --> H1[检查 default 导出是否为函数]
     G --> H2[调用函数，传入 ExtensionAPI 实例]
@@ -367,17 +367,17 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[loadDir(dir)] --> B[try:]
-    B --> C[readdir(dir)]
+    A[loadDir（dir）] --> B[try:]
+    B --> C[readdir（dir）]
     C -->|"可能失败（目录不存在、无权限）"| D[catch]
     D --> E[返回 0（跳过该目录）]
     B --> F[for each file:]
     F --> G[过滤非 .ts/.js<br/>不报错，直接跳过]
     F --> H[去重检查<br/>跳过已加载文件]
     F --> I[try:]
-    I --> J[import()<br/>可能失败（语法错误、依赖缺失）]
+    I --> J[import（）<br/>可能失败（语法错误、依赖缺失）]
     I --> K[检查 default 导出<br/>非函数则跳过（不报错）]
-    I --> L[执行 default()<br/>可能失败（扩展内部错误）]
+    I --> L[执行 default（）<br/>可能失败（扩展内部错误）]
     I --> M[catch:<br/>静默捕获，继续下一个文件<br/>跳过此文件，不影响其他扩展]
     B --> N[返回 count]
     A --> O[catch:<br/>跳过此目录，继续下一个搜索目录]

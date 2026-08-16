@@ -126,8 +126,8 @@ export interface TUI {
 
 ```mermaid
 flowchart LR
-    A["组件层<br/>render(width) → string[]"] --> B["layout 树<br/>（仅 alt screen 重组）"]
-    B --> C["ScreenBuffer.present(lines)<br/>行 diff"]
+    A["组件层<br/>render（width） → string[]"] --> B["layout 树<br/>（仅 alt screen 重组）"]
+    B --> C["ScreenBuffer.present（lines）<br/>行 diff"]
     C --> D["CSI 2026 帧<br/>beginSync → 光标 + 覆写 → endSync"]
     D --> E["Terminal.write / flush"]
 ```

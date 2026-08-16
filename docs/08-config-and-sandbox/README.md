@@ -30,13 +30,13 @@
 ```mermaid
 graph TB
     subgraph my-easy-pi分层架构
-        I[Interface 层 (07)<br/>Print / JSON / RPC / TUI]
-        A[Agent 层 (03)<br/>Agent Loop · 状态管理 · 队列 · 权限]
-        AI[AI 层 (02)<br/>LLM 调用]
-        T[工具层 (04)<br/>Bash/FS/Git]
-        S[会话层 (05)<br/>持久化]
-        C[配置层 (08)<br/>Config / Logger]
-        SB[沙箱层 (08)<br/>Docker / Local 降级]
+        I[Interface 层 （07）<br/>Print / JSON / RPC / TUI]
+        A[Agent 层 （03）<br/>Agent Loop · 状态管理 · 队列 · 权限]
+        AI[AI 层 （02）<br/>LLM 调用]
+        T[工具层 （04）<br/>Bash/FS/Git]
+        S[会话层 （05）<br/>持久化]
+        C[配置层 （08）<br/>Config / Logger]
+        SB[沙箱层 （08）<br/>Docker / Local 降级]
 
         I --> A
         A --> AI
