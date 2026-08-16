@@ -36,7 +36,7 @@ export interface ProviderFactory {
 
 ```mermaid
 graph TB
-    A["上层代码（ModelRegistry / Agent）"] -->|"调用 create() / listModels() / createModel()"| B["ProviderFactory 接口<br>(定义策略的'形状'，不关心具体实现)"]
+    A["上层代码（ModelRegistry / Agent）"] -->|"调用 create() / listModels() / createModel()"| B["ProviderFactory 接口<br>（定义策略的'形状'，不关心具体实现）"]
     B --> C["AnthropicProvider<br>Messages API<br>content_block<br>thinking_delta"]
     B --> D["DeepSeekProvider<br>OpenAI 格式<br>SSE 流式解析<br>无 thinking"]
     B --> E["OpenAIProvider<br>Chat Completions<br>SSE 流式解析<br>无 thinking"]

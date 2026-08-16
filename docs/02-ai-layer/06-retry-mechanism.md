@@ -137,7 +137,7 @@ export async function fetchWithRetry(
 ```mermaid
 flowchart TD
     Start([开始]) --> A[attempt = 0]
-    A --> B[fetch(url, options)]
+    A --> B[fetch（url, options）]
     B -->|成功<br>response.ok| C[返回 response]
     B -->|不可重试<br>4xx 非 429| C
     B -->|可重试<br>429/502/503/504| D{已达最大<br>重试次数?}
@@ -145,7 +145,7 @@ flowchart TD
     D -->|否| E{429?}
     E -->|是| F[使用 Retry-After 头]
     E -->|否| G[指数退避: 2^attempt * 1000ms]
-    F --> H[sleep(delay)]
+    F --> H[sleep（delay）]
     G --> H
     H --> I[attempt++]
     I --> B
@@ -250,11 +250,11 @@ sequenceDiagram
 flowchart TD
     A[fetch 请求] --> B[502 Bad Gateway]
     B --> C[attempt = 1<br>第 1 次重试]
-    C --> D[sleep(1000ms)<br>指数退避 2^0 * 1000]
+    C --> D[sleep（1000ms）<br>指数退避 2^0 * 1000]
     D --> E[fetch 请求]
     E --> F[502 Bad Gateway<br>仍然失败]
     F --> G[attempt = 2<br>第 2 次重试]
-    G --> H[sleep(2000ms)<br>指数退避 2^1 * 1000]
+    G --> H[sleep（2000ms）<br>指数退避 2^1 * 1000]
     H --> I[fetch 请求]
     I --> J[200 OK<br>恢复成功]
     J --> K[返回 response]
@@ -275,7 +275,7 @@ flowchart TD
     subgraph 网络抖动
         A2[请求] --> B2[连接断开 ❌]
         B2 --> C2[捕获 TypeError<br>"fetch failed"]
-        C2 --> D2[sleep(1000ms)]
+        C2 --> D2[sleep（1000ms）]
         D2 --> E2[请求]
         E2 --> F2[响应 200 OK]
     end

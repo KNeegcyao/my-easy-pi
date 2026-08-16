@@ -45,12 +45,12 @@ graph TB
     end
 
     subgraph Interface["src/interface/"]
-        I1["print.ts (stdout 增量)"]
-        I2["json.ts (JSONL)"]
-        I3["rpc.ts (stdio JSON)"]
+        I1["print.ts （stdout 增量）"]
+        I2["json.ts （JSONL）"]
+        I3["rpc.ts （stdio JSON）"]
         I4["tui/ ← 本次重构对象"]
-        I5["interactive-mode.ts (业务组合层)<br/>← 业务侧只用 TUI 接口"]
-        I6["components/ (业务组件)<br/>transcript / statusbar 等"]
+        I5["interactive-mode.ts （业务组合层）<br/>← 业务侧只用 TUI 接口"]
+        I6["components/ （业务组件）<br/>transcript / statusbar 等"]
     end
 
     subgraph TUI["src/tui/"]
@@ -141,8 +141,8 @@ export interface TUI {
 
 ```mermaid
 flowchart TD
-    Comp["组件层（render(width) → string[]）"] --> Layout["layout 树（仅 alt screen 模式重组）"]
-    Layout --> ScreenBuf["ScreenBuffer.present(lines) — 行 diff"]
+    Comp["组件层（render（width） → string[]）"] --> Layout["layout 树（仅 alt screen 模式重组）"]
+    Layout --> ScreenBuf["ScreenBuffer.present（lines） — 行 diff"]
     ScreenBuf --> CSI["CSI 2026 帧（beginSync → 光标 + 覆写 → endSync）"]
     CSI --> Term["Terminal.write / flush"]
 ```

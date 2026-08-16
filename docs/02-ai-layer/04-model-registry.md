@@ -36,8 +36,8 @@ graph TB
         A["anthropic → AnthropicProvider"]
         D["deepseek → DeepSeekProvider"]
         O["openai → OpenAIProvider"]
-        GM["getModel('anthropic', 'claude-sonnet-4')"]
-        FLOW["factory.create(config).createModel(id)"]
+        GM["getModel（'anthropic', 'claude-sonnet-4'）"]
+        FLOW["factory.create（config）.createModel（id）"]
         RESULT["AnthropicModel"]
     end
 

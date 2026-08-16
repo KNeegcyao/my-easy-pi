@@ -51,7 +51,7 @@ graph TB
 
     subgraph 扩展能力["扩展能力"]
         自定义工具["自定义工具 (最简单)<br/>实现 AgentTool + 注册"]
-        自定义Provider["自定义 Provider (最复杂)<br/>实现 Provider Factory+Model"]
+        自定义Provider["自定义 Provider （最复杂）<br/>实现 Provider Factory+Model"]
         扩展系统2["扩展系统 (中等)<br/>ExtensionAPI<br/>事件监听<br/>工具/命令注册"]
     end
 

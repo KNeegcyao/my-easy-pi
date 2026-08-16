@@ -37,13 +37,14 @@
 
 ### 3.2 沙箱架构
 
-```mermaid graph TB
-    bash["bashTool.execute()"]
-    getSandbox["getSandbox()<br/>获取单例沙箱实例"]
+```mermaid
+graph TB
+    bash["bashTool.execute（）"]
+    getSandbox["getSandbox（）<br/>获取单例沙箱实例"]
     subgraph DockerSandbox["DockerSandbox"]
-        isAvailable["isAvailable()<br/>检测 Docker 是否可用"]
-        execute["execute(command)<br/>在容器中执行"]
-        executeLocal["executeLocal()<br/>降级方案：本地执行"]
+        isAvailable["isAvailable（）<br/>检测 Docker 是否可用"]
+        execute["execute（command）<br/>在容器中执行"]
+        executeLocal["executeLocal（）<br/>降级方案：本地执行"]
     end
 
     bash --> getSandbox

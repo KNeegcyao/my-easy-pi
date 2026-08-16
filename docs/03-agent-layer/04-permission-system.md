@@ -139,7 +139,7 @@ export class PermissionManager {
 
 ```mermaid
 flowchart TD
-    A[check(ctx) 被调用] --> B{工具不是 bash?}
+    A[check（ctx） 被调用] --> B{工具不是 bash?}
     B -->|是| C[放行<br/>return undefined]
     B -->|否| D{命令是 SAFE 等级?}
     D -->|是| C

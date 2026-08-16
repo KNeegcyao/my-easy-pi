@@ -52,7 +52,8 @@
 
 建议按以下顺序阅读本章各节：
 
-```mermaid flowchart TD
+```mermaid
+flowchart TD
     A["01-what-is-coding-agent.md"] --> B["02-environment-setup.md"]
     B --> C["03-project-structure.md"]
 
