@@ -68,8 +68,9 @@ my-easy-pi/
 
 my-easy-pi 采用**分层架构**设计，共 6 个核心层 + 2 个辅助层：
 
-```mermaid graph TB
-    CLI["CLI 入口 (src/cli.ts)<br/>参数解析 · 模块组装 · 环境变量读取"]
+```mermaid
+graph TB
+    CLI["CLI 入口 （src/cli.ts）<br/>参数解析 · 模块组装 · 环境变量读取"]
     接口层["⑥ 接口层 (src/interface/ + src/tui/)<br/>Print · JSON · RPC 输出 · 全屏 TUI 渲染器"]
     Agent层["⑤ Agent 层 (src/agent/)<br/>核心循环 · 状态管理 · 消息队列 · 权限控制"]
     扩展层["④ 扩展层 (src/extension/)<br/>ExtensionAPI · Loader · 插件发现"]
@@ -84,7 +85,8 @@ my-easy-pi 采用**分层架构**设计，共 6 个核心层 + 2 个辅助层：
 
 **核心设计原则：依赖漏斗**
 
-```mermaid graph TB
+```mermaid
+graph TB
     接口层["接口层"] --> Agent层["Agent 层"]
     Agent层 --> AI层["AI 层"]
     Agent层 --> 工具层["工具层"]

@@ -26,13 +26,13 @@ AI 层是整个 my-easy-pi 的"底层通信层"，负责屏蔽不同 LLM 提供�
 
 ```mermaid
 graph TB
-    A["上层 Agent / 应用层<br>(不关心底层是哪个 LLM 提供商)"]
+    A["上层 Agent / 应用层<br>（不关心底层是哪个 LLM 提供商）"]
     B["Model 抽象接口<br>stream / supportsTools / ..."]
     C["DeepSeekModel"]
     D["OpenAIModel"]
     E["AnthropicModel"]
-    F["ProviderFactory (策略模式)"]
-    G["ModelRegistry (注册表)"]
+    F["ProviderFactory （策略模式）"]
+    G["ModelRegistry （注册表）"]
     H["AppError 错误体系"]
     I["fetchWithRetry 重试机制"]
 

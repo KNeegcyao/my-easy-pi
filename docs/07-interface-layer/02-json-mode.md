@@ -30,10 +30,10 @@
 
 ```mermaid
 graph TB
-    U[用户 / 调用方<br/>(终端脚本 / CI 流水线 / 外部程序 / 日志系统)]
+    U[用户 / 调用方<br/>（终端脚本 / CI 流水线 / 外部程序 / 日志系统）]
 
-    A[Agent 核心<br/>(src/agent/loop.ts)<br/>处理消息 / 调用工具 / 生成回复]
-    J[JSON 模式<br/>(src/interface/json.ts)<br/>JSON.stringify(event) + EOL → stdout]
+    A[Agent 核心<br/>（src/agent/loop.ts）<br/>处理消息 / 调用工具 / 生成回复]
+    J[JSON 模式<br/>（src/interface/json.ts）<br/>JSON.stringify（event） + EOL → stdout]
 
     C1[jq 分析 / 程序消费]
     C2[CI 集成 / 脚本处理]

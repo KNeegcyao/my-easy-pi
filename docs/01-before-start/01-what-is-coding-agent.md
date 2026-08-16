@@ -42,7 +42,8 @@
 
 ### 3.2 与普通聊天机器人的区别
 
-```mermaid flowchart TD
+```mermaid
+flowchart TD
     subgraph 普通聊天机器人["普通聊天机器人"]
         A1["用户: 帮我写一个读取 JSON 文件的函数"]
         A2["AI: 好的，以下是代码..."]
@@ -155,7 +156,8 @@ pi 是一个开源项目，地址是 [github.com/earendil-works/pi](https://gith
 
 **my-easy-pi 是一个"学习用精简版"AI Coding Agent。**
 
-```mermaid graph TB
+```mermaid
+graph TB
     subgraph 完整产品["完整产品（Claude Code）"]
         A1["数十万行代码"]
         A2["多团队协作开发"]

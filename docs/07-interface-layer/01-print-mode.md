@@ -85,10 +85,10 @@ Print 模式订阅了四个事件：
 
 ```mermaid
 graph TB
-    A[正常输出] --> B[stdout<br/>(fd 1)]
+    A[正常输出] --> B[stdout<br/>（fd 1）]
     B --> C[终端显示]
     B --> D[管道传递]
-    E[错误信息] --> F[stderr<br/>(fd 2)]
+    E[错误信息] --> F[stderr<br/>（fd 2）]
     F --> G[终端显示（不进入管道）]
 ```
 

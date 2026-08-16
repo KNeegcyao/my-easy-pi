@@ -33,7 +33,7 @@
 
 ```mermaid
 graph TB
-    CLI["CLI 入口 (cli.ts)\n组装所有模块"] --> ConfigM["Config\nManager"]
+    CLI["CLI 入口 （cli.ts）\n组装所有模块"] --> ConfigM["Config\nManager"]
     CLI --> ModelR["Model\nRegistry"]
     CLI --> ToolR["Tool\nRegistry"]
     ConfigM --> SessionM["Session\nManager"]
