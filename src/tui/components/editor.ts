@@ -89,8 +89,13 @@ export function parseKeys(data: string): KeyIntent[] {
 
     // 单字节控制字符
     switch (ch) {
-      case '\r': case '\n':
+      case '\r':
         out.push({ type: 'submit' })
+        i++
+        continue
+      case '\n':
+        // Ctrl+J / 粘贴的换行符 → 插入换行（多行编辑器场景）
+        out.push({ type: 'newline' })
         i++
         continue
       case '\x7f':  // DEL = Backspace

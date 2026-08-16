@@ -412,6 +412,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       const sel = new Selector(opts, '会话列表 (选择后按 Enter 进入)')
       sel.onSelect = (opt) => {
         activeSelector = null
+        chatContainer.removeChild(sel)
         if (!opt.value) {
           chatContainer.addChild(new Text(`  ${dim(gray('已取消'))}`))
           chatContainer.addChild(new Spacer(1))
@@ -425,14 +426,14 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
       sel.onCancel = () => {
         activeSelector = null
+        chatContainer.removeChild(sel)
         chatContainer.addChild(new Text(`  ${dim(gray('已取消'))}`))
         chatContainer.addChild(new Spacer(1))
         screen.requestRender()
       }
       activeSelector = sel
-      // 把选择器渲染到 chat（作为 Text 组件）
-      const lines = sel.render(terminal.columns)
-      for (const l of lines) chatContainer.addChild(new Text(l))
+      // 把选择器作为组件直接挂载到 chat，支持实时高亮刷新
+      chatContainer.addChild(sel)
       chatContainer.addChild(new Spacer(1))
       screen.requestRender()
     } catch (e) {
@@ -553,11 +554,10 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     }
     sel.onCancel = () => { autocompleteSelector = null; screen.requestRender() }
     autocompleteSelector = sel
-    // 渲染到 statusContainer（不污染 chat 历史）
+    // 渲染到 statusContainer（不污染 chat 历史），Selector 作为组件直接挂载
     statusContainer.clear()
     statusContainer.addChild(new Text(dim(gray('按 ↑/↓ 选择，Enter 确认，Esc 取消'))))
-    const lines = sel.render(terminal.columns)
-    for (const l of lines) statusContainer.addChild(new Text(l))
+    statusContainer.addChild(sel)
     screen.requestRender()
   }
 
@@ -681,11 +681,10 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       { label: 'No', value: 'n', description: '拒绝执行（默认）' },
     ], `${req.risk === RiskLevel.DANGEROUS ? '🔴' : '🟡'} 操作需要确认`)
 
-    // 写入确认框到 chat
+    // 写入确认框到 chat（Selector 作为组件直接挂载，支持实时高亮刷新）
     chatContainer.addChild(new Spacer(1))
     chatContainer.addChild(new Text(`  ${dim(gray('命令: '))}${req.command}`))
-    const lines = sel.render(terminal.columns)
-    for (const l of lines) chatContainer.addChild(new Text(l))
+    chatContainer.addChild(sel)
     chatContainer.addChild(new Spacer(1))
     screen.requestRender()
     stopLoaderTimer()
@@ -694,11 +693,13 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         activeSelector = null
+        chatContainer.removeChild(sel)
         resolve(false)
       }, 30_000)
       sel.onSelect = (opt) => {
         clearTimeout(timeout)
         activeSelector = null
+        chatContainer.removeChild(sel)
         const allowed = opt.value === 'y'
         if (allowed && agent.state.isStreaming) startLoaderTimer()
         if (opt.value === 'y') {
@@ -713,6 +714,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       sel.onCancel = () => {
         clearTimeout(timeout)
         activeSelector = null
+        chatContainer.removeChild(sel)
         chatContainer.addChild(new Text(`  ${dim(gray('已取消'))}`))
         chatContainer.addChild(new Spacer(1))
         screen.requestRender()

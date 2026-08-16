@@ -24,9 +24,10 @@ describe('parseKeys', () => {
     ])
   })
 
-  it('Enter → submit（CR 和 LF 都识别）', () => {
+  it('Enter → submit；LF / Ctrl+J → newline；Alt+Enter → newline', () => {
     expect(parseKeys('\r')).toEqual([{ type: 'submit' }])
-    expect(parseKeys('\n')).toEqual([{ type: 'submit' }])
+    expect(parseKeys('\n')).toEqual([{ type: 'newline' }])
+    expect(parseKeys('\x1b\r')).toEqual([{ type: 'newline' }])
   })
 
   it('Backspace DEL → backspace', () => {
