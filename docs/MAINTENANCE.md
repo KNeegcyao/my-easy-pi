@@ -21,9 +21,9 @@
 
 ```markdown
 ---
-> 对应源码: <源文件路径>
-> 最后更新: YYYY-MM-DD
-> 适用版本: v0.1.0+
+source: <源文件路径>
+last_updated: YYYY-MM-DD
+version: v0.1.0+
 ---
 
 # 标题
@@ -57,11 +57,13 @@
 每篇文档开头标注了对应的源文件路径，方便代码变更时定位：
 
 ```markdown
-> 对应源码: src/agent/loop.ts
-> 最后更新: 2026-08-08
+---
+source: src/agent/loop.ts
+last_updated: 2026-08-08
+---
 ```
 
-当需要更新文档时，搜索 `对应源码:` 即可找到所有相关文档。
+当需要更新文档时，搜索 `source:` 即可找到所有相关文档。
 
 ## 文档编号规则
 
