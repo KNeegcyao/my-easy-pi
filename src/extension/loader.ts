@@ -3,7 +3,7 @@
 //
 // 自动发现并加载扩展：
 //   1. 项目目录  .pi/extensions/*.ts
-//   2. 全局目录  ~/.piagent/extensions/*.ts
+//   2. 全局目录  ~/.my-easy-pi/extensions/*.ts
 //
 // 扩展文件默认导出一个函数，接收 ExtensionAPI 实例。
 // ============================================================
@@ -40,7 +40,7 @@ export class ExtensionLoader {
   private getSearchDirs(): string[] {
     return [
       join(this.projectDir, '.pi', 'extensions'),
-      join(homedir(), '.piagent', 'extensions'),
+      join(homedir(), '.my-easy-pi', 'extensions'),
     ]
   }
 

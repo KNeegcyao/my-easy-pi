@@ -1,7 +1,7 @@
 ---
 对应源码: 'src/ai/providers/anthropic.ts, src/ai/providers/deepseek.ts, src/ai/providers/openai.ts, src/ai/types.ts'
 最后更新: 2026-08-08
-适用版本: piagent v0.1+
+适用版本: my-easy-pi v0.1+
 ---
 
 # 策略模式：ProviderFactory

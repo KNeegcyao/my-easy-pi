@@ -88,7 +88,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   const statusContainer = new Container()
 
   // ── 业务组件 ──
-  const loader = new Loader({ text: 'piagent is thinking...', color: (s: string) => dim(gray(s)) })
+  const loader = new Loader({ text: 'my-easy-pi is thinking...', color: (s: string) => dim(gray(s)) })
   let editor!: Editor
   const ensureEditor = () => {
     if (!editor) {
@@ -190,7 +190,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
         chatContainer.addChild(spacer)
         chatContainer.addChild(streamTurn)
         turnComponents = [spacer, streamTurn]
-        loader.setText('piagent is thinking...')
+        loader.setText('my-easy-pi is thinking...')
         showLoader()
         break
       }

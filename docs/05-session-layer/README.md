@@ -6,11 +6,11 @@ version: 1.0.0
 
 # 会话层 -- 持久化、恢复与上下文管理
 
-> 会话层是 piagent 从"一次性对话"进化到"持久化交互"的关键。它负责将对话保存到磁盘、恢复历史会话，并通过压缩机制管理 LLM 上下文窗口。没有会话层，每次退出程序对话就会丢失。
+> 会话层是 my-easy-pi 从"一次性对话"进化到"持久化交互"的关键。它负责将对话保存到磁盘、恢复历史会话，并通过压缩机制管理 LLM 上下文窗口。没有会话层，每次退出程序对话就会丢失。
 
 ## 会话层的角色
 
-在 piagent 整体架构中，会话层处于 **CLI/接口层** 和 **Agent 核心** 之间，为整个系统提供"记忆"能力。
+在 my-easy-pi 整体架构中，会话层处于 **CLI/接口层** 和 **Agent 核心** 之间，为整个系统提供"记忆"能力。
 
 ```
 用户输入/输出
@@ -32,7 +32,7 @@ version: 1.0.0
 
 ## Learning objectives
 
-理解 piagent 的会话层如何实现以下核心能力：
+理解 my-easy-pi 的会话层如何实现以下核心能力：
 
 1. **理解会话层的定位** -- 会话层如何连接 CLI 层和 Agent 核心，作为"记忆"中间件
 2. **掌握 JSONL 格式** -- 理解 JSON Lines 的读写特性，以及相比 JSON 数组的优势
@@ -44,7 +44,7 @@ version: 1.0.0
 
 ## Prerequisites
 
-- 了解 piagent 的基本 CLI 用法（`-c` 继续、`-l` 列表、`--delete` 删除等命令）
+- 了解 my-easy-pi 的基本 CLI 用法（`-c` 继续、`-l` 列表、`--delete` 删除等命令）
 - 对 TypeScript 的 `async/await`、`fs/promises` 有基本了解
 - 了解 [Agent Loop](../03-agent-layer/01-agent-loop.md) 的基本概念 -- LLM 调用和工具执行的循环过程
 - 了解 LLM 上下文窗口的基本概念（Token 限制、滑动窗口等）
@@ -119,12 +119,12 @@ version: 1.0.0
 一个会话对应一次用户与 Agent 的完整对话。每个会话由三个要素唯一标识：
 
 - **sessionId** -- 格式为 `session-{timestamp}`，例如 `session-1692000000000`
-- **JSONL 文件** -- 存储在 `~/.piagent/sessions/{sessionId}.jsonl`
+- **JSONL 文件** -- 存储在 `~/.my-easy-pi/sessions/{sessionId}.jsonl`
 - **元数据消息** -- 文件中的第一条消息（`id: 'meta'`）记录会话名称、创建时间、模型信息等
 
 ### 2. JSONL 存储格式
 
-JSONL（JSON Lines）是每行一个 JSON 对象的文本格式。piagent 选择 JSONL 而非 JSON 数组，基于三个关键优势：
+JSONL（JSON Lines）是每行一个 JSON 对象的文本格式。my-easy-pi 选择 JSONL 而非 JSON 数组，基于三个关键优势：
 
 | 对比维度 | JSON 数组 | JSONL |
 |----------|-----------|-------|
@@ -200,7 +200,7 @@ JSONL 文件                →  物理存储
 
 ## Summary and next steps
 
-会话层实现了 piagent 的三个关键能力：
+会话层实现了 my-easy-pi 的三个关键能力：
 
 | 能力 | 实现文件 | 用户可见功能 |
 |------|----------|-------------|

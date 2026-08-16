@@ -4,14 +4,14 @@
 |--------|------|
 | 对应源码 | `src/tui/`（新框架）· `src/interface/tui/`（slash 命令） |
 | 最后更新 | 2026-08-09 |
-| 适用版本 | piagent v0.1.0+ |
+| 适用版本 | my-easy-pi v0.1.0+ |
 | 设计文档 | [docs/tui-strategy.md](../tui-strategy.md) |
 
 ---
 
 ## 1. 本节目标
 
-理解 TUI（Terminal User Interface）模式的设计与实现。piagent 的 TUI 已经从早期 `src/interface/tui/`（基于 readline 的 5 个小模块）演进为 `src/tui/` 下**独立的极简终端 UI 框架**（内部代号 `@piagent/tui`）：单接口双渲染器、三方法组件契约、差分渲染 + CSI 2026 同步输出。学习本节后，你将理解：
+理解 TUI（Terminal User Interface）模式的设计与实现。my-easy-pi 的 TUI 已经从早期 `src/interface/tui/`（基于 readline 的 5 个小模块）演进为 `src/tui/` 下**独立的极简终端 UI 框架**（内部代号 `@my-easy-pi/tui`）：单接口双渲染器、三方法组件契约、差分渲染 + CSI 2026 同步输出。学习本节后，你将理解：
 
 - 如何用 alternate screen 实现全屏交互
 - `Component` / `TUI` 核心契约如何让业务与渲染解耦
@@ -284,11 +284,11 @@ flowchart TB
 
 ```bash
 # 直接启动（默认进入 TUI alt-screen 模式）
-piagent
+my-easy-pi
 
 # 显式指定模式
-piagent --tui          # 全屏（默认）
-piagent --main-screen  # 主屏模式（保留终端原生 scrollback）
+my-easy-pi --tui          # 全屏（默认）
+my-easy-pi --main-screen  # 主屏模式（保留终端原生 scrollback）
 ```
 
 ### 5.2 基本操作
@@ -328,7 +328,7 @@ piagent --main-screen  # 主屏模式（保留终端原生 scrollback）
 
 ## 6. 小结
 
-TUI 是 piagent 最复杂的接口实现，已经从早期 readline 流式打印演进为**独立的极简终端 UI 框架**。它用一套 `Component`/`TUI` 契约解耦了业务与渲染，用 `TuiMainScreen`/`TuiAltScreen` 双渲染器满足不同场景，用 `ScreenBuffer` 行 diff + `Csi2026` 同步输出实现无闪烁全屏体验。三种"常驻容器"机制（chatContainer 只增不减、updateContent 内重建、statusContainer 独立 slot）是长期稳定的根本。
+TUI 是 my-easy-pi 最复杂的接口实现，已经从早期 readline 流式打印演进为**独立的极简终端 UI 框架**。它用一套 `Component`/`TUI` 契约解耦了业务与渲染，用 `TuiMainScreen`/`TuiAltScreen` 双渲染器满足不同场景，用 `ScreenBuffer` 行 diff + `Csi2026` 同步输出实现无闪烁全屏体验。三种"常驻容器"机制（chatContainer 只增不减、updateContent 内重建、statusContainer 独立 slot）是长期稳定的根本。
 
 ### 思考题
 

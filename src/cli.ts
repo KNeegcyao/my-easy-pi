@@ -55,15 +55,15 @@ export function parseArgs(argv: string[] = process.argv.slice(2)): ParsedArgs {
 
 function printHelp(): void {
   console.log(`
-piagent — 简易 AI Coding Agent
+my-easy-pi — 简易 AI Coding Agent
 
 用法:
-  pi                       启动交互式对话
-  pi -m "你好"             单次消息
-  pi -c                    继续上次对话
-  pi -l                    列出所有会话
-  pi --delete <id>         删除指定会话
-  cat file | pi -p "指令"   管道模式
+  my-easy-pi              启动交互式对话
+  my-easy-pi -m "你好"    单次消息
+  my-easy-pi -c           继续上次对话
+  my-easy-pi -l           列出所有会话
+  my-easy-pi --delete <id>  删除指定会话
+  cat file | my-easy-pi -p "指令"  管道模式
 
 选项:
   -p, --prompt    系统提示或指令
@@ -85,7 +85,7 @@ piagent — 简易 AI Coding Agent
   OPENAI_API_KEY      OpenAI API 密钥
 
 配置文件:
-  ~/.piagent/config.json  用户全局配置（可用 apiKeys 字段存密钥）
+  ~/.my-easy-pi/config.json  用户全局配置（可用 apiKeys 字段存密钥）
   `)
 }
 
@@ -179,7 +179,7 @@ export function buildAgent(opts: {
 }): Agent {
   const { model, tools, permission, compactor } = opts
   return new Agent({
-    systemPrompt: '你是 piagent — 一个 AI 编程助手。\n\n你有以下工具可用：\n- bash：执行 shell 命令\n- read：读取文件内容\n- write：写入文件内容\n- edit：替换文件中的文本\n- grep：在文件中搜索关键词\n- find：查找文件名\n- ls：列出目录内容\n- web_fetch：读取网页内容（用于在线查看 GitHub 文件、文档等）\n\n请用中文回答用户的问题。保持回答简洁、准确，不要回复冗余的模型元信息。',
+    systemPrompt: '你是 my-easy-pi — 一个 AI 编程助手。\n\n你有以下工具可用：\n- bash：执行 shell 命令\n- read：读取文件内容\n- write：写入文件内容\n- edit：替换文件中的文本\n- grep：在文件中搜索关键词\n- find：查找文件名\n- ls：列出目录内容\n- web_fetch：读取网页内容（用于在线查看 GitHub 文件、文档等）\n\n请用中文回答用户的问题。保持回答简洁、准确，不要回复冗余的模型元信息。',
     model,
     tools,
     beforeToolCall: (ctx) => permission.check(ctx),

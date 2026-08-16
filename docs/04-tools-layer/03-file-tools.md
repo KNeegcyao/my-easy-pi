@@ -1,7 +1,7 @@
 ---
 对应源码: src/tools/builtin/read.ts, src/tools/builtin/write.ts, src/tools/builtin/edit.ts
 最后更新: 2026-08-08
-适用版本: piagent v0.1.0
+适用版本: my-easy-pi v0.1.0
 ---
 
 # 文件工具（Read / Write / Edit）
@@ -207,7 +207,7 @@ import('./dist/tools/builtin/write.js').then(({ writeTool }) => {
 # 4. 测试 edit 工具
 node -e "
 import('./dist/tools/builtin/edit.js').then(({ editTool }) => {
-  editTool.execute('test-3', { path: '/tmp/test.txt', old: 'World', new: 'piagent' })
+  editTool.execute('test-3', { path: '/tmp/test.txt', old: 'World', new: 'my-easy-pi' })
     .then(r => console.log(r.content[0].text))
 })
 "

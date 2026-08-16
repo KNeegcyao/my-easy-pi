@@ -8,7 +8,7 @@
 
 ## 0. 一句话目标
 
-把 `src/interface/tui/` 演进成一个独立的极简终端 UI 框架（内部代号 `@piagent/tui`），实现 Pi 的五个核心策略：
+把 `src/interface/tui/` 演进成一个独立的极简终端 UI 框架（内部代号 `@my-easy-pi/tui`），实现 Pi 的五个核心策略：
 
 1. **core/UI 彻底分层** —— `src/agent/` 不 import 任何 TUI / stdout / readline
 2. **单接口双渲染器** —— `TUI` 接口下 `TuiMainScreen` / `TuiAltScreen` 可互换

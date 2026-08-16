@@ -8,7 +8,7 @@
 
 ## 1. 本节目标
 
-本教程将手把手教你为 piagent 创建一个扩展。扩展是 piagent 的插件化机制，允许在不修改核心代码的情况下添加新功能。我们将创建一个**翻译扩展**，它注册一个翻译工具和一个 `/translate` 命令。
+本教程将手把手教你为 my-easy-pi 创建一个扩展。扩展是 my-easy-pi 的插件化机制，允许在不修改核心代码的情况下添加新功能。我们将创建一个**翻译扩展**，它注册一个翻译工具和一个 `/translate` 命令。
 
 ## 2. 前置知识
 
@@ -35,7 +35,7 @@
 │  ── 自动发现并加载扩展文件            │
 │  ── 搜索路径：                      │
 │    1. .pi/extensions/*.ts（项目级）   │
-│    2. ~/.piagent/extensions/*.ts（全局）│
+│    2. ~/.my-easy-pi/extensions/*.ts（全局）│
 └─────────────────────────────────────┘
 ```
 
@@ -81,14 +81,14 @@ Agent 退出，扩展自动清理
 //
 // 使用说明：
 //   将本文件放在 .pi/extensions/ 目录下，
-//   重启 piagent 即可自动加载。
+//   重启 my-easy-pi 即可自动加载。
 // ============================================================
 
 import { Type } from '@sinclair/typebox'
-import type { ExtensionAPI } from 'piagent'  // 实际使用时为相对路径
+import type { ExtensionAPI } from 'my-easy-pi'  // 实际使用时为相对路径
 
 // 扩展的默认导出函数
-// 在扩展被加载时，piagent 会调用这个函数，并传入 ExtensionAPI 实例
+// 在扩展被加载时，my-easy-pi 会调用这个函数，并传入 ExtensionAPI 实例
 export default function (api: ExtensionAPI) {
   // ════════════════════════════════════════════════════════════
   // 1. 注册工具
@@ -212,7 +212,7 @@ ExtensionLoader 的加载逻辑（`src/extension/loader.ts`）：
 private getSearchDirs(): string[] {
   return [
     join(this.projectDir, '.pi', 'extensions'),     // 项目级扩展
-    join(homedir(), '.piagent', 'extensions'),       // 全局扩展
+    join(homedir(), '.my-easy-pi', 'extensions'),       // 全局扩展
   ]
 }
 
@@ -233,7 +233,7 @@ private async loadDir(dir: string): Promise<number> {
 
 关键点：
 - 扩展文件可以是 `.ts` 或 `.js`
-- 优先加载项目级扩展（`.pi/extensions/`），再加载全局扩展（`~/.piagent/extensions/`）
+- 优先加载项目级扩展（`.pi/extensions/`），再加载全局扩展（`~/.my-easy-pi/extensions/`）
 - 默认导出必须是函数
 - 单个扩展加载失败不影响其他扩展
 
@@ -258,7 +258,7 @@ private async loadDir(dir: string): Promise<number> {
 
 ```typescript
 import { Type } from '@sinclair/typebox'
-import type { ExtensionAPI } from 'piagent'
+import type { ExtensionAPI } from 'my-easy-pi'
 
 export default async function (api: ExtensionAPI) {
   // 注册多个工具
@@ -295,7 +295,7 @@ mkdir -p .pi/extensions
 # 编译项目
 npm run build
 
-# 启动 piagent
+# 启动 my-easy-pi
 npm start
 ```
 
@@ -326,11 +326,11 @@ import('./dist/extension/api.js').then(({ ExtensionAPI }) => {
 
 ## 6. 小结
 
-通过本教程，你已经学会了如何创建、加载和测试 piagent 扩展。整个过程可以概括为：
+通过本教程，你已经学会了如何创建、加载和测试 my-easy-pi 扩展。整个过程可以概括为：
 
 1. **创建扩展文件**：在 `.pi/extensions/` 下创建 `.ts` 文件，默认导出接收 `ExtensionAPI` 的函数
 2. **注册功能**：在函数内调用 `api.registerTool()`、`api.registerCommand()`、`api.on()` 注册功能
-3. **加载测试**：启动 piagent，扩展自动加载
+3. **加载测试**：启动 my-easy-pi，扩展自动加载
 4. **组织代码**：复杂扩展可以拆分为多个文件，使用目录结构管理
 
 ### 扩展 vs 直接修改源码

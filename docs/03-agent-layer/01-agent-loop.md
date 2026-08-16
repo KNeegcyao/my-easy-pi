@@ -6,7 +6,7 @@ version: 1.0.0
 
 # ⭐ Agent Loop 核心循环
 
-> 这是整个 piagent 项目中最重要的文档。Agent Loop 是 Agent 的"心脏"，理解它你就理解了整个项目的一半。
+> 这是整个 my-easy-pi 项目中最重要的文档。Agent Loop 是 Agent 的"心脏"，理解它你就理解了整个项目的一半。
 
 ## 1. 本节目标
 

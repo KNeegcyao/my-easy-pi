@@ -1,14 +1,14 @@
 ---
 对应源码: 'src/ai/errors.ts'
 最后更新: 2026-08-08
-适用版本: piagent v0.1+
+适用版本: my-easy-pi v0.1+
 ---
 
 # 统一错误码
 
 ## 1. 本节目标
 
-理解 piagent 的统一错误码体系设计，以及如何通过类型守卫和友好提示改善开发者体验。
+理解 my-easy-pi 的统一错误码体系设计，以及如何通过类型守卫和友好提示改善开发者体验。
 
 ## 2. 前置知识
 
@@ -99,7 +99,7 @@ try {
 export const AUTH_API_KEY_MISSING = (provider: string): AppError => ({
   code: 'AUTH_API_KEY_MISSING',
   message: `未设置 ${provider} 的 API 密钥`,
-  suggestion: `请设置环境变量 ${provider.toUpperCase()}_API_KEY 或 ~/.piagent/config.json`,
+  suggestion: `请设置环境变量 ${provider.toUpperCase()}_API_KEY 或 ~/.my-easy-pi/config.json`,
   // 示例: 错误信息中包含环境变量名，用户可以直接复制设置
 })
 
@@ -177,7 +177,7 @@ if (!apiKey) {
   // 返回友好的错误提示，包含环境变量名
   throw AUTH_API_KEY_MISSING('deepseek')
   // 输出: [AUTH_API_KEY_MISSING] 未设置 deepseek 的 API 密钥
-  // 💡 请设置环境变量 DEEPSEEK_API_KEY 或 ~/.piagent/config.json
+  // 💡 请设置环境变量 DEEPSEEK_API_KEY 或 ~/.my-easy-pi/config.json
 }
 
 // 在 Registry 中处理不存在的提供商

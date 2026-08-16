@@ -103,7 +103,7 @@ export function createTUIRenderer(agent: Agent): void {
 
 export function printThinking(): void {
   // 不用 \r 清除，让它在单独一行
-  process.stdout.write(`${dim(gray('piagent is thinking...'))}`)
+  process.stdout.write(`${dim(gray('my-easy-pi is thinking...'))}`)
 }
 
 export function printPrompt(): void {

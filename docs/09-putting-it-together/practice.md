@@ -2,7 +2,7 @@
 
 > 对应源码：`src/cli.ts`、`src/agent/loop.ts` 及所有模块
 > 最后更新：2026-08-08
-> 适用版本：piagent v0.1.0+
+> 适用版本：my-easy-pi v0.1.0+
 
 ## 练习说明
 
@@ -17,7 +17,7 @@
 
 ### 目标
 
-通过设置断点，观察一条用户消息 "帮我读 config.json 并总结" 在 piagent 各模块中的流转过程。
+通过设置断点，观察一条用户消息 "帮我读 config.json 并总结" 在 my-easy-pi 各模块中的流转过程。
 
 ### 步骤
 
@@ -29,7 +29,7 @@ cd /workspace
 npm run build
 
 # 创建一个测试用的 config.json
-echo '{"name": "piagent", "version": "1.0.0"}' > /workspace/config.json
+echo '{"name": "my-easy-pi", "version": "1.0.0"}' > /workspace/config.json
 ```
 
 #### 2. 在关键位置设置断点
@@ -71,7 +71,7 @@ node --inspect-brk dist/cli.js -m "帮我读 config.json 并总结"
     {
       "type": "node",
       "request": "launch",
-      "name": "Debug piagent",
+      "name": "Debug my-easy-pi",
       "program": "${workspaceFolder}/dist/cli.js",
       "args": ["-m", "帮我读 config.json 并总结"],
       "sourceMaps": true
@@ -197,7 +197,7 @@ prompt() → agent_start → turn_start → convertToLlm → LLM.stream()
 
 ### 目标
 
-使用 Mermaid 或 PlantUML 绘制一张完整的系统调用序列图，展示 piagent 处理用户消息"帮我读 config.json 并总结"的完整过程。
+使用 Mermaid 或 PlantUML 绘制一张完整的系统调用序列图，展示 my-easy-pi 处理用户消息"帮我读 config.json 并总结"的完整过程。
 
 ### 要求
 

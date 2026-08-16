@@ -2,13 +2,13 @@
 
 > 对应源码：`src/config/logger.ts`
 > 最后更新：2026-08-08
-> 适用版本：piagent v0.1.0
+> 适用版本：my-easy-pi v0.1.0
 
 ---
 
 ## 1. 本节目标
 
-- 理解 piagent 日志系统的分层设计
+- 理解 my-easy-pi 日志系统的分层设计
 - 掌握三种日志文件（access、error、audit）的用途
 - 学习 JSONL 格式和按天轮转的实现
 - 了解审计日志如何记录工具执行
@@ -27,7 +27,7 @@
 
 ### 3.1 日志分层
 
-piagent 的日志系统将日志分为三个独立的文件流，分别记录不同类型的信息：
+my-easy-pi 的日志系统将日志分为三个独立的文件流，分别记录不同类型的信息：
 
 | 日志类型 | 文件命名 | 记录内容 |
 |---------|---------|---------|
@@ -48,7 +48,7 @@ JSONL（JSON Lines）是一种每行一个 JSON 对象的文本格式，优势�
 
 ### 3.4 日志存储路径
 
-所有日志文件存储在 `~/.piagent/logs/` 目录下。
+所有日志文件存储在 `~/.my-easy-pi/logs/` 目录下。
 
 ---
 
@@ -59,7 +59,7 @@ JSONL（JSON Lines）是一种每行一个 JSON 对象的文本格式，优势�
 ```typescript
 // src/config/logger.ts
 
-const LOG_DIR = join(homedir(), '.piagent', 'logs')  // ~/.piagent/logs/
+const LOG_DIR = join(homedir(), '.my-easy-pi', 'logs')  // ~/.my-easy-pi/logs/
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
@@ -240,20 +240,20 @@ logger.error('docker_build_failed', { error: String(error) })
 
 ```bash
 # 查看今日的访问日志
-cat ~/.piagent/logs/access-$(date +%Y-%m-%d).jsonl
+cat ~/.my-easy-pi/logs/access-$(date +%Y-%m-%d).jsonl
 
 # 查看今日的错误日志
-cat ~/.piagent/logs/error-$(date +%Y-%m-%d).jsonl
+cat ~/.my-easy-pi/logs/error-$(date +%Y-%m-%d).jsonl
 
 # 查看今日的审计日志
-cat ~/.piagent/logs/audit-$(date +%Y-%m-%d).jsonl
+cat ~/.my-easy-pi/logs/audit-$(date +%Y-%m-%d).jsonl
 ```
 
 ### 5.2 日志输出示例
 
 访问日志条目示例：
 ```json
-{"timestamp":"2026-08-08T10:30:00.000Z","level":"info","message":"piagent started"}
+{"timestamp":"2026-08-08T10:30:00.000Z","level":"info","message":"my-easy-pi started"}
 ```
 
 审计日志条目示例：
@@ -277,7 +277,7 @@ pi -m "hello"
 
 ## 6. 小结
 
-本节介绍了 piagent 的日志系统，核心要点：
+本节介绍了 my-easy-pi 的日志系统，核心要点：
 
 - **三流分离**：access、error、audit 三个独立文件流，职责清晰
 - **JSONL 格式**：每行一个 JSON 对象，便于机器解析和日志分析
@@ -289,7 +289,7 @@ pi -m "hello"
 ### 思考题
 
 1. 为什么审计日志（audit）只写文件不输出到终端？什么场景下需要这样做？
-2. 如果要将日志文件存储到自定义目录（如 `/var/log/piagent/`），需要修改哪些代码？
+2. 如果要将日志文件存储到自定义目录（如 `/var/log/my-easy-pi/`），需要修改哪些代码？
 3. 如何实现日志文件自动清理（如只保留最近 7 天的日志）？
 
 > ← [上一节](./01-config-manager.md) · [下一节](./03-docker-sandbox.md) →

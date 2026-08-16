@@ -130,7 +130,7 @@ describe('buildAgent', () => {
     expect(agent.state.tools.map(t => t.name)).toEqual(tools.map(t => t.name))
     expect(agent.state.model.id).toBe(model.id)
     // system prompt 被注入
-    expect(agent.state.systemPrompt).toContain('piagent')
+    expect(agent.state.systemPrompt).toContain('my-easy-pi')
   })
 })
 

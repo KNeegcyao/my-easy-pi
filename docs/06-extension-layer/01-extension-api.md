@@ -1,12 +1,12 @@
 ---
 对应源码: src/extension/api.ts
 最后更新: 2026-08-08
-适用版本: piagent v1.0
+适用版本: my-easy-pi v1.0
 ---
 
 # ExtensionAPI — 扩展接口设计
 
-> 扩展通过 `api` 参数与内核交互——这是扩展与 piagent 之间的契约
+> 扩展通过 `api` 参数与内核交互——这是扩展与 my-easy-pi 之间的契约
 
 ## 1. 本节目标
 
@@ -22,12 +22,12 @@
 
 ### 3.1 用"手机 App"来理解扩展
 
-可以把 piagent 的扩展系统想象成你的手机：
+可以把 my-easy-pi 的扩展系统想象成你的手机：
 
-| 手机概念 | piagent 扩展系统中的对应 |
+| 手机概念 | my-easy-pi 扩展系统中的对应 |
 |----------|------------------------|
-| 手机操作系统 | piagent 内核（Agent + ToolRegistry） |
-| App Store / 应用市场 | `~/.piagent/extensions/` 目录 |
+| 手机操作系统 | my-easy-pi 内核（Agent + ToolRegistry） |
+| App Store / 应用市场 | `~/.my-easy-pi/extensions/` 目录 |
 | 下载并安装 App | 将扩展文件放入扩展目录 |
 | 手机开机启动 | `ExtensionLoader.loadAll()` 扫描并加载扩展 |
 | App 的 Manifest 声明文件 | 扩展的 `export default function` |
@@ -37,12 +37,12 @@
 
 **类比的好处**：
 - 你不需要知道手机操作系统内部的实现细节，只需要知道 App 能调用哪些 API
-- 同理，扩展开发者不需要了解 piagent 内部复杂的 Agent 循环，只需要掌握 `ExtensionAPI` 提供的三个能力
+- 同理，扩展开发者不需要了解 my-easy-pi 内部复杂的 Agent 循环，只需要掌握 `ExtensionAPI` 提供的三个能力
 - 手机 App 可以随时安装和（理想情况下）卸载，扩展也应该如此
 
 ### 3.2 为什么扩展系统是一等公民
 
-在 piagent 中，扩展系统与内置模块享有同等的地位，体现在：
+在 my-easy-pi 中，扩展系统与内置模块享有同等的地位，体现在：
 
 1. **API 与内核同源** — `ExtensionAPI` 直接操作 `ToolRegistry` 和 `Agent` 实例，与内置模块使用相同的数据结构
 2. **无特权限制** — 扩展注册的工具与内置工具在 LLM 看来没有区别，都通过 `ToolRegistry` 统一管理
@@ -51,7 +51,7 @@
 
 ### 3.3 ExtensionAPI 类结构
 
-`ExtensionAPI` 是扩展与 piagent 交互的唯一入口。它封装了三个核心能力：
+`ExtensionAPI` 是扩展与 my-easy-pi 交互的唯一入口。它封装了三个核心能力：
 
 | 核心能力 | 对应方法 | 操作对象 |
 |----------|----------|----------|
@@ -104,7 +104,7 @@ export interface Command {
   execute(args: string[]): Promise<void> | void // 执行函数，接收 CLI 参数数组
 }
 
-// ExtensionAPI 类：扩展与 piagent 内核之间的"桥梁"
+// ExtensionAPI 类：扩展与 my-easy-pi 内核之间的"桥梁"
 // 每个扩展在初始化时都会收到一个 API 实例，通过它来操作内核
 export class ExtensionAPI {
   // 内部 Map，存储所有注册的自定义命令
@@ -225,22 +225,22 @@ listCommands(): string[] {
 
 ```typescript
 // ============================================================
-// hello.ts — 一个简单的 piagent 扩展
+// hello.ts — 一个简单的 my-easy-pi 扩展
 //
 // 这是扩展的标准模板，展示了如何使用 ExtensionAPI 的全部能力
 //
 // 关键约定：
-//   1. 文件必须放在 ~/.piagent/extensions/ 或 .pi/extensions/ 下
+//   1. 文件必须放在 ~/.my-easy-pi/extensions/ 或 .pi/extensions/ 下
 //   2. 必须使用 export default 导出一个 async function
 //   3. 该函数接收一个参数：api（ExtensionAPI 实例）
 // ============================================================
 
-// 导入 ExtensionAPI 类型（来自 piagent 包）
-import type { ExtensionAPI } from 'piagent'
+// 导入 ExtensionAPI 类型（来自 my-easy-pi 包）
+import type { ExtensionAPI } from 'my-easy-pi'
 
 // 默认导出函数：扩展的入口点
 // 当 ExtensionLoader 发现此文件时，会动态导入并调用此函数
-// api 参数是 piagent 内核提供的"桥梁"，通过它可以注册工具、命令和事件监听
+// api 参数是 my-easy-pi 内核提供的"桥梁"，通过它可以注册工具、命令和事件监听
 export default async function (api: ExtensionAPI) {
 
   // ── 1. 注册一个自定义工具 ──────────────────────────────────
@@ -264,7 +264,7 @@ export default async function (api: ExtensionAPI) {
     async execute(toolCallId, params, signal, onUpdate) {
       const name = params.name as string
       return {
-        content: [{ type: 'text', text: `你好，${name}！欢迎使用 piagent！` }],
+        content: [{ type: 'text', text: `你好，${name}！欢迎使用 my-easy-pi！` }],
       }
     },
   })
@@ -340,7 +340,7 @@ export default async function (api: ExtensionAPI) {
        │                                          │
        ├── 找到 hello 工具 ──► 执行 hello.execute()  LLM 调用扩展工具
        │   │                                    │
-       │   ◄── 返回 "你好！欢迎使用 piagent！" ─┤
+       │   ◄── 返回 "你好！欢迎使用 my-easy-pi！" ─┤
        │                                          │
   Agent 发出事件 ──► 扩展的 on() 监听器收到通知   事件流到达扩展
        │                                          │
@@ -349,7 +349,7 @@ export default async function (api: ExtensionAPI) {
 ╔══════════════════ 卸载阶段 ══════════════════╗    │
                                               │     │
   当前局限：扩展卸载后无法移除已注册的工具和命令       （未来改进方向）
-  重启 piagent 是"卸载"的等效操作
+  重启 my-easy-pi 是"卸载"的等效操作
 ╚══════════════════════════════════════════════╝
 ```
 
@@ -379,9 +379,9 @@ npx tsc --noEmit src/extension/api.ts
 
 ```bash
 # 创建一个测试扩展
-mkdir -p ~/.piagent/extensions
-cat > ~/.piagent/extensions/test-api.ts << 'EOF'
-import type { ExtensionAPI } from 'piagent'
+mkdir -p ~/.my-easy-pi/extensions
+cat > ~/.my-easy-pi/extensions/test-api.ts << 'EOF'
+import type { ExtensionAPI } from 'my-easy-pi'
 
 export default async function (api: ExtensionAPI) {
   // 验证 registerTool 可用
@@ -414,7 +414,7 @@ EOF
 
 ## 6. 小结
 
-`ExtensionAPI` 是 piagent 扩展系统的核心接口，它封装了三个关键能力：工具管理、命令管理和事件监听。通过将 `ToolRegistry` 和 `Agent` 的引用注入到 `ExtensionAPI` 中，扩展获得了与内置模块同等的"一等公民"地位。
+`ExtensionAPI` 是 my-easy-pi 扩展系统的核心接口，它封装了三个关键能力：工具管理、命令管理和事件监听。通过将 `ToolRegistry` 和 `Agent` 的引用注入到 `ExtensionAPI` 中，扩展获得了与内置模块同等的"一等公民"地位。
 
 ### 当前设计的简化点
 

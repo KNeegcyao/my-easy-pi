@@ -1,7 +1,7 @@
 ---
 对应源码: src/session/manager.ts
 最后更新: 2026-08-08
-适用版本: piagent v0.1.0
+适用版本: my-easy-pi v0.1.0
 ---
 
 # 会话管理 — SessionManager
@@ -40,7 +40,7 @@ deleteSession() ──► 删除 JSONL 文件
 
 #### 用"浏览器标签页"来理解会话
 
-如果把 piagent 想象成一个浏览器，那么：
+如果把 my-easy-pi 想象成一个浏览器，那么：
 
 | 浏览器概念 | 会话管理中的对应 |
 |-----------|-----------------|
@@ -53,7 +53,7 @@ deleteSession() ──► 删除 JSONL 文件
 | 标签页分组 | 会话列表（`listSessions()`） |
 | 浏览器重启后恢复标签页 | `-c` 参数继续上次会话 |
 
-**关键区别**：浏览器标签页可同时打开多个，而 piagent 在一个终端窗口中一次只活跃一个会话。但你可以在不同终端窗口中同时使用不同会话——每个终端窗口就像浏览器的不同窗口，各自维护自己的"当前标签页"。
+**关键区别**：浏览器标签页可同时打开多个，而 my-easy-pi 在一个终端窗口中一次只活跃一个会话。但你可以在不同终端窗口中同时使用不同会话——每个终端窗口就像浏览器的不同窗口，各自维护自己的"当前标签页"。
 
 ### 3.2 多会话创建与切换：时序图
 
@@ -248,7 +248,7 @@ async listSessions(): Promise<SessionSummary[]> {
 /** 保存最后活跃的会话 ID */
 async saveLastSession(sessionId: string): Promise<void> {
   try {
-    const dir = join(homedir(), '.piagent')
+    const dir = join(homedir(), '.my-easy-pi')
     if (!existsSync(dir)) await mkdir(dir, { recursive: true })
     await writeFile(LAST_SESSION_PATH, sessionId, 'utf-8')
   } catch { /* 不影响主流程 */ }
@@ -264,7 +264,7 @@ async getLastSession(): Promise<string | null> {
 ```
 
 **关键设计**：
-- `last-session` 文件保存在 `~/.piagent/` 目录下
+- `last-session` 文件保存在 `~/.my-easy-pi/` 目录下
 - 异常被静默捕获，不影响主流程
 - 这是 `-c` 继续会话功能的基础
 
@@ -309,7 +309,7 @@ getActiveBranch(messages: AgentMessage[]): AgentMessage[] {
 
 #### Session 分支（Branch）示意
 
-在实际对话中，LLM 可能会生成多条回复。piagent 的会话模型将这些回复组织成树形结构：
+在实际对话中，LLM 可能会生成多条回复。my-easy-pi 的会话模型将这些回复组织成树形结构：
 
 ```
 消息树结构（每个节点是一条消息，箭头表示 parentId）：
@@ -419,7 +419,7 @@ node dist/cli.js --delete session-1722428800000
 ### 5.4 查看 last-session 文件
 
 ```bash
-cat ~/.piagent/last-session
+cat ~/.my-easy-pi/last-session
 # 输出类似：session-1722428800000
 ```
 

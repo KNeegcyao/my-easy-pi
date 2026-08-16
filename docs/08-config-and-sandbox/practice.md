@@ -2,7 +2,7 @@
 
 > 对应源码：`src/config/`、`src/sandbox/`
 > 最后更新：2026-08-08
-> 适用版本：piagent v0.1.0
+> 适用版本：my-easy-pi v0.1.0
 
 ---
 
@@ -21,7 +21,7 @@
 export DEEPSEEK_API_KEY="sk-your-deepseek-api-key"
 export OPENAI_API_KEY="sk-your-openai-api-key"
 
-# 运行 piagent，环境变量会自动被 ConfigManager 读取
+# 运行 my-easy-pi，环境变量会自动被 ConfigManager 读取
 pi -m "你好"
 ```
 
@@ -29,10 +29,10 @@ pi -m "你好"
 
 ```bash
 # 创建用户配置目录
-mkdir -p ~/.piagent
+mkdir -p ~/.my-easy-pi
 
 # 创建配置文件
-cat > ~/.piagent/config.json << 'EOF'
+cat > ~/.my-easy-pi/config.json << 'EOF'
 {
   "defaultProvider": "deepseek",
   "defaultModel": "deepseek-chat",
@@ -43,7 +43,7 @@ cat > ~/.piagent/config.json << 'EOF'
 }
 EOF
 
-# 运行 piagent，配置会被自动加载
+# 运行 my-easy-pi，配置会被自动加载
 pi -m "你好"
 ```
 
@@ -67,25 +67,25 @@ pi -m "你好"
 
 ### 目标
 
-学会查看和分析 piagent 的日志文件，理解日志系统的工作方式。
+学会查看和分析 my-easy-pi 的日志文件，理解日志系统的工作方式。
 
 ### 步骤
 
 ```bash
-# 1. 运行 piagent 产生一些日志
+# 1. 运行 my-easy-pi 产生一些日志
 pi -m "运行 ls -la 命令"
 
 # 2. 查看今日的访问日志
-cat ~/.piagent/logs/access-$(date +%Y-%m-%d).jsonl
+cat ~/.my-easy-pi/logs/access-$(date +%Y-%m-%d).jsonl
 
 # 3. 查看今日的审计日志（记录工具执行）
-cat ~/.piagent/logs/audit-$(date +%Y-%m-%d).jsonl
+cat ~/.my-easy-pi/logs/audit-$(date +%Y-%m-%d).jsonl
 
 # 4. 使用 jq 工具格式化 JSONL 日志（如果安装了 jq）
-cat ~/.piagent/logs/audit-$(date +%Y-%m-%d).jsonl | jq .
+cat ~/.my-easy-pi/logs/audit-$(date +%Y-%m-%d).jsonl | jq .
 
 # 5. 统计今日执行了多少次工具
-cat ~/.piagent/logs/audit-$(date +%Y-%m-%d).jsonl | grep '"tool_execution"' | wc -l
+cat ~/.my-easy-pi/logs/audit-$(date +%Y-%m-%d).jsonl | grep '"tool_execution"' | wc -l
 ```
 
 ### 预期输出
@@ -117,28 +117,28 @@ cat ~/.piagent/logs/audit-$(date +%Y-%m-%d).jsonl | grep '"tool_execution"' | wc
 docker info
 
 # 2. 手动构建沙箱镜像
-docker build -t piagent-sandbox:latest -f Dockerfile .
+docker build -t my-easy-pi-sandbox:latest -f Dockerfile .
 
 # 3. 查看镜像信息
-docker images piagent-sandbox:latest
+docker images my-easy-pi-sandbox:latest
 
 # 4. 手动启动一个沙箱容器，执行命令
-docker run --rm --name piagent-test \
+docker run --rm --name my-easy-pi-test \
   --network none --memory 512m --cpus 1 \
   --pids-limit 50 --read-only \
   --tmpfs /tmp:rw,size=10m \
-  piagent-sandbox:latest /bin/bash -c 'echo "Hello from sandbox" && ls /workspace'
+  my-easy-pi-sandbox:latest /bin/bash -c 'echo "Hello from sandbox" && ls /workspace'
 
 # 5. 验证沙箱限制
 # 尝试访问网络（应失败）
-docker run --rm --network none piagent-sandbox:latest curl https://example.com
+docker run --rm --network none my-easy-pi-sandbox:latest curl https://example.com
 
 # 尝试写入系统目录（应失败）
-docker run --rm --read-only piagent-sandbox:latest touch /test.txt
+docker run --rm --read-only my-easy-pi-sandbox:latest touch /test.txt
 
 # 6. 查看容器自动清理
 # 上面的容器都加了 --rm，退出后会被自动删除
-docker ps -a | grep piagent-test
+docker ps -a | grep my-easy-pi-test
 ```
 
 ### 预期结果
@@ -151,7 +151,7 @@ docker ps -a | grep piagent-test
 
 1. 执行 `docker run --rm` 时 `--rm` 参数的作用是什么？如果不加这个参数会怎样？
 2. 沙箱的 `--network none` 是如何保证安全的？如果要让沙箱能访问网络（如 `npm install`），需要修改哪些配置？
-3. 尝试手动触发降级机制：停止 Docker 服务后运行 piagent，观察 bash 工具的执行提示变化。
+3. 尝试手动触发降级机制：停止 Docker 服务后运行 my-easy-pi，观察 bash 工具的执行提示变化。
 
 ---
 
@@ -164,7 +164,7 @@ docker ps -a | grep piagent-test
 ### 提示
 
 1. 修改 `Dockerfile`，添加 `nodejs` 和 `python3` 包
-2. 重新构建镜像：`docker build -t piagent-sandbox:latest -f Dockerfile .`
+2. 重新构建镜像：`docker build -t my-easy-pi-sandbox:latest -f Dockerfile .`
 3. 验证沙箱中可以执行 `node -e "console.log('hello')"` 和 `python3 -c "print('hello')"`
 4. 思考：添加更多工具到沙箱中会带来什么安全风险？
 
@@ -172,7 +172,7 @@ docker ps -a | grep piagent-test
 
 ## 进阶思考题
 
-1. **配置层扩展**：如何为 piagent 添加 `maxTokens` 和 `temperature` 配置项？需要修改哪些文件？CLI 如何支持 `--max-tokens` 参数？
+1. **配置层扩展**：如何为 my-easy-pi 添加 `maxTokens` 和 `temperature` 配置项？需要修改哪些文件？CLI 如何支持 `--max-tokens` 参数？
 
 2. **日志增强**：如何实现日志文件自动清理策略（如保留最近 7 天，超过的自动删除）？写出实现思路。
 

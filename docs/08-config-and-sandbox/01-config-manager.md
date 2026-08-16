@@ -2,13 +2,13 @@
 
 > 对应源码：`src/config/settings.ts`、`src/config/index.ts`
 > 最后更新：2026-08-08
-> 适用版本：piagent v0.1.0
+> 适用版本：my-easy-pi v0.1.0
 
 ---
 
 ## 1. 本节目标
 
-- 理解 piagent 配置加载的优先级机制
+- 理解 my-easy-pi 配置加载的优先级机制
 - 掌握 `ConfigManager` 类的实现与使用
 - 学会通过环境变量和配置文件两种方式管理 API 密钥
 - 了解配置与 CLI 的集成方式
@@ -28,7 +28,7 @@
 
 ### 3.1 配置加载优先级
 
-piagent 采用五层配置模型，优先级从高到低为：
+my-easy-pi 采用五层配置模型，优先级从高到低为：
 
 ```
 CLI 参数  >  环境变量  >  用户配置  >  项目配置  >  默认值
@@ -38,20 +38,20 @@ CLI 参数  >  环境变量  >  用户配置  >  项目配置  >  默认值
 |------|------|------|
 | CLI 参数 | `process.argv` | `pi --provider anthropic --model claude-sonnet-4-20250514` |
 | 环境变量 | `process.env` | `DEEPSEEK_API_KEY=sk-xxx` |
-| 用户配置 | `~/.piagent/config.json` | 全局用户级配置 |
-| 项目配置 | `.piagent/settings.json` | 项目级配置（可提交到仓库） |
+| 用户配置 | `~/.my-easy-pi/config.json` | 全局用户级配置 |
+| 项目配置 | `.my-easy-pi/settings.json` | 项目级配置（可提交到仓库） |
 | 默认值 | 硬编码 | `deepseek` / `deepseek-chat` |
 
 ### 3.2 配置文件路径
 
-- **用户配置目录**：`~/.piagent/`
-- **用户配置文件**：`~/.piagent/config.json`（全局，含 API 密钥）
-- **项目配置目录**：`.piagent/`（相对于 `process.cwd()`）
-- **项目配置文件**：`.piagent/settings.json`（项目级，不含密钥）
+- **用户配置目录**：`~/.my-easy-pi/`
+- **用户配置文件**：`~/.my-easy-pi/config.json`（全局，含 API 密钥）
+- **项目配置目录**：`.my-easy-pi/`（相对于 `process.cwd()`）
+- **项目配置文件**：`.my-easy-pi/settings.json`（项目级，不含密钥）
 
 ### 3.3 配置文件格式
 
-用户配置 `~/.piagent/config.json`：
+用户配置 `~/.my-easy-pi/config.json`：
 
 ```json
 {
@@ -104,10 +104,10 @@ export class ConfigManager {
   async load(): Promise<Settings> {
     const merged: Settings = {}
 
-    // 1. 项目配置（最低优先级）—— 从 .piagent/settings.json 加载
+    // 1. 项目配置（最低优先级）—— 从 .my-easy-pi/settings.json 加载
     this.projectConfig = await this.loadFile(PROJECT_CONFIG_PATH)
 
-    // 2. 用户配置（中等优先级）—— 从 ~/.piagent/config.json 加载
+    // 2. 用户配置（中等优先级）—— 从 ~/.my-easy-pi/config.json 加载
     this.userConfig = await this.loadFile(USER_CONFIG_PATH)
 
     // 用户配置覆盖项目配置（同名 key 以用户配置为准）
@@ -152,7 +152,7 @@ getApiKey(provider: string): string | undefined {
     return process.env[envVar]
   }
 
-  // 2. 用户配置兜底 —— 从 ~/.piagent/config.json 的 apiKeys 中读取
+  // 2. 用户配置兜底 —— 从 ~/.my-easy-pi/config.json 的 apiKeys 中读取
   return this.userConfig.apiKeys?.[provider]
 }
 ```
@@ -206,7 +206,7 @@ async set(key: string, value: unknown): Promise<void> {
   await this.save()
 }
 
-/** 保存用户配置到 ~/.piagent/config.json */
+/** 保存用户配置到 ~/.my-easy-pi/config.json */
 async save(): Promise<void> {
   if (!existsSync(USER_CONFIG_DIR)) {
     await mkdir(USER_CONFIG_DIR, { recursive: true })
@@ -268,8 +268,8 @@ const modelId = args.model || config.getDefaultModel(provider)
 
 ```bash
 # 创建用户配置
-mkdir -p ~/.piagent
-cat > ~/.piagent/config.json << 'EOF'
+mkdir -p ~/.my-easy-pi
+cat > ~/.my-easy-pi/config.json << 'EOF'
 {
   "defaultProvider": "deepseek",
   "defaultModel": "deepseek-chat",
@@ -280,7 +280,7 @@ EOF
 # 通过环境变量设置 API 密钥
 export DEEPSEEK_API_KEY="sk-xxx"
 
-# 运行 piagent，它会自动读取配置
+# 运行 my-easy-pi，它会自动读取配置
 pi --help
 ```
 
@@ -297,7 +297,7 @@ pi -m "hello"
 
 ## 6. 小结
 
-本节介绍了 piagent 的分层配置管理系统，核心要点：
+本节介绍了 my-easy-pi 的分层配置管理系统，核心要点：
 
 - **五层优先级**：CLI > 环境变量 > 用户配置 > 项目配置 > 默认值，确保灵活性和安全性
 - **API 密钥管理**：环境变量优先，用户配置兜底，避免密钥硬编码
@@ -308,7 +308,7 @@ pi -m "hello"
 
 1. 为什么 `getApiKey` 方法中环境变量优先于用户配置？这样设计有什么安全考虑？
 2. 如果用户配置和项目配置中都定义了 `defaultModel`，最终会使用哪个值？为什么？
-3. 如何为 piagent 添加一个自定义配置项（如 `maxTokens`）？需要修改哪些文件？
+3. 如何为 my-easy-pi 添加一个自定义配置项（如 `maxTokens`）？需要修改哪些文件？
 
 > ← [上一节](../08-config-and-sandbox/README.md) · [下一节](./02-logger.md) →
 >

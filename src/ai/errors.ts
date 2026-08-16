@@ -35,7 +35,7 @@ export function isAppError(error: unknown): error is AppError {
 export const AUTH_API_KEY_MISSING = (provider: string): AppError => ({
   code: 'AUTH_API_KEY_MISSING',
   message: `未设置 ${provider} 的 API 密钥`,
-  suggestion: `请设置环境变量 ${provider.toUpperCase()}_API_KEY 或 ~/.piagent/config.json`,
+  suggestion: `请设置环境变量 ${provider.toUpperCase()}_API_KEY 或 ~/.my-easy-pi/config.json`,
 })
 
 export const AUTH_API_KEY_INVALID = (provider: string): AppError => ({

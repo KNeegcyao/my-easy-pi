@@ -4,7 +4,7 @@
 |--------|------|
 | 对应源码 | `src/interface/` 目录 |
 | 最后更新 | 2026-08-08 |
-| 适用版本 | piagent v0.1.0 |
+| 适用版本 | my-easy-pi v0.1.0 |
 
 ---
 
@@ -19,28 +19,28 @@
 **1. Print 模式（默认）**
 
 ```bash
-piagent -p "简要解释什么是 RESTful API" > print_output.txt
+my-easy-pi -p "简要解释什么是 RESTful API" > print_output.txt
 cat print_output.txt
 ```
 
 **2. JSON 模式**
 
 ```bash
-piagent -m "简要解释什么是 RESTful API" --output json > json_output.jsonl
+my-easy-pi -m "简要解释什么是 RESTful API" --output json > json_output.jsonl
 cat json_output.jsonl
 ```
 
 **3. RPC 模式**
 
 ```bash
-echo '{"type":"message","content":"简要解释什么是 RESTful API"}' | piagent --rpc > rpc_output.jsonl
+echo '{"type":"message","content":"简要解释什么是 RESTful API"}' | my-easy-pi --rpc > rpc_output.jsonl
 cat rpc_output.jsonl
 ```
 
 **4. TUI 模式**
 
 ```bash
-piagent --tui
+my-easy-pi --tui
 # 输入：简要解释什么是 RESTful API
 # 观察全屏效果
 # 输入 /exit 退出
@@ -64,10 +64,10 @@ piagent --tui
 
 ```bash
 # 1. 生成 JSON 模式输出
-piagent -m "你好" --output json > json_output.jsonl
+my-easy-pi -m "你好" --output json > json_output.jsonl
 
 # 2. 生成 RPC 模式输出
-echo '{"type":"message","content":"你好"}' | piagent --rpc > rpc_output.jsonl
+echo '{"type":"message","content":"你好"}' | my-easy-pi --rpc > rpc_output.jsonl
 
 # 3. 对比差异
 diff json_output.jsonl rpc_output.jsonl
@@ -98,7 +98,7 @@ echo "RPC 事件数: $(wc -l < rpc_output.jsonl)"
 使用 JSON 模式输出并观察完整的事件序列：
 
 ```bash
-piagent -m "1+1等于几" --output json | jq -c '.type'
+my-easy-pi -m "1+1等于几" --output json | jq -c '.type'
 ```
 
 你应该看到类似以下输出：
@@ -180,7 +180,7 @@ node custom-interface.js
 
 ### 4.3 使用 RPC 模式集成到其他语言
 
-选择你熟悉的语言（Python、Go、Ruby、Rust 等），编写一个简单的程序通过 RPC 模式与 piagent 交互。参考 `03-rpc-mode.md` 中提供的 Python 和 Go 示例。
+选择你熟悉的语言（Python、Go、Ruby、Rust 等），编写一个简单的程序通过 RPC 模式与 my-easy-pi 交互。参考 `03-rpc-mode.md` 中提供的 Python 和 Go 示例。
 
 ---
 
@@ -204,17 +204,17 @@ node custom-interface.js
 PROMPT="用一句话解释指针"
 
 echo "=== Print 模式 ==="
-piagent -p "$PROMPT"
+my-easy-pi -p "$PROMPT"
 
 echo "=== JSON 模式 ==="
-piagent -m "$PROMPT" --output json | jq -r 'select(.type == "message_end") | .message.content'
+my-easy-pi -m "$PROMPT" --output json | jq -r 'select(.type == "message_end") | .message.content'
 
 echo "=== RPC 模式 ==="
-echo "{\"type\":\"message\",\"content\":\"$PROMPT\"}" | piagent --rpc | jq -r 'select(.type == "message_end") | .message.content'
+echo "{\"type\":\"message\",\"content\":\"$PROMPT\"}" | my-easy-pi --rpc | jq -r 'select(.type == "message_end") | .message.content'
 
 # TUI 模式需要手动测试
 echo "=== TUI 模式 ==="
-echo "请手动运行: piagent --tui"
+echo "请手动运行: my-easy-pi --tui"
 ```
 
 ---

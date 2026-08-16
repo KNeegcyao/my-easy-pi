@@ -1,5 +1,12 @@
 # docs/ 变更日志
 
+## 2026-08-16
+- 改名：教学文档项目名全面统一为 `my-easy-pi`（51 篇文档，235 处 `piagent` → `my-easy-pi`）
+- 改名：存储路径 `~/.piagent/` → `~/.my-easy-pi/`、Docker 镜像 `piagent-sandbox` → `my-easy-pi-sandbox`
+- 改名：CLI 命令示例 `piagent -m/-p/--rpc` → `my-easy-pi -m/-p/--rpc`、`npx piagent` → `npx my-easy-pi`
+- 改名：扩展导入 `import ... from 'piagent'` → `from 'my-easy-pi'`
+- 同步：`package.json` / `package-lock.json` name 改为 `my-easy-pi`；源码可见字符串（帮助、banner、thinking、systemPrompt）同步改名
+
 ## 2026-08-09
 - 同步：文档与代码对齐（Phase 5 TUI 全屏渲染器已完成）
 - 重写：07-interface-layer/04-tui.md 跟进 `src/tui/` 新框架（Component/TUI 契约、双渲染器、渲染管线，配 Mermaid 架构图）

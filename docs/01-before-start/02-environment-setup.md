@@ -6,7 +6,7 @@
 
 # 环境搭建
 
-> 在开始学习 piagent 的代码之前，先把开发环境搭好。这一节我们从零开始，直到你成功启动第一个对话。
+> 在开始学习 my-easy-pi 的代码之前，先把开发环境搭好。这一节我们从零开始，直到你成功启动第一个对话。
 
 ---
 
@@ -55,7 +55,7 @@
 ```bash
 # 克隆项目
 git clone <项目地址>
-cd piagent
+cd my-easy-pi
 
 # 查看项目结构（确认克隆成功）
 ls -la
@@ -77,7 +77,7 @@ npm install
 
 ### 4.3 配置 API 密钥
 
-piagent 支持三种 LLM 提供商，你需要至少配置一个。
+my-easy-pi 支持三种 LLM 提供商，你需要至少配置一个。
 
 **方式一：环境变量（推荐）**
 
@@ -106,7 +106,7 @@ source ~/.zshrc
 npx tsx src/cli.ts --init
 ```
 
-这会在 `~/.piagent/config.json` 创建配置文件，你可以手动编辑：
+这会在 `~/.my-easy-pi/config.json` 创建配置文件，你可以手动编辑：
 
 ```json
 {
@@ -125,8 +125,8 @@ npx tsx src/cli.ts --init
 ```
 CLI 参数（--provider openai）     ← 最高优先级
 环境变量（DEEPSEEK_API_KEY）
-用户配置（~/.piagent/config.json）
-项目配置（.piagent/settings.json）
+用户配置（~/.my-easy-pi/config.json）
+项目配置（.my-easy-pi/settings.json）
 硬编码默认值                       ← 最低优先级
 ```
 
@@ -158,7 +158,7 @@ npm run build
 npx tsx src/cli.ts -m "你好，请用中文介绍你自己"
 
 # 方式二：管道模式
-echo "piagent 是什么？" | npx tsx src/cli.ts -p "请用一句话回答"
+echo "my-easy-pi 是什么？" | npx tsx src/cli.ts -p "请用一句话回答"
 
 # 方式三：启动交互式 TUI（最常用的方式）
 npx tsx src/cli.ts
@@ -168,7 +168,7 @@ npx tsx src/cli.ts
 
 ```
 [思考中...]
-你好！我是 piagent，一个 AI 编程助手。我可以帮你完成以下任务：
+你好！我是 my-easy-pi，一个 AI 编程助手。我可以帮你完成以下任务：
 
 - 阅读和编辑代码文件
 - 执行 Shell 命令
@@ -228,7 +228,7 @@ echo "✅ 首次对话: 手动运行 pi -m '你好' 确认"
 
 ### 本节要点
 
-- piagent 需要 Node.js >= 22 和 npm >= 10
+- my-easy-pi 需要 Node.js >= 22 和 npm >= 10
 - 安装三步走：`git clone` → `npm install` → 配置 API 密钥
 - 验证两步走：`npx tsc --noEmit`（类型检查）→ `npm test`（测试）
 - API 密钥可通过环境变量或配置文件设置，环境变量优先级更高
@@ -236,11 +236,11 @@ echo "✅ 首次对话: 手动运行 pi -m '你好' 确认"
 
 ### 思考题
 
-1. 为什么 piagent 选择用原生 `fetch` 而不是 `axios` 来调用 LLM API？这样做有什么好处和坏处？
+1. 为什么 my-easy-pi 选择用原生 `fetch` 而不是 `axios` 来调用 LLM API？这样做有什么好处和坏处？
 
 2. 配置优先级中"环境变量 > 配置文件"的设计，在什么场景下会特别有用？（提示：想想 CI/CD 环境）
 
-3. 如果要在 piagent 中加入一个新的 LLM 提供商（比如 Google Gemini），除了在 `src/ai/providers/` 下新建文件，还需要修改哪些地方？
+3. 如果要在 my-easy-pi 中加入一个新的 LLM 提供商（比如 Google Gemini），除了在 `src/ai/providers/` 下新建文件，还需要修改哪些地方？
 
 4. `npx tsx src/cli.ts` 直接运行 TypeScript 源码很方便，但生产环境为什么不推荐这样做？
 
@@ -248,15 +248,15 @@ echo "✅ 首次对话: 手动运行 pi -m '你好' 确认"
 
 ## 7. 故障排除
 
-> 以下汇集了使用 piagent 时最常见的错误信息。所有错误码定义在 `src/ai/errors.ts` 中，你可以直接查看源码了解每个错误的详细上下文。
+> 以下汇集了使用 my-easy-pi 时最常见的错误信息。所有错误码定义在 `src/ai/errors.ts` 中，你可以直接查看源码了解每个错误的详细上下文。
 
 ### 常见问题及解决方法
 
 | 错误信息 | 可能原因 | 解决方法 |
 |---------|---------|---------|
-| `AUTH_API_KEY_MISSING` | 未设置 API 密钥的环境变量 | 执行 `export DEEPSEEK_API_KEY=sk-xxx`，或将密钥写入 `~/.piagent/config.json` |
+| `AUTH_API_KEY_MISSING` | 未设置 API 密钥的环境变量 | 执行 `export DEEPSEEK_API_KEY=sk-xxx`，或将密钥写入 `~/.my-easy-pi/config.json` |
 | `AUTH_API_KEY_INVALID` | API 密钥格式错误或已过期 | 检查密钥前后是否有空格；登录对应 LLM 官网确认密钥仍然有效 |
-| `CONFIG_INVALID` | `~/.piagent/config.json` 格式不正确（如缺少逗号、多余引号） | 用 `cat ~/.piagent/config.json` 查看内容，确保是合法 JSON；可使用在线 JSON 校验工具检查 |
+| `CONFIG_INVALID` | `~/.my-easy-pi/config.json` 格式不正确（如缺少逗号、多余引号） | 用 `cat ~/.my-easy-pi/config.json` 查看内容，确保是合法 JSON；可使用在线 JSON 校验工具检查 |
 | `PROVIDER_NOT_FOUND` | `--provider` 参数使用了不支持的 LLM 提供商名称 | 使用 `deepseek` / `anthropic` / `openai` 之一；检查拼写是否完全匹配 |
 | `MODEL_NOT_FOUND` | 指定的模型在当前提供商中不存在 | 确认模型名拼写正确（如 `deepseek-chat` 而非 `deepseek-chat-v2`）；查阅对应 API 文档获取可用模型列表 |
 | `PROVIDER_RATE_LIMITED` | API 请求频率过高，触发限流 | `fetchWithRetry` 会自动处理 429 响应并等待 `Retry-After` 头指定的时间后重试；如持续出现，降低请求频率 |

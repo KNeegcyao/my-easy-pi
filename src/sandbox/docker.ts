@@ -19,8 +19,8 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
-const IMAGE_NAME = 'piagent-sandbox:latest'
-const CONTAINER_NAME_PREFIX = 'piagent-sandbox-'
+const IMAGE_NAME = 'my-easy-pi-sandbox:latest'
+const CONTAINER_NAME_PREFIX = 'my-easy-pi-sandbox-'
 
 export interface SandboxResult {
   stdout: string

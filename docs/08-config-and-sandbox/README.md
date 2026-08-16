@@ -4,7 +4,7 @@
 |--------|------|
 | 对应源码 | `src/config/`、`src/sandbox/` |
 | 最后更新 | 2026-08-10 |
-| 适用版本 | piagent v0.1.0 |
+| 适用版本 | my-easy-pi v0.1.0 |
 
 ---
 
@@ -25,11 +25,11 @@
 
 ### 2.1 配置层和沙箱层的定位
 
-配置层和沙箱层是 piagent 的 **基础设施层**，位于架构的最底层，为上层所有模块提供服务。
+配置层和沙箱层是 my-easy-pi 的 **基础设施层**，位于架构的最底层，为上层所有模块提供服务。
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    piagent 分层架构                          │
+│                    my-easy-pi 分层架构                          │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │                 Interface 层 (07)                     │   │
@@ -61,7 +61,7 @@
 
 ### 2.2 核心职责
 
-- **配置层**（`src/config/`） — 为所有上层模块提供统一的配置读取能力，包括用户配置文件读写、环境变量解析、API 密钥管理、日志系统和初始化流程。它是 piagent 启动时第一个被初始化的模块。
+- **配置层**（`src/config/`） — 为所有上层模块提供统一的配置读取能力，包括用户配置文件读写、环境变量解析、API 密钥管理、日志系统和初始化流程。它是 my-easy-pi 启动时第一个被初始化的模块。
 - **沙箱层**（`src/sandbox/`） — 为 bash 工具提供安全的命令执行环境。通过 Docker 容器隔离宿主机，防止恶意命令影响系统安全。当 Docker 不可用时，自动降级到本地执行，保证工具层的功能不受影响。
 
 ### 2.3 核心设计原则
@@ -75,10 +75,10 @@
  级                2. 环境变量 (DEEPSEEK_API_KEY, ANTHROPIC_API_KEY ...)
                         │
                         ▼
-                  3. 用户配置 (~/.piagent/config.json)
+                  3. 用户配置 (~/.my-easy-pi/config.json)
                         │
                         ▼
-                  4. 项目配置 (.piagent/settings.json)
+                  4. 项目配置 (.my-easy-pi/settings.json)
                         │
                         ▼
                   5. 硬编码默认值 (fallbackModel)
@@ -154,10 +154,10 @@ checkDocker() ──┬── 可用 ──► executeInDocker() ──┬──
 
 ```typescript
 // 1. 项目配置（最低优先级） — 项目级默认值
-this.projectConfig = await this.loadFile(PROJECT_CONFIG_PATH)  // .piagent/settings.json
+this.projectConfig = await this.loadFile(PROJECT_CONFIG_PATH)  // .my-easy-pi/settings.json
 
 // 2. 用户配置（中等优先级）
-this.userConfig = await this.loadFile(USER_CONFIG_PATH)  // ~/.piagent/config.json
+this.userConfig = await this.loadFile(USER_CONFIG_PATH)  // ~/.my-easy-pi/config.json
 
 // 3. 合并：项目配置为底，用户配置覆盖
 Object.assign(merged, this.projectConfig)
@@ -224,7 +224,7 @@ DockerSandbox (src/sandbox/docker.ts)
 
 ### 5.3 设计要点
 
-- **延迟初始化**：沙箱实例在首次使用时才创建（`getSandbox()` 单例工厂），不影响 piagent 启动速度
+- **延迟初始化**：沙箱实例在首次使用时才创建（`getSandbox()` 单例工厂），不影响 my-easy-pi 启动速度
 - **惰性检测**：`isAvailable()` 只在首次调用时运行 `docker info`，结果被缓存到 `available` 字段
 - **异常安全**：Docker 执行过程中任何异常都会被捕获并触发降级，不会向工具层抛出未处理错误
 - **输出限流**：`spawnAndCollect` 对 stdout 做 10MB 上限保护，防止恶意命令导致内存溢出
@@ -255,7 +255,7 @@ DockerSandbox (src/sandbox/docker.ts)
 
 ## 8. 小结
 
-配置层和沙箱层虽然位于架构的底部，却是 piagent 能够稳定、安全运行的基础。配置层的分层设计让用户可以灵活定制行为方式，沙箱层的隔离和降级机制让 bash 工具可以安全地在各种环境中执行。理解这两个模块的设计哲学，有助于你更深入地理解 piagent 的"安全优先、灵活降级"的工程理念。
+配置层和沙箱层虽然位于架构的底部，却是 my-easy-pi 能够稳定、安全运行的基础。配置层的分层设计让用户可以灵活定制行为方式，沙箱层的隔离和降级机制让 bash 工具可以安全地在各种环境中执行。理解这两个模块的设计哲学，有助于你更深入地理解 my-easy-pi 的"安全优先、灵活降级"的工程理念。
 
 ### 思考题
 

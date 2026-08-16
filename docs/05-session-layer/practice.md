@@ -1,7 +1,7 @@
 ---
 对应源码: src/session/
 最后更新: 2026-08-08
-适用版本: piagent v0.1.0
+适用版本: my-easy-pi v0.1.0
 ---
 
 # 本章练习 — 会话层
@@ -9,7 +9,7 @@
 ## 练习 1：创建、查看、继续会话
 
 ### 目标
-熟悉 piagent 的会话管理 CLI 命令。
+熟悉 my-easy-pi 的会话管理 CLI 命令。
 
 ### 步骤
 
@@ -35,8 +35,8 @@
 4. **查看原始 JSONL 文件**
    ```bash
    # 找到刚才的会话文件
-   ls ~/.piagent/sessions/
-   cat ~/.piagent/sessions/session-*.jsonl
+   ls ~/.my-easy-pi/sessions/
+   cat ~/.my-easy-pi/sessions/session-*.jsonl
    # 观察文件格式：每行一个 JSON 对象
    ```
 
@@ -68,7 +68,7 @@
    import { homedir } from 'os'
 
    async function inspectSession(sessionId: string) {
-     const filePath = join(homedir(), '.piagent', 'sessions', `${sessionId}.jsonl`)
+     const filePath = join(homedir(), '.my-easy-pi', 'sessions', `${sessionId}.jsonl`)
      const content = await readFile(filePath, 'utf-8')
      const lines = content.trim().split('\n')
      
@@ -145,7 +145,7 @@
    
    查看 JSONL 文件中是否出现了 `compact-` 开头的消息：
    ```bash
-   cat ~/.piagent/sessions/session-*.jsonl | grep "compact-"
+   cat ~/.my-easy-pi/sessions/session-*.jsonl | grep "compact-"
    ```
 
 4. **恢复默认参数**

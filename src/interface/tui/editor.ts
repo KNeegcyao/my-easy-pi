@@ -4,7 +4,7 @@
 // 交互流程：
 //   1. 显示 > 提示符等待输入
 //   2. 用户输入文本，显示输入边框
-//   3. 显示 "piagent is thinking..."
+//   3. 显示 "my-easy-pi is thinking..."
 //   4. LLM 流式输出回复内容
 //   5. 回到步骤 1
 //
@@ -87,7 +87,7 @@ function printStartupInfo(agent: Agent): void {
   const model = agent.state.model
   const toolCount = agent.state.tools.length
   process.stdout.write(
-    `  ${green('piagent')} ${dim(gray('v0.1.0 ·'))} ${dim(gray(`${model.provider}/${model.id}`))}\n` +
+    `  ${green('my-easy-pi')} ${dim(gray('v0.1.0 ·'))} ${dim(gray(`${model.provider}/${model.id}`))}\n` +
     `  ${dim(gray(`${toolCount} 个工具可用 · 输入 /help 查看帮助`))}\n\n`
   )
 }

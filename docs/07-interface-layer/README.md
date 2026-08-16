@@ -6,7 +6,7 @@ version: 1.0.0
 
 # 接口层 — 事件驱动与多模式输出
 
-> 接口层是 piagent 面向用户的"第一道门面"。它通过事件驱动架构，将 Agent 核心发射的事件渲染成用户可读的输出。关键设计原则是：**Agent 核心不关心输出格式，接口层不关心 Agent 如何工作**，两者通过 `AgentEvent` 类型契约完成通信。
+> 接口层是 my-easy-pi 面向用户的"第一道门面"。它通过事件驱动架构，将 Agent 核心发射的事件渲染成用户可读的输出。关键设计原则是：**Agent 核心不关心输出格式，接口层不关心 Agent 如何工作**，两者通过 `AgentEvent` 类型契约完成通信。
 
 ## Learning objectives
 
@@ -127,7 +127,7 @@ version: 1.0.0
 | 流式输出 | ✅ | ✅ | ✅ | ✅ |
 | 交互性 | 无 | 无 | 通过协议 | 全屏交互 |
 | 依赖 | 无 | 无 | 无 | 无（纯 ANSI） |
-| 典型场景 | `echo "你好" \| piagent -p "翻译"` | CI 集成、日志分析 | Python/Go 调用 | 日常开发使用 |
+| 典型场景 | `echo "你好" \| my-easy-pi -p "翻译"` | CI 集成、日志分析 | Python/Go 调用 | 日常开发使用 |
 
 ### 选型指南：何时使用哪种模式
 
@@ -136,7 +136,7 @@ version: 1.0.0
 | 日常命令行交互 | **Print**（默认） | 最简单的文本输入输出，无需学习 |
 | 管道集成到其他命令 | **Print** | 纯文本输出自然支持管道 `\|` |
 | 在 CI/CD 中使用 | **JSON** | 可解析的事件流，便于提取日志和结果 |
-| 用脚本/程序调用 piagent | **JSON** | 无需处理 ANSI 控制字符，直接解析 JSONL |
+| 用脚本/程序调用 my-easy-pi | **JSON** | 无需处理 ANSI 控制字符，直接解析 JSONL |
 | 跨语言集成（Python/Go 调用） | **RPC** | 标准化的 stdin/stdout 协议 |
 | 远程调用 | **RPC** | 协议可映射到 WebSocket 或 HTTP 传输层 |
 | 日常开发使用 | **TUI** | 全屏交互，支持 Slash 命令、多行编辑 |
@@ -171,7 +171,7 @@ export function createXxxInterface(agent: Agent): void {
 
 ### 1. 关注点分离
 
-接口层是 piagent 架构中"关注点分离"的典范实践。Agent 核心（`agent/`）只负责 LLM 调用和工具执行，完全不知道输出是什么格式。接口层独立负责渲染，不关心 Agent 内部如何工作。
+接口层是 my-easy-pi 架构中"关注点分离"的典范实践。Agent 核心（`agent/`）只负责 LLM 调用和工具执行，完全不知道输出是什么格式。接口层独立负责渲染，不关心 Agent 内部如何工作。
 
 **效果**：一个 Agent 核心可以同时对接多种 UI 形态。
 
@@ -195,16 +195,16 @@ export function createXxxInterface(agent: Agent): void {
 
 ```bash
 # Print 模式（默认）
-echo "你好" | npx piagent -p "翻译成英文"
+echo "你好" | npx my-easy-pi -p "翻译成英文"
 
 # JSON 模式
-npx piagent -m "你好" --output json
+npx my-easy-pi -m "你好" --output json
 
 # RPC 模式
-echo '{"type":"message","content":"你好"}' | npx piagent --rpc
+echo '{"type":"message","content":"你好"}' | npx my-easy-pi --rpc
 
 # TUI 模式（默认无参数时启动）
-npx piagent
+npx my-easy-pi
 ```
 
 ### 事件机制的观察
@@ -212,7 +212,7 @@ npx piagent
 使用 JSON 模式可以最直观地看到完整的事件流：
 
 ```bash
-npx piagent -m "你好" --output json | jq '.type'
+npx my-easy-pi -m "你好" --output json | jq '.type'
 ```
 
 输出示例：
@@ -228,7 +228,7 @@ npx piagent -m "你好" --output json | jq '.type'
 
 ## Summary and next steps
 
-接口层是 piagent "关注点分离"的典范实践。通过事件驱动设计，一个 Agent 核心可以同时对接多种 UI 形态：
+接口层是 my-easy-pi "关注点分离"的典范实践。通过事件驱动设计，一个 Agent 核心可以同时对接多种 UI 形态：
 
 | 模式 | 核心价值 | 最佳用途 |
 |------|----------|----------|

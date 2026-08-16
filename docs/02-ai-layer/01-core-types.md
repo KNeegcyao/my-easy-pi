@@ -1,14 +1,14 @@
 ---
 对应源码: 'src/ai/types.ts'
 最后更新: 2026-08-08
-适用版本: piagent v0.1+
+适用版本: my-easy-pi v0.1+
 ---
 
 # 核心类型
 
 ## 1. 本节目标
 
-理解 piagent 中所有与 LLM 调用相关的核心类型定义，以及这些类型背后的设计思路。
+理解 my-easy-pi 中所有与 LLM 调用相关的核心类型定义，以及这些类型背后的设计思路。
 
 ## 2. 前置知识
 
@@ -252,7 +252,7 @@ async function consumeEvents(events: AsyncIterable<LLMEvent>) {
 
 ## 6. 小结
 
-本章介绍了 piagent AI 层的核心类型定义。这些类型是理解和扩展整个系统的基础，每个类型都有明确的职责边界：
+本章介绍了 my-easy-pi AI 层的核心类型定义。这些类型是理解和扩展整个系统的基础，每个类型都有明确的职责边界：
 
 - **LLMMessage** 是传输格式，只包含 LLM 能理解的内容
 - **AgentMessage** 是存储格式，包含 UI 展示所需的信息
