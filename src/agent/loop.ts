@@ -459,7 +459,7 @@ export class Agent {
 
         results.push({
           content: textContent,
-          isError: false,
+          isError: result.isError ?? false,
           terminate: result.terminate || false,
         })
 
@@ -467,7 +467,7 @@ export class Agent {
           type: 'tool_execution_end',
           toolCallId: tc.id,
           result,
-          isError: false,
+          isError: result.isError ?? false,
         })
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)

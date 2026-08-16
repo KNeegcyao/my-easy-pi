@@ -140,6 +140,8 @@ export interface ToolResult {
   details?: Record<string, unknown>
   /** 设为 true 会终止后续 LLM 调用 */
   terminate?: boolean
+  /** 设为 true 表示工具执行出错 */
+  isError?: boolean
 }
 
 /** 基础工具定义（纯类型，无运行时行为）
