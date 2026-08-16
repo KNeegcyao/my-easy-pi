@@ -9,6 +9,7 @@
 
 import { marked, type Token, type Tokens } from 'marked'
 import { bold, dim, gray, yellow, cyan, italic } from './tui/theme.js'
+import { highlightCode } from './code-highlighter.js'
 
 /** 渲染内联 token 为 ANSI 字符串 */
 function renderInlineTokens(tokens: Token[]): string {
@@ -77,9 +78,11 @@ function renderBlock(token: Token): string[] {
 
     case 'code': {
       const indent = '  '
-      lines.push(`${indent}${gray('```' + (token.lang || ''))}`)
-      for (const codeLine of token.text.split('\n')) {
-        lines.push(`${indent}${gray(codeLine)}`)
+      const lang = token.lang || ''
+      lines.push(`${indent}${gray('```' + lang)}`)
+      const highlighted = highlightCode(token.text, lang)
+      for (const codeLine of highlighted) {
+        lines.push(`${indent}${codeLine}`)
       }
       lines.push(`${indent}${gray('```')}`)
       lines.push('')
