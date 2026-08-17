@@ -57,6 +57,7 @@ export interface AgentMessage {
   toolCalls?: ToolCall[]
   toolCallId?: string
   isError?: boolean
+  revoked?: boolean       // true = 已撤回；getActiveBranch 跳过，LLM 上下文不包含
   createdAt: number
 }
 

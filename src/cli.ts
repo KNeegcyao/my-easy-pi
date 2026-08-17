@@ -241,9 +241,10 @@ export async function runMode(opts: {
   userMessage?: string
   permission: PermissionManager
   sessionManager?: SessionManager
+  sessionId?: string
 }): Promise<void> {
-  const { agent, args, userMessage, permission, sessionManager } = opts
-  if (args.tui) { startTUI(agent, { permission, useMainScreen: args.mainScreen, sessionManager }); return }
+  const { agent, args, userMessage, permission, sessionManager, sessionId } = opts
+  if (args.tui) { startTUI(agent, { permission, useMainScreen: args.mainScreen, sessionManager, sessionId }); return }
   if (args.output === 'json') {
     createJSONInterface(agent)
     try { await agent.prompt(userMessage!) } catch (e) {
@@ -355,7 +356,7 @@ async function main(): Promise<void> {
 
   const userMessage = await resolveUserMessage(args)
 
-  await runMode({ agent, args, userMessage, permission, sessionManager })
+  await runMode({ agent, args, userMessage, permission, sessionManager, sessionId: sessionId ?? undefined })
 }
 
 import { pathToFileURL } from 'node:url'

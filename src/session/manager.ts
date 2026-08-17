@@ -112,17 +112,30 @@ export class SessionManager {
   getActiveBranch(messages: AgentMessage[]): AgentMessage[] {
     if (messages.length === 0) return []
 
-    // 找到最后一条消息，回溯到根
-    const branch: AgentMessage[] = []
+    // 建立 id → message 映射
     const map = new Map<string, AgentMessage>()
     for (const msg of messages) {
       map.set(msg.id, msg)
     }
 
-    let current = messages[messages.length - 1]
-    while (current) {
+    // 从尾部找最后一条未撤回的消息
+    let current: AgentMessage | null = null
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (!messages[i].revoked) {
+        current = messages[i]
+        break
+      }
+    }
+    if (!current) return []
+
+    // 沿 parentId 回溯到根（跳过撤回的消息）
+    const branch: AgentMessage[] = []
+    const seen = new Set<string>()
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id)
       branch.unshift(current)
-      current = current.parentId ? map.get(current.parentId)! : null as unknown as AgentMessage
+      const parent: AgentMessage | undefined = current.parentId ? map.get(current.parentId) : undefined
+      current = parent && !parent.revoked ? parent : null
     }
 
     return branch

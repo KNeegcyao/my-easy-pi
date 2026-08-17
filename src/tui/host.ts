@@ -37,6 +37,7 @@ import { Statusbar } from './components/statusbar.js'
 import { green, dim, gray, yellow, red, bold, cyan } from './ansi.js'
 import { executeCommand } from '../interface/tui/commands.js'
 import { Compactor } from '../session/compaction.js'
+import * as storage from '../session/storage.js'
 import { readdirSync, statSync, existsSync } from 'node:fs'
 import { resolve, join, relative } from 'node:path'
 
@@ -70,6 +71,8 @@ export interface StartTUIOptions {
   useMainScreen?: boolean
   /** 会话管理器（用于 /sessions /delete 命令） */
   sessionManager?: import('../session/index.js').SessionManager
+  /** 当前会话 ID；传入后才支持撤回持久化 */
+  sessionId?: string
 }
 
 /** 启动 TUI；返回 stop 函数 */
@@ -78,6 +81,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   const permission = options?.permission
   const useMainScreen = options?.useMainScreen ?? false
   const sessionManager = options?.sessionManager
+  const currentSessionId = options?.sessionId   // 用于撤回持久化
 
   // 渲染器：默认 alt-screen（全屏布局，editor 钉底）；--main-screen 降级
   const screen = useMainScreen
@@ -100,6 +104,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
         multiline: true,
         onSubmit: (text) => onSubmit(text),
         onCancel: () => { cleanup(); process.exit(0) },
+        onEsc: () => handleEsc(),
         onChange: (text) => handleEditorChange(text),
       })
     }
@@ -116,10 +121,13 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   let keybinds = new KeyBinds('default')   // 键绑定状态机（/keymap 切换）
   let activeSelector: Selector | null = null  // 活跃选择器（/sessions /delete 等），防 readline+editor 双重消费 stdin
   let autocompleteSelector: Selector | null = null // @ 文件引用补全选择器
+  let suppressAutocomplete = false       // 防止选中补全项后 onChange 循环触发
   /** 当前正在构建的回合的组件引用（用于 undo/retry） */
   let turnComponents: Component[] = []
   /** 已完成回合的组件列表 */
   const turnHistory: Component[][] = []
+  /** ESC 流式中止标志：agent.abort() 后还会异步发射 message_end/turn_end，需要跳过 */
+  let abortingTurn = false
 
   // ── hero（像素 ASCII art 欢迎页，加入 chatContainer 顶部） ──
   function addHeroToChat(): void {
@@ -201,6 +209,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
 
       case 'message_update': {
+        // ESC 流式中止后 agent 还会异步发来一次更新，跳过
+        if (abortingTurn) break
         const content = (event.message as { content?: string }).content
         if (!content) break
         hideLoader()
@@ -211,6 +221,18 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
 
       case 'message_end': {
+        // ESC 流式中止后，移除 agent 异步推入的 partial assistant message
+        if (abortingTurn) {
+          abortingTurn = false
+          if (agent.state.messages.length > 0 &&
+              agent.state.messages[agent.state.messages.length - 1].role === 'assistant') {
+            agent.state.messages.pop()
+          }
+          streamTurn = null
+          hideLoader()
+          screen.requestRender()
+          break
+        }
         // pi 模型：只调 updateContent(isStreaming=false)，绝不移除组件
         // （已完成的回合永久留在 chatContainer.scrollback 里）
         const msg = event.message as { content?: string; toolCalls?: unknown[] }
@@ -268,8 +290,9 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       // 真错误走 onSubmit 的 agent.prompt().catch（已处理）。
 
       case 'turn_end': {
-        stopLoaderTimer()
-        screen.requestRender()
+        // 回合结束：一定清掉底部状态行。仅 stopTimer 会把 spinner 冻住，
+        // 但 loader 仍挂在 statusContainer 里，导致"thinking/running"永不消失。
+        hideLoader()
         break
       }
     }
@@ -525,6 +548,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
 
   // ── Editor 变化（自动补全触发） ──
   function handleEditorChange(_text: string): void {
+    // 选中补全项后，replaceAutocomplete 会触发 onChange → 跳过本次防循环
+    if (suppressAutocomplete) { suppressAutocomplete = false; return }
     const prefix = editor.getAutocompletePrefix('@')
     if (!prefix) {
       closeAutocomplete()
@@ -547,6 +572,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       if (currentPrefix !== null) {
         const triggerIdx = editor.getText().lastIndexOf('@', editor.getCursorPos() - 1)
         if (triggerIdx !== -1) {
+          suppressAutocomplete = true  // 防 onChange 循环再次触发补全
           editor.replaceAutocomplete(editor.getCursorPos() - triggerIdx, full)
         }
       }
@@ -602,11 +628,12 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   // 转义序列缓冲：Windows 终端可能把 \x1b[A 拆成 \x1b 和 [A 两次 data 事件
   let escBuf = ''
   const stopInput = terminal.onInput((data) => {
-    // 自动补全选择器时：路由到 autocompleteSelector，跳过 editor
+    // @ 文件补全选择器开启时：方向键/Enter/Esc/Ctrl+C 交给选择器；
+    // 其他字符继续交给编辑器输入，这样用户可以在候选列表打开时继续打字过滤。
     if (autocompleteSelector) {
-      if (escBuf || data.startsWith('\x1b')) {
+      if (data.startsWith('\x1b')) {
         escBuf += data
-        if (escBuf.length >= 3 || (escBuf === '\x1b' && !data.startsWith('\x1b'))) {
+        if (escBuf.length >= 3) {
           autocompleteSelector.handleKey(escBuf)
           escBuf = ''
           screen.requestRender()
@@ -622,8 +649,19 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
         }, 50)
         return
       }
-      autocompleteSelector.handleKey(data)
-      screen.requestRender()
+      escBuf = ''
+      // Enter / Ctrl+C 由选择器处理（确认或取消）
+      if (data === '\r' || data === '\n' || data === '\x03') {
+        autocompleteSelector.handleKey(data)
+        screen.requestRender()
+        return
+      }
+      // 普通字符交给 keybinds → editor，onChange 会自动刷新补全列表
+      if (!confirming) {
+        const result = keybinds.process(data)
+        if (result.intents.length > 0) editor.handleIntents(result.intents)
+        screen.requestRender()
+      }
       return
     }
     // 活跃选择器时：路由到 selector，跳过 editor
@@ -722,33 +760,82 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
     })
   }
-  // ── undo/retry/compact 辅助 ──
+  // ── undo/retry/compact/esc 辅助 ──
+
+  /** ESC 键：撤回上一轮用户+AI 回合 */
+  function handleEsc(): void {
+    if (agent.state.isStreaming) {
+      // 流式进行中：先中止生成，再撤回
+      agent.abort()
+      abortingTurn = true
+      hideLoader()
+    }
+    const last = undoLastTurn()
+    if (last !== null) {
+      chatContainer.addChild(new Text(`  ${dim(gray('已撤回上一轮 (ESC)'))}`))
+      chatContainer.addChild(new Spacer(1))
+    } else {
+      chatContainer.addChild(new Text(`  ${dim(gray('没有可撤回的内容'))}`))
+      chatContainer.addChild(new Spacer(1))
+    }
+    screen.requestRender()
+  }
 
   /** 撤销最后一个 user+assistant 回合；返回最后一条 user 文本（供 /retry 用） */
   function undoLastTurn(): string | null {
-    // 先尝试从 turnHistory 取
-    let components = turnHistory.length > 0 ? turnHistory.pop()! : null
-    // 若不在 history 中，看是否有当前正在构建的回合
-    if (!components && turnComponents.length > 0 && turnComponents.some(c => c instanceof AssistantTurn)) {
-      components = turnComponents
+    // 收集所有需要移除的组件（从 turnHistory 和 turnComponents 中，缺一不可）
+    const toRemove: Component[] = []
+
+    // 1. 从 turnHistory 取
+    const historyComponents = turnHistory.length > 0 ? turnHistory.pop()! : null
+    if (historyComponents) toRemove.push(...historyComponents)
+
+    // 2. 再从 turnComponents 取（正在构建中的回合组件，不取就漏了 streamTurn）
+    if (turnComponents.length > 0) {
+      toRemove.push(...turnComponents)
       turnComponents = []
     }
-    if (!components || components.length === 0) return null
 
-    for (const c of components) {
+    if (toRemove.length === 0) return null
+
+    // 移除所有组件
+    for (const c of toRemove) {
       chatContainer.removeChild(c)
     }
-    // 从 agent.state.messages 移除最后一个 user + assistant
+
+    // === pi 风格：标记 revoked，不删除消息 ===
+    // 找到最后一个 assistant，标为撤回；再取 user 的文本供 /retry
     let lastUserText: string | null = null
-    let removed = 0
-    for (let i = agent.state.messages.length - 1; i >= 0 && removed < 2; i--) {
-      const role = agent.state.messages[i].role
-      if (role === 'user') lastUserText = agent.state.messages[i].content
-      if (role === 'user' || role === 'assistant') {
-        agent.state.messages.splice(i, 1)
-        removed++
+    let revokedOne = false
+    for (let i = agent.state.messages.length - 1; i >= 0; i--) {
+      const msg = agent.state.messages[i]
+      if (revokedOne && msg.role === 'user') {
+        lastUserText = msg.content
+        break
+      }
+      if (!revokedOne && msg.role === 'assistant') {
+        msg.revoked = true
+        revokedOne = true
       }
     }
+
+    // 流式撤回：assistant 尚未创建，直接移除最后一条 user 消息
+    if (!revokedOne) {
+      for (let i = agent.state.messages.length - 1; i >= 0; i--) {
+        if (agent.state.messages[i].role === 'user') {
+          lastUserText = agent.state.messages[i].content
+          agent.state.messages.splice(i, 1)
+          break
+        }
+      }
+    }
+
+    // 持久化：将变更写入 JSONL 文件
+    if (currentSessionId) {
+      storage.writeMessages(currentSessionId, agent.state.messages).catch(() => {})
+    }
+
+    streamTurn = null
     return lastUserText
   }
 

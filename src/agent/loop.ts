@@ -561,7 +561,7 @@ export class Agent {
  *  将 Agent 消息格式转为 LLM 消息格式 */
 function defaultConvertToLlm(messages: AgentMessage[]): LLMMessage[] {
   return messages
-    .filter(m => m.role !== 'notification' && m.role !== 'thinking')
+    .filter(m => !m.revoked && m.role !== 'notification' && m.role !== 'thinking')
     .map(m => {
       if (m.role === 'user') {
         return { role: 'user', content: m.content }

@@ -105,6 +105,7 @@ flowchart TD
 | `src/session/storage.ts` | JSONL 文件存储 -- 底层读写，直接操作文件系统 | ⭐⭐⭐ |
 | `src/session/compaction.ts` | `Compactor` -- 上下文压缩器，控制发送给 LLM 的消息数量 | ⭐⭐ |
 | `src/session/index.ts` | 统一导出入口 | ⭐ |
+| `src/ai/types.ts` | `AgentMessage` -- `revoked?` 字段定义撤回语义 | ⭐⭐⭐ |
 
 ## Key concepts
 
@@ -196,7 +197,8 @@ JSONL 文件                →  物理存储
 1. **[01-session-manager.md](01-session-manager.md)** -- 先了解会话的增删改查，掌握会话生命周期的管理
 2. **[02-jsonl-storage.md](02-jsonl-storage.md)** -- 理解底层 JSONL 存储格式和文件操作
 3. **[03-context-compaction.md](03-context-compaction.md)** -- 掌握上下文压缩机制和压缩策略
-4. **[practice.md](practice.md)** -- 动手练习巩固所学
+4. **[04-branch-and-recovery.md](04-branch-and-recovery.md)** -- 分支与撤回：Event Sourcing 实践，`revoked` 标记与持久化
+5. **[practice.md](practice.md)** -- 动手练习巩固所学
 
 ## Summary and next steps
 
@@ -207,6 +209,7 @@ JSONL 文件                →  物理存储
 | **持久化** | `storage.ts` | 对话不丢失 |
 | **恢复** | `manager.ts` | `-c` 继续会话、`-l` 列出会话 |
 | **上下文管理** | `compaction.ts` | 长对话自动压缩，不超限 |
+| **撤回持久化** | `types.ts` + `host.ts` + `manager.ts` | `revoked` 标记，撤回不删数据 |
 
 完成本章后，你已理解会话层的完整设计。下一步：
 

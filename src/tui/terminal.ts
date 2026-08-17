@@ -76,7 +76,16 @@ export class Terminal {
     const prev = process.stdin.isRaw
     process.stdin.setRawMode(true)
     process.stdin.resume()
+    // 开启 bracketed paste：粘贴内容包在 \x1b[200~ ... \x1b[201~ 之间，
+    // 这样粘贴里的换行不会被误判成 Enter 提交（parseKeys 依赖此标记区分）。
+    if (this.caps.bracketedPaste) this.write('\x1b[?2004h')
+    // 尝试启用 Kitty Keyboard Protocol（CSI u，让 Shift+Enter/Ctrl+Enter 可被检测）
+    // 序列：\x1b[>1u（push）然后是 \x1b[>1u（请求第 1 级：disambiguate escape codes）
+    this.write('\x1b[>1u')
     return () => {
+      // 关闭 Kitty Keyboard Protocol
+      this.write('\x1b[<u')
+      if (this.caps.bracketedPaste) this.write('\x1b[?2004l')
       process.stdin.setRawMode(prev ?? false)
       process.stdin.pause()
     }
