@@ -73,8 +73,12 @@ describe('parseKeys', () => {
     expect(parseKeys('\x1b[3~')).toEqual([{ type: 'delete' }])
   })
 
-  it('裸 ESC → cancel', () => {
-    expect(parseKeys('\x1b')).toEqual([{ type: 'cancel' }])
+  it('裸 ESC → esc（非 cancel）', () => {
+    expect(parseKeys('\x1b')).toEqual([{ type: 'esc' }])
+  })
+
+  it('CSI u Ctrl+Enter (\\x1b[13;5u) → newline', () => {
+    expect(parseKeys('\x1b[13;5u')).toEqual([{ type: 'newline' }])
   })
 
   it('一次 data 含多个按键', () => {
@@ -97,9 +101,31 @@ describe('parseKeys', () => {
     expect(parseKeys('\x1b[13;2u')).toEqual([{ type: 'newline' }])
   })
 
-  it('CSI u bare Enter (\\x1b[13u) → unknown（默认提交走 \\r）', () => {
-    // bare Enter via CSI u 不常见，非预期语义，降级 unknown
-    expect(parseKeys('\x1b[13u')).toEqual([{ type: 'unknown' }])
+  it('CSI u bare Enter (\\x1b[13u) → submit（CSI u 启用时替代 \\r）', () => {
+    expect(parseKeys('\x1b[13u')).toEqual([{ type: 'submit' }])
+  })
+
+  it('CSI u bare ESC (\\x1b[27u) → esc（CSI u 启用时替代裸 \\x1b）', () => {
+    expect(parseKeys('\x1b[27u')).toEqual([{ type: 'esc' }])
+    expect(parseKeys('\x1b[27;1u')).toEqual([{ type: 'esc' }])
+  })
+
+  it('bracketed paste：粘贴内换行转 newline 不提交，结尾 \\r 不触发 submit', () => {
+    const pasted = '\x1b[200~line1\r\nline2\r\x1b[201~'
+    const intents = parseKeys(pasted)
+    const kinds = intents.map(x => x.type)
+    expect(kinds).not.toContain('submit')          // 粘贴绝不触发提交
+    expect(kinds).toContain('newline')             // CRLF / 尾部 CR → newline
+    const newlineCount = kinds.filter(k => k === 'newline').length
+    expect(newlineCount).toBeGreaterThanOrEqual(2)
+    expect(intents[0]).toEqual({ type: 'insert', ch: 'l' })  // 内容原样插入
+  })
+
+  it('bracketed paste：跨 data chunk 的序列与普通输入正常混合', () => {
+    const first = parseKeys('\x1b[200~abc')
+    expect(first.map(x => x.type)).toEqual(['insert', 'insert', 'insert'])  // 开始分隔符不产生提交
+    const second = parseKeys('\x1b[201~')
+    expect(second.map(x => x.type)).not.toContain('submit')
   })
 })
 
@@ -143,11 +169,24 @@ describe('Editor — 基础行为', () => {
     expect(onCancel).toHaveBeenCalledTimes(1)
   })
 
-  it('Esc 也触发 onCancel', () => {
+  it('ESC 有内容时清空不触发 onCancel', () => {
     const onCancel = vi.fn()
-    const e = new Editor({ onCancel })
+    const onEsc = vi.fn()
+    const e = new Editor({ onCancel, onEsc })
+    e.handleInput('hello')
     e.handleInput('\x1b')
-    expect(onCancel).toHaveBeenCalledTimes(1)
+    expect(e.getText()).toBe('')     // 清空
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(onEsc).not.toHaveBeenCalled()  // 有内容时不触发 onEsc
+  })
+
+  it('ESC 空编辑器时触发 onEsc（不触发 onCancel）', () => {
+    const onCancel = vi.fn()
+    const onEsc = vi.fn()
+    const e = new Editor({ onCancel, onEsc })
+    e.handleInput('\x1b')
+    expect(onEsc).toHaveBeenCalledTimes(1)
+    expect(onCancel).not.toHaveBeenCalled()
   })
 })
 

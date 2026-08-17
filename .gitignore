@@ -9,4 +9,5 @@ dist/
 *.tsbuildinfo
 .idea/
 .codefuse/
-.claude/settings.local.json
+.claude/settings.local.jsonpiagent/
+.piagent/

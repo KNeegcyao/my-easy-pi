@@ -1,5 +1,8 @@
 import type { Component, Focusable } from '../component.js'
 
+/** bracketed paste 状态：粘贴内容包在 \x1b[200~ ... \x1b[201~ 之间 */
+let pasteMode = false
+
 /**
  * Editor — 行编辑器
  *
@@ -12,6 +15,9 @@ import type { Component, Focusable } from '../component.js'
  *   - Enter (\r / \n)：提交
  *   - Backspace (\x7f)：删除光标前一字
  *   - Delete (ESC [ 3 ~)：删除光标处一字
+ *   - Ctrl+J：插入换行（多行模式）
+ *   - Alt+Enter (\x1b\r)：插入换行（需要终端支持，见下）
+ *   - Shift+Enter (\x1b[13;2u)：插入换行（需要 CSI u 协议）
  *   - Ctrl+A：移到行首
  *   - Ctrl+E：移到行尾
  *   - Ctrl+B / ←：左移
@@ -20,9 +26,17 @@ import type { Component, Focusable } from '../component.js'
  *   - Ctrl+K：删到行尾
  *   - Ctrl+U：删到行首
  *   - Ctrl+W：向左删一词（到空白）
- *   - Ctrl+C / Esc：取消
+ *   - Ctrl+C：取消
+ *   - Esc：有内容时清空；空时触发 onEsc（撤回）
  *   - ↑ / ↓：历史前后翻
  *   - Home / End：行首 / 行尾
+ *
+ * 终端配置指南（让 Alt+Enter/Shift+Enter 工作）：
+ *   - iTerm2：Settings → Profiles → Keys → "Report modifiers using CSI u" 启用
+ *   - Windows Terminal：默认支持 Alt+Enter
+ *   - kitty：默认支持 CSI u
+ *   - VSCode 终端：默认支持 Alt+Enter
+ *   - macOS Terminal.app：不支持 Alt+Enter，请用 Ctrl+J 换行
  */
 export interface EditorOptions {
   /** 提示符（渲染前缀） */
@@ -31,8 +45,10 @@ export interface EditorOptions {
   onSubmit?: (text: string) => void
   /** 内容变化回调（每次编辑触发） */
   onChange?: (text: string) => void
-  /** 取消回调（Ctrl+C / Esc / Ctrl+D-on-empty） */
+  /** 取消回调（Ctrl+C / Ctrl+D-on-empty） */
   onCancel?: () => void
+  /** ESC 回调：输入为空时触发（host 用做撤回上轮） */
+  onEsc?: () => void
   /** 历史（↑/↓ 翻阅；提交后由业务侧把新条目 push 进来） */
   history?: string[]
   /** 多行模式；true 时 Enter 提交、Shift+Enter 换行，编辑器高度自适应 */
@@ -46,6 +62,7 @@ export type KeyIntent =
   | { type: 'newline' }         // Alt+Enter / Shift+Enter（插入 \n 不提交）
   | { type: 'backspace' }
   | { type: 'delete' }
+  | { type: 'esc' }             // ESC（清除输入，若已空则撤回）
   | { type: 'cursorLeft' }
   | { type: 'cursorRight' }
   | { type: 'cursorHome' }
@@ -55,7 +72,7 @@ export type KeyIntent =
   | { type: 'killWord' }        // Ctrl+W
   | { type: 'historyPrev' }     // ↑
   | { type: 'historyNext' }     // ↓
-  | { type: 'cancel' }          // Ctrl+C / Esc
+  | { type: 'cancel' }          // Ctrl+C
   | { type: 'cancelIfEmpty' }   // Ctrl+D
   | { type: 'unknown' }
 
@@ -66,6 +83,20 @@ export function parseKeys(data: string): KeyIntent[] {
   while (i < data.length) {
     const ch = data[i]
     const cp = data.codePointAt(i) || 0
+
+    // bracketed paste 分隔符（\x1b[200~ 开始, \x1b[201~ 结束）
+    if (ch === '\x1b') {
+      if (data.startsWith('\x1b[200~', i)) { pasteMode = true; i += 6; continue }
+      if (data.startsWith('\x1b[201~', i)) { pasteMode = false; i += 6; continue }
+    }
+    // 粘贴模式：所有字符按字面插入；\r 还原为 \n，绝不触发提交
+    if (pasteMode) {
+      if (ch === '\r') { out.push({ type: 'newline' }); i++; continue }
+      if (cp < 0x20 && cp !== 0x09) { i++; continue }  // 跳过其它控制字符
+      out.push({ type: 'insert', ch: String.fromCodePoint(cp) })
+      i += (cp > 0xffff ? 2 : 1)
+      continue
+    }
 
     // ESC 开头的控制序列
     if (ch === '\x1b') {
@@ -81,8 +112,8 @@ export function parseKeys(data: string): KeyIntent[] {
         i = parsed.next
         continue
       }
-      // 裸 ESC：取消
-      out.push({ type: 'cancel' })
+      // 裸 ESC：标记为 esc（不清除状态；applyIntent 根据 text 是否为空决定行为）
+      out.push({ type: 'esc' })
       i++
       continue
     }
@@ -185,8 +216,16 @@ function parseEsc(data: string, start: number): { intent: KeyIntent; next: numbe
       }
       case 'u': {
         // CSI u protocol (kitty): \x1b[<key>;<modifier>u
-        // 13;2 = Shift+Enter → 换行不提交
-        if (params === '13;2') return { intent: { type: 'newline' }, next: j + 1 }
+        // 启用 CSI u 后终端把很多键改发为 \x1b[<键码>u 格式：
+        //   13     = Enter（不再发 \r）
+        //   13;1   = Enter with modifier
+        //   13;2   = Shift+Enter → 换行不提交
+        //   13;5   = Ctrl+Enter → 换行不提交
+        //   27     = ESC（不再发裸 \x1b）
+        //   27;1   = ESC with modifier
+        if (params === '13;2' || params === '13;5') return { intent: { type: 'newline' }, next: j + 1 }
+        if (params === '13' || params === '13;1') return { intent: { type: 'submit' }, next: j + 1 }
+        if (params === '27' || params === '27;1') return { intent: { type: 'esc' }, next: j + 1 }
         return { intent: { type: 'unknown' }, next: j + 1 }
       }
       default: return { intent: { type: 'unknown' }, next: j + 1 }
@@ -438,6 +477,18 @@ export class Editor implements Component, Focusable {
           this.cursorDown()
         } else {
           this.browseHistory(1)
+        }
+        break
+
+      case 'esc':
+        // ESC：有内容时清空，无内容时触发 onEsc（host 用做撤回）
+        if (this.text.length > 0) {
+          this.text = ''
+          this.cursorPos = 0
+          this.invalidate()
+          this.emitChange()
+        } else {
+          this.opts.onEsc?.()
         }
         break
 

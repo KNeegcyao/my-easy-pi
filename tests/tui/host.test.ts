@@ -126,6 +126,28 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
     stop()
   })
 
+  it('turn_end（纯工具回合、无最终消息）→ 底部状态行清除，不再显示 running', async () => {
+    const term = new FakeTerminal()
+    const agent = fakeAgent()
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
+    term.written = []
+    agent.emit({ type: 'turn_start' })
+    // 等首帧渲染落盘（requestRender 被 16ms 节流）
+    await sleep(60)
+    // 确认 loader 已渲染
+    const firstFrame = term.written.join('')
+    expect(firstFrame).toContain('thinking')
+    // 重置写入缓冲，只看 turn_end 这一帧
+    term.written = []
+    // 纯工具回合：无 message_update/message_end，直接 turn_end
+    agent.emit({ type: 'turn_end' } as any)
+    await sleep(60)
+    const out = term.written.join('')
+    // turn_end 应把 status 行清掉（diff 用 \x1b[2K 擦除，不该再出现 'thinking' 文本）
+    expect(out).not.toContain('thinking')
+    stop()
+  })
+
   it('message_update → markdown 流式渲染（同一 turn 内更新）', async () => {
     const term = new FakeTerminal()
     const agent = fakeAgent()
@@ -308,5 +330,49 @@ describe('startTUI (host) — 新模型（chatContainer 常驻）', () => {
     const agent = fakeAgent()
     const stop = startTUI(agent, { terminal: term, useMainScreen: true })
     expect(() => stop()).not.toThrow()
+  })
+
+  it('@s 打开文件补全选择器', async () => {
+    const term = new FakeTerminal()
+    const agent = fakeAgent()
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
+    term.written = []
+    term.type('@s')
+    await sleep(40)
+    const out = term.written.join('')
+    expect(out).toContain('文件补全 @s')
+    expect(out).toMatch(/scratch|scripts|src/)
+    stop()
+  })
+
+  it('补全选择器打开时仍可继续输入过滤候选', async () => {
+    const term = new FakeTerminal()
+    const agent = fakeAgent()
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
+    term.type('@s')
+    await sleep(40)
+    term.written = []
+    term.type('r')
+    await sleep(40)
+    const out = term.written.join('')
+    expect(out).toContain('文件补全 @sr')
+    expect(out).toContain('src/')
+    expect(out).not.toContain('scratch')
+    stop()
+  })
+
+  it('方向键可在补全选择器中移动并确认', async () => {
+    const term = new FakeTerminal()
+    const agent = fakeAgent()
+    const stop = startTUI(agent, { terminal: term, useMainScreen: true })
+    term.type('@s')
+    await sleep(40)
+    term.type('\x1b[B') // ↓ → scripts
+    term.type('\x1b[B') // ↓ → src
+    term.type('\r')
+    await sleep(40)
+    const out = term.written.join('')
+    expect(out).toContain('@src/')
+    stop()
   })
 })

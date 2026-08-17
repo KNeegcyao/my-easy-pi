@@ -19,6 +19,8 @@ const LANG_MAP: Record<string, string> = {
   md: 'markdown', markdown: 'markdown',
   html: 'html', xml: 'html',
   go: 'go', rust: 'rust', rs: 'rust',
+  cpp: 'cpp', c: 'cpp', cc: 'cpp', h: 'cpp', hpp: 'cpp', 'c++': 'cpp',
+  java: 'java',
 }
 
 /** 统一语言标识 */
@@ -106,25 +108,66 @@ const RULES: Record<string, TokenRule[]> = {
     { type: 'number', regex: /\b(?:0[xX][0-9a-fA-F]+|0[oO]?[0-7]+|0[bB][01]+|\d+(?:\.\d+)?)\b/ },
     { type: 'macro', regex: /\w+!/ },
   ],
+  cpp: [
+    { type: 'comment', regex: /\/\/.*$|\/\*[\s\S]*?\*\// },
+    { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
+    { type: 'string', regex: /'(?:[^'\\]|\\.)*'/ },
+    { type: 'keyword', regex: /\b(?:alignas|alignof|and|and_eq|asm|auto|bitand|bitor|bool|break|case|catch|char|char8_t|char16_t|char32_t|class|compl|concept|const|consteval|constexpr|constinit|const_cast|continue|co_await|co_return|co_yield|decltype|default|delete|do|double|dynamic_cast|else|enum|explicit|export|extern|false|float|for|friend|goto|if|inline|int|long|mutable|namespace|new|noexcept|not|not_eq|nullptr|operator|or|or_eq|private|protected|public|register|reinterpret_cast|requires|return|short|signed|sizeof|static|static_assert|static_cast|struct|switch|template|this|thread_local|throw|true|try|typedef|typeid|typename|union|unsigned|using|virtual|void|volatile|wchar_t|while|xor|xor_eq)\b/ },
+    { type: 'number', regex: /\b(?:0[xX][0-9a-fA-F]+|0[oO]?[0-7]+|0[bB][01]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/ },
+    { type: 'preprocessor', regex: /#\s*(?:include|define|undef|ifdef|ifndef|if|else|elif|endif|pragma|error|warning|line)\b/ },
+  ],
+  java: [
+    { type: 'comment', regex: /\/\/.*$|\/\*[\s\S]*?\*\// },
+    { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
+    { type: 'string', regex: /'(?:[^'\\]|\\.)*'/ },
+    { type: 'keyword', regex: /\b(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|if|goto|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null)\b/ },
+    { type: 'number', regex: /\b(?:0[xX][0-9a-fA-F]+|0[bB][01]+|\d+[lLfFdD]?(?:\.\d+)?(?:[eE][+-]?\d+)?[lLfFdD]?)\b/ },
+    { type: 'annotation', regex: /@\w+/ },
+  ],
 }
 
-/** 给 token 类型上色 */
+// VSCode Dark+ Theme — ANSI 256 色逼近，保留原风格但颜色更接近 Dark+ 主题
+//
+// Dark+ 参考色（RGB → 256 色索引近似）：
+//   关键字 #569CD6 → 74 (SkyBlue3) 或 32 (DeepSkyBlue3)
+//   字符串 #CE9178 → 214 (LightSalmon) 或 209 (Salmon)
+//   数字   #B5CEA8 → 151 (DarkSeaGreen)
+//   类型   #4EC9B0 → 80 (LightCyan3) 或 33 (DarkTurquoise)
+//   函数   #DCDCAA → 221 (LightGoldenrod) 或 186 (LightYellow3)
+//   注释   #6A9955 → 28 (Green4) 或 2 (DarkGreen)
+
+const toAnsi256 = (code: number) => (text: string) => `\x1b[38;5;${code}m${text}\x1b[0m`
+const toAnsi256Italic = (code: number) => (text: string) => `\x1b[3;38;5;${code}m${text}\x1b[0m`
+
+const keywordColor = toAnsi256(74)      // SkyBlue3 — VSCode 关键字蓝
+const stringColor = toAnsi256(215)      // LightSalmon — VSCode 字符串橙
+const numberColor = toAnsi256(151)      // DarkSeaGreen — VSCode 数字淡绿
+const booleanColor = toAnsi256(74)      // 关键词一样
+const typeColor = toAnsi256(80)         // LightCyan3 — VSCode 类型青绿
+const funcColor = toAnsi256(186)        // LightYellow3 — VSCode 函数淡黄
+const commentColor = toAnsi256Italic(28)// Green4 — 斜体注释绿
+const variableColor = toAnsi256(39)     // LightBlue — 变量
+const preprocessorColor = toAnsi256(213)// HotPink — C++ 预处理器指令
+
+/** 给 token 类型上色 — VSCode Dark+ 风格 */
 function colorize(tokenType: string, text: string): string {
   switch (tokenType) {
-    case 'keyword': return cyan(text)
-    case 'string': return green(text)
-    case 'number': return yellow(text)
-    case 'comment': return dim(gray(text))
-    case 'boolean': return yellow(text)
-    case 'type': return magenta(text)
-    case 'decorator': return yellow(text)
-    case 'variable': return cyan(text)
-    case 'selector': return yellow(text)
-    case 'property': return cyan(text)
-    case 'tag': return magenta(text)
-    case 'attr': return cyan(text)
-    case 'key': return cyan(text)
-    case 'macro': return yellow(text)
+    case 'keyword': return keywordColor(text)
+    case 'string': return stringColor(text)
+    case 'number': return numberColor(text)
+    case 'comment': return commentColor(text)
+    case 'boolean': return booleanColor(text)
+    case 'type': return typeColor(text)
+    case 'decorator': return booleanColor(text)
+    case 'variable': return variableColor(text)
+    case 'selector': return stringColor(text)
+    case 'property': return variableColor(text)
+    case 'tag': return typeColor(text)
+    case 'attr': return variableColor(text)
+    case 'key': return variableColor(text)
+    case 'macro': return funcColor(text)
+    case 'preprocessor': return preprocessorColor(text)
+    case 'annotation': return funcColor(text)  // Java 注解用函数淡黄色
     default: return text
   }
 }
