@@ -22,6 +22,52 @@ export interface CommandResult {
   clear?: boolean
 }
 
+/**
+ * 内置 slash 命令清单（无前导 '/'，名称→描述）。
+ * 作为 /help、/ 自动补全 与 校验 的单一事实源，避免命令列表在多处漂移。
+ */
+export const SLASH_COMMANDS: Readonly<Record<string, string>> = {
+  help: '显示本帮助',
+  model: '显示当前模型信息',
+  session: '查看会话信息',
+  sessions: '列出所有会话',
+  delete: '删除指定会话',
+  stats: '对话统计（消息数/模型/思考级别）',
+  thinking: '查看或设置思考级别',
+  system: '查看或修改系统提示词',
+  theme: '检测终端主题（深浅色）',
+  keymap: '切换 Vim/默认键位模式',
+  tools: '列出所有可用工具',
+  cost: '查看 Token 用量统计',
+  clear: '清屏',
+  exit: '退出程序',
+  quit: '退出程序',
+}
+
+/** 匹配前缀的命令名列表（升序），如 "h" → ["help"]；空前缀 → 全部命令 */
+export function matchSlashCommands(prefix: string): string[] {
+  const p = prefix.toLowerCase()
+  return Object.keys(SLASH_COMMANDS)
+    .filter((name) => name.startsWith(p))
+    .sort()
+}
+
+/** 生成 /help 输出文本（基于 SLASH_COMMANDS，动态生成命令行） */
+function listHelpLines(resolver?: ExtensionCommandResolver): string {
+  const lines: string[] = ['', `${gray('可用命令:')}`]
+  const names = Object.keys(SLASH_COMMANDS).filter((n) => n !== 'quit').sort()
+  const width = Math.max(...names.map((n) => n.length + 1))
+  for (const name of names) {
+    const pad = ' '.repeat(width - name.length)
+    lines.push(`  ${green('/' + name)}${pad}  ${gray(SLASH_COMMANDS[name])}`)
+  }
+  if (resolver) {
+    lines.push(...extensionHelpLines(resolver))
+  }
+  lines.push('')
+  return lines.join('\n')
+}
+
 export interface TokenStats {
   promptTokens: number
   completionTokens: number
@@ -108,26 +154,7 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
     case '/help':
       return {
         handled: true,
-        output: [
-          '',
-          `${gray('可用命令:')}`,
-          `  ${green('/help')}      ${gray('显示本帮助')}`,
-          `  ${green('/model')}     ${gray('显示当前模型信息')}`,
-          `  ${green('/theme')}     ${gray('检测终端主题（深浅色）')}`,
-          `  ${green('/keymap')}    ${gray('切换 Vim/默认键位模式')}`,
-          `  ${green('/tools')}     ${gray('列出所有可用工具')}`,
-          `  ${green('/session')}   ${gray('查看会话信息')}`,
-          `  ${green('/sessions')}  ${gray('列出所有会话')}`,
-          `  ${green('/delete')}    ${gray('删除指定会话')}`,
-          `  ${green('/stats')}     ${gray('对话统计（消息数/模型/思考级别）')}`,
-          `  ${green('/thinking')}  ${gray('查看或设置思考级别')}`,
-          `  ${green('/system')}    ${gray('查看或修改系统提示词')}`,
-          `  ${green('/cost')}      ${gray('查看 Token 用量统计')}`,
-          `  ${green('/clear')}     ${gray('清屏')}`,
-          `  ${green('/exit')}      ${gray('退出程序')}`,
-          ...(extensionResolver ? extensionHelpLines(extensionResolver) : []),
-          '',
-        ].join('\n'),
+        output: listHelpLines(extensionResolver),
       }
 
     case '/model':

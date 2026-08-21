@@ -35,7 +35,7 @@ import type { Component } from './component.js'
 import { Box } from './components/box.js'
 import { Statusbar } from './components/statusbar.js'
 import { green, dim, gray, yellow, red, bold, cyan } from './ansi.js'
-import { executeCommand, tryExtensionCommand } from '../interface/tui/commands.js'
+import { executeCommand, tryExtensionCommand, matchSlashCommands } from '../interface/tui/commands.js'
 import { Compactor } from '../session/compaction.js'
 import * as storage from '../session/storage.js'
 import { readdirSync, statSync, existsSync } from 'node:fs'
@@ -555,6 +555,39 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   function handleEditorChange(_text: string): void {
     // 选中补全项后，replaceAutocomplete 会触发 onChange → 跳过本次防循环
     if (suppressAutocomplete) { suppressAutocomplete = false; return }
+
+    // Slash 命令补全：仅当「行首一个 /」后跟连续字符（^/word）时触发，
+    // 避免误把普通文本中的路径分隔符当命令前缀。
+    const before = editor.getText().slice(0, editor.getCursorPos())
+    const slashMatch = /^(.*)\/([A-Za-z0-9-]*)$/.exec(before)
+    const lineIsJustSlashWord = slashMatch !== null &&
+      // 斜杠必须在行首（前面无任何字符）
+      slashMatch[1].trim().length === 0
+    if (lineIsJustSlashWord) {
+      const cmdPrefix = slashMatch![2]
+      const cmdNames = matchSlashCommands(cmdPrefix)
+      if (cmdNames.length === 0) { closeAutocomplete(); return }
+      closeAutocomplete()
+      const opts: SelectOption[] = cmdNames.map(n => ({ label: `/${n}`, value: n }))
+      opts.push({ label: '取消', value: '' })
+      const sel = new Selector(opts, `命令补全 /${cmdPrefix}`)
+      sel.onSelect = (opt) => {
+        autocompleteSelector = null
+        if (!opt.value) return
+        suppressAutocomplete = true
+        // 补全为 /命令名，覆盖整个斜杠前缀
+        editor.replaceAutocomplete(editor.getCursorPos(), `/${opt.value}`)
+        screen.requestRender()
+      }
+      sel.onCancel = () => { autocompleteSelector = null; screen.requestRender() }
+      autocompleteSelector = sel
+      statusContainer.clear()
+      statusContainer.addChild(new Text(dim(gray('按 ↑/↓ 选择，Enter 确认，Esc 取消'))))
+      statusContainer.addChild(sel)
+      screen.requestRender()
+      return
+    }
+
     const prefix = editor.getAutocompletePrefix('@')
     if (!prefix) {
       closeAutocomplete()
