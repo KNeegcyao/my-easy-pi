@@ -67,6 +67,20 @@ flowchart TD
 
 ---
 
+## 📐 研发流程：Spec-Driven Development（SDD）
+
+> 本项目的标准开发流程。每个 feature 先走 OpenSpec 规格、人工 review 过关后才编码。
+> 完整方案见 [openspec-sdd-plan.md](openspec-sdd-plan.md)，执行入口在仓库根 `CLAUDE.md`。
+
+- **规格体系**：`openspec/` — 能力基线主规格（`specs/<capability>/spec.md`）+ 当前/已归档的 change（`changes/`)
+- **能力审计**：[openspec-audit.md](openspec-audit.md) — 能力缺口审计报告（src/ ↔ specs/ 对照）
+- **流程**：`propose → review（人工审 spec）→ apply → test → validate → archive`（delta 自动合入主规格）
+- **命令**：`openspec new change / status / instructions / validate --all / archive`
+
+已通过 SDD 沉淀的能力示例：`extension`（扩展命令调用入口，斜杠 + 首词两种触发）。
+
+---
+
 ## 推荐阅读方式
 
 1. **按顺序阅读** — 从 01 到 10，每章末尾的练习建议动手做

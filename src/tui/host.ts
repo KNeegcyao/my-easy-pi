@@ -35,7 +35,7 @@ import type { Component } from './component.js'
 import { Box } from './components/box.js'
 import { Statusbar } from './components/statusbar.js'
 import { green, dim, gray, yellow, red, bold, cyan } from './ansi.js'
-import { executeCommand } from '../interface/tui/commands.js'
+import { executeCommand, tryExtensionCommand } from '../interface/tui/commands.js'
 import { Compactor } from '../session/compaction.js'
 import * as storage from '../session/storage.js'
 import { readdirSync, statSync, existsSync } from 'node:fs'
@@ -520,6 +520,11 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     }
     if (trimmed.startsWith('/')) {
       handleSlashCommand(trimmed)
+      return
+    }
+    // 首词精确命中已注册扩展命令：作为命令执行，而非普通对话消息。
+    // （扩展命令是即时操作，不进入流式队列。）
+    if (tryExtensionCommand(trimmed)) {
       return
     }
     if (agent.state.isStreaming) {

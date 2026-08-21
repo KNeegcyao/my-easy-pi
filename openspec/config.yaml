@@ -1,0 +1,56 @@
+schema: spec-driven
+
+# my-easy-pi — 项目上下文（OpenSpec 规划器在此基准上起草 proposal/spec）
+# 此 context 在规划的每个 artifact 阶段注入给 AI，务必保持精确、契约化，避免臆造行为。
+
+context: |
+  # my-easy-pi — 简易 AI Coding Agent（教学项目）
+
+  ## 项目定位
+  - 从零搭建一个可运行的、教学向的 AI Coding Agent（TypeScript CLI），主打"简洁、分层、可读"。
+  - 教学主线：不依赖重型框架，逐个组件推演 Agent 如何读消息 → 调 LLM → 执行工具 → 迭代直到停止。
+  - 核心逻辑 ~3000 行，含 TUI 总计 ~8600 行；被测试覆盖约 3800+ 行（vitest）。
+
+  ## 技术栈与工程约束（MUST）
+  - Node.js >= 20，ESM（"type": "module"），TypeScript（tsconfig: target ES2022, strict, moduleResolution bundler）。
+  - 零 runtime 框架依赖：仅 @sinclair/typebox（schema）、marked（markdown）。
+  - 构建 `npm run build`（tsc）、测试 `npm test`（vitest, include tests/**/*.test.ts）。
+  - 目录即分层：src/{cli,config,ai,agent,tools,sandbox,session,extension,interface,tui} 一一对应教学章节 01~10。
+
+  ## 已确立的架构约定（SME，勿臆测、勿漂移）
+  - 依赖注入优先：Operations、ToolRegistry、confirm 回调均构造注入，UI 与核心解耦。
+  - Operations 抽象：工具不直接碰 fs/child_process/sandbox，经注入 Operations 访问（支持 Local/Mock/Remote）。
+  - 工具注册中心 ToolRegistry（name → 执行器）；内置 7 工具：bash/read/write/edit/grep/find/ls（web_fetch 已迁出为扩展示例）。
+  - Agent 循环事件驱动：prompt 驱动，subscribe 订阅 agent_start/turn_*/message_*/tool_*/error；状态含 parentId 树枝、revoked、pendingToolCalls。
+  - 会话持久化：每会话一个 JSONL 文件（~/.my-easy-pi/sessions/<id>.jsonl）；meta 消息承载会话名；损坏行跳过并自修复；parentId 支持分支。
+  - 权限校验限 bash：正则规则将命令分级 SAFE/NORMAL；ANy 段危险→DANGEROUS；复合命令分段聚合；fail-closed（非交互/无 confirm→拒绝）；approved 会话内白名单。
+  - AI 提供商：deepseek/anthropic/openai；统一 Model streaming 接口；注册表按 provider+modelId 解析；错误统一 AppError{code,message,suggestion,details}。
+  - 配置分层：CLI 参数 > 环境变量 > ~/.my-easy-pi/config.json > .my-easy-pi/settings.json > 默认值。
+  - 接口层输出：print/json/rpc 三模式；TUI 可选全屏 alt-screen 与 --main-screen 主屏降级。
+  - 扩展机制：启动自动扫描 .pi/extensions/ 与 ~/.my-easy-pi/extensions/，export default(fn)=>ExtensionAPI。
+
+  ## 验收文化（写入每个 spec 的 Scenario）
+  - 每个 Requirement MUST 至少一个 Scenario，用 WHEN/THEN 描述可观测行为。
+  - 内部类名/库/实现步骤不进 spec（归 design.md）；行为不可观察不了就不入 spec。
+
+  ## 现状口径（baseline，改写需走 change）
+  - 内置工具 **7** 个：bash, read, write, edit, grep, find, ls。
+  - 支持 providers：deepseek, anthropic, openai。
+  - 支持输出模式：print, json, rpc。
+  - 会话存储：~/.my-easy-pi/sessions/；全局配置：~/.my-easy-pi/config.json。
+
+# Per-artifact rules（示例，可自定义）
+# rules:
+#   proposal:
+#     - Keep proposals under 500 words
+#   tasks:
+#     - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance（示例，可自定义）
+# operations:
+#   apply:
+#     guidance:
+#       - Keep test summaries concise
+#   archive:
+#     guidance:
+#       - Summarize the archive outcome before finishing

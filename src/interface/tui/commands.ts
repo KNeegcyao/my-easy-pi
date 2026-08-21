@@ -33,12 +33,71 @@ export interface TokenStats {
 
 let tokenStats: TokenStats = { promptTokens: 0, completionTokens: 0, totalTokens: 0, callCount: 0, hasRealUsage: false }
 
+// ── 扩展命令路由 ──
+// 通过依赖注入把扩展命令查询器挂进来，避免 commands 模块直接依赖 extension 层。
+// 由 CLI 装配时调用 setExtensionCommandResolver(extensionApi) 注入；
+// 未注入时扩展命令路由优雅失效（返回 undefined），不影响内置命令。
+export interface ExtensionCommandResolver {
+  find(name: string): { description: string; execute(args: string[]): Promise<void> | void } | undefined
+  list(): string[]
+}
+
+let extensionResolver: ExtensionCommandResolver | undefined
+
+/** 注入扩展命令查询器（CLI 装配时调用；传 undefined 可解除） */
+export function setExtensionCommandResolver(resolver: ExtensionCommandResolver | undefined): void {
+  extensionResolver = resolver
+}
+
+/** 查看当前扩展命令查询器（常见于测试/诊断） */
+export function getExtensionCommandResolver(): ExtensionCommandResolver | undefined {
+  return extensionResolver
+}
+
+/** 生成 /help 里扩展命令的展示行（未注入 resolver 时返回空数组） */
+function extensionHelpLines(resolver: ExtensionCommandResolver): string[] {
+  const names = resolver.list()
+  if (names.length === 0) return [`  ${yellow('扩展命令:')}  ${gray('（无）')}`]
+  const lines = [`  ${yellow('扩展命令:')}`]
+  for (const name of names) {
+    const cmd = resolver.find(name)
+    const desc = cmd?.description ?? ''
+    const pad = name.length < 5 ? ' '.repeat(5 - name.length) : ''
+    lines.push(`  ${green(`/${name}`)}${pad}  ${gray(desc)}`)
+  }
+  return lines
+}
+
 export function recordTokenUsage(prompt: number, completion: number): void {
   if (prompt > 0 || completion > 0) tokenStats.hasRealUsage = true
   tokenStats.promptTokens += prompt
   tokenStats.completionTokens += completion
   tokenStats.totalTokens += prompt + completion
   tokenStats.callCount++
+}
+
+/**
+ * 解析扩展命令：斜杠（/命令名）或首词精确命中（命令名）触发。
+ * 仅当清除前缀后的命令名精确命中已注册扩展命令时返回结果；否则返回 null。
+ * 供 executeCommand 的 default 分支与 TUI 首词触发共用。
+ */
+export function tryExtensionCommand(input: string): CommandResult | null {
+  if (!extensionResolver) return null
+  const parts = input.trim().split(/\s+/)
+  const first = parts[0] ?? ''
+  const normalized = first.startsWith('/') ? first.slice(1) : first
+  const command = extensionResolver.find(normalized)
+  if (!command) return null
+  const args = parts.slice(1)
+  void (async () => {
+    try {
+      await command.execute(args)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  ${red('✗')} 扩展命令执行错误: ${msg}\n`)
+    }
+  })()
+  return { handled: true, output: '' }
 }
 
 export function executeCommand(input: string, agent: Agent): CommandResult | null {
@@ -66,6 +125,7 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
           `  ${green('/cost')}      ${gray('查看 Token 用量统计')}`,
           `  ${green('/clear')}     ${gray('清屏')}`,
           `  ${green('/exit')}      ${gray('退出程序')}`,
+          ...(extensionResolver ? extensionHelpLines(extensionResolver) : []),
           '',
         ].join('\n'),
       }
@@ -203,7 +263,8 @@ export function executeCommand(input: string, agent: Agent): CommandResult | nul
       return { handled: true, output: '' }
 
     default:
-      return null
+      // 扩展命令路由（斜杠前缀 /命令名 或首词精确命中），未命中返回 null
+      return tryExtensionCommand(input)
   }
 }
 

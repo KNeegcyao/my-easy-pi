@@ -9,7 +9,7 @@ import { startTUI } from './tui/index.js'
 import { ConfigManager, runInit } from './config/index.js'
 import { SessionManager, Compactor } from './session/index.js'
 import { ExtensionLoader, ExtensionAPI } from './extension/index.js'
-import { recordTokenUsage } from './interface/tui/commands.js'
+import { recordTokenUsage, setExtensionCommandResolver } from './interface/tui/commands.js'
 import type { Model } from './ai/types.js'
 import type { AgentTool } from './agent/types.js'
 import type { AgentMessage } from './ai/types.js'
@@ -343,6 +343,13 @@ async function main(): Promise<void> {
   const extensionApi = new ExtensionAPI(toolRegistry, agent)
   const loader = new ExtensionLoader(extensionApi)
   await loader.loadAll()
+
+  // 把扩展命令查询器绑定进命令系统，使扩展注册的命令在交互输入中可被调用
+  // （支持 /命令名 与首词精确命中两种触发）。
+  setExtensionCommandResolver({
+    find: (name) => extensionApi.getCommand(name),
+    list: () => extensionApi.listCommands(),
+  })
 
   if (initialMessages) { agent.state.messages = initialMessages }
 
