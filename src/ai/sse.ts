@@ -15,9 +15,10 @@ import type { LLMEvent } from './types.js'
 
 /**
  * SSE 行转换函数类型
- * 每个 Provider 实现自己的转换逻辑，将 JSON 数据映射为 LLMEvent
+ * 每个 Provider 实现自己的转换逻辑，将 JSON 数据映射为若干 LLMEvent（可能 0..n 个，
+ * 因为一个 chunk 可同时携带文本与工具增量）。
  */
-export type SSECallback = (data: Record<string, unknown>) => LLMEvent | null
+export type SSECallback = (data: Record<string, unknown>) => LLMEvent | LLMEvent[] | null
 
 /**
  * 从 fetch Response 中读取 SSE 流，**边读边 yield**。
@@ -59,17 +60,18 @@ export async function* readSSEStream(
       const lines = buffer.split('\n')
       buffer = lines.pop() || ''
 
-      // 每读到一个 chunk 就立刻解析并 yield——不缓冲
+      // 每读到一个 chunk 就立刻解析并 yield——不缓冲。
+      // 一个 chunk 可能映射为多个事件（文本 + 工具并存），逐一展开。
       for (const line of lines) {
-        const event = parseSSELine(line, convertEvent)
-        if (event) yield event
+        const events = parseSSELine(line, convertEvent)
+        for (const e of events) yield e
       }
     }
 
     // 流尾残留：读完最后一块后再 yield
     if (buffer.trim() && !signal?.aborted) {
-      const event = parseSSELine(buffer.trim(), convertEvent)
-      if (event) yield event
+      const events = parseSSELine(buffer.trim(), convertEvent)
+      for (const e of events) yield e
     }
   } finally {
     try { reader.releaseLock() } catch { /* ignore */ }
@@ -83,24 +85,27 @@ export async function* readSSEStream(
 export function parseSSELine(
   line: string,
   convertEvent: SSECallback,
-): LLMEvent | null {
+): LLMEvent[] {
   // 跳过空行和注释
-  if (!line || line.startsWith(':')) return null
+  if (!line || line.startsWith(':')) return []
 
   // 只处理 data: 开头的行
-  if (!line.startsWith('data: ')) return null
+  if (!line.startsWith('data: ')) return []
 
   const jsonStr = line.slice(6).trim()
 
   // 流结束标记
   if (jsonStr === '[DONE]') {
-    return { type: 'done', stopReason: 'end_turn' }
+    return [{ type: 'done', stopReason: 'end_turn' }]
   }
 
   try {
     const data = JSON.parse(jsonStr)
-    return convertEvent(data)
+    // callback 可能返回单个事件、数组或 null，统一规整为数组
+    const result = convertEvent(data)
+    if (result === null || result === undefined) return []
+    return Array.isArray(result) ? result : [result]
   } catch {
-    return null
+    return []
   }
 }
