@@ -23,6 +23,7 @@ import { TuiAltScreen } from './renderer-alt.js'
 import { Container } from './layout/container.js'
 import { VStack } from './layout/stack.js'
 import { ScrollView } from './layout/scroll-view.js'
+import { FixedHeightBox } from './layout/fixed-height.js'
 import { AssistantTurn, userPromptLine, mutedLine } from './components/assistant-turn.js'
 import { ToolExecution, type ToolResultLike } from './components/tool-execution.js'
 import { Spacer } from './components/spacer.js'
@@ -35,7 +36,7 @@ import type { Component } from './component.js'
 import { Box } from './components/box.js'
 import { Statusbar } from './components/statusbar.js'
 import { green, dim, gray, yellow, red, bold, cyan } from './ansi.js'
-import { executeCommand, tryExtensionCommand } from '../interface/tui/commands.js'
+import { executeCommand, tryExtensionCommand, matchSlashCommands } from '../interface/tui/commands.js'
 import { Compactor } from '../session/compaction.js'
 import * as storage from '../session/storage.js'
 import { readdirSync, statSync, existsSync } from 'node:fs'
@@ -92,6 +93,10 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   const chatContainer = new Container()
   // ── 常驻容器（pi 三件套 3: statusContainer, loader 的唯一 slot） ──
   const statusContainer = new Container()
+  // ── 补全展示槽：固定高度，避免占用 loader slot 改变 bottomDock 高度 ──
+  // slash/文件补全挂到这里（而非 statusContainer），高度恒定 → 输入框固定。
+  const COMPLETION_SLOT_HEIGHT = 8
+  const completionSlot = new FixedHeightBox(COMPLETION_SLOT_HEIGHT)
 
   // ── 业务组件 ──
   const loader = new Loader({ text: 'my-easy-pi is thinking...', color: (s: string) => dim(gray(s)) })
@@ -555,6 +560,38 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   function handleEditorChange(_text: string): void {
     // 选中补全项后，replaceAutocomplete 会触发 onChange → 跳过本次防循环
     if (suppressAutocomplete) { suppressAutocomplete = false; return }
+
+    // Slash 命令补全：仅当「行首一个 /」后跟连续字符（^/word）时触发，
+    // 避免误把普通文本中的路径分隔符当命令前缀。
+    const before = editor.getText().slice(0, editor.getCursorPos())
+    const slashMatch = /^(.*)\/([A-Za-z0-9-]*)$/.exec(before)
+    const lineIsJustSlashWord = slashMatch !== null &&
+      // 斜杠必须在行首（前面无任何字符）
+      slashMatch[1].trim().length === 0
+    if (lineIsJustSlashWord) {
+      const cmdPrefix = slashMatch![2]
+      const cmdNames = matchSlashCommands(cmdPrefix)
+      if (cmdNames.length === 0) { closeAutocomplete(); return }
+      closeAutocomplete()
+      const opts: SelectOption[] = cmdNames.map(n => ({ label: `/${n}`, value: n }))
+      opts.push({ label: '取消', value: '' })
+      const sel = new Selector(opts, `命令补全 /${cmdPrefix}`)
+      sel.onSelect = (opt) => {
+        autocompleteSelector = null
+        if (!opt.value) return
+        suppressAutocomplete = true
+        // 补全为 /命令名，覆盖整个斜杠前缀
+        editor.replaceAutocomplete(editor.getCursorPos(), `/${opt.value}`)
+        screen.requestRender()
+      }
+      sel.onCancel = () => { autocompleteSelector = null; completionSlot.setContent(null); screen.requestRender() }
+      autocompleteSelector = sel
+      // 补全挂到固定高度槽，不占 loader slot、不改变 bottomDock 高度 → 输入框固定
+      completionSlot.setContent(sel)
+      screen.requestRender()
+      return
+    }
+
     const prefix = editor.getAutocompletePrefix('@')
     if (!prefix) {
       closeAutocomplete()
@@ -583,22 +620,18 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
       screen.requestRender()
     }
-    sel.onCancel = () => { autocompleteSelector = null; screen.requestRender() }
+    sel.onCancel = () => { autocompleteSelector = null; completionSlot.setContent(null); screen.requestRender() }
     autocompleteSelector = sel
-    // 渲染到 statusContainer（不污染 chat 历史），Selector 作为组件直接挂载
-    statusContainer.clear()
-    statusContainer.addChild(new Text(dim(gray('按 ↑/↓ 选择，Enter 确认，Esc 取消'))))
-    statusContainer.addChild(sel)
+    // 补全挂到固定高度槽（不占 loader slot、不污染 chat 历史、不改变布局高度）
+    completionSlot.setContent(sel)
     screen.requestRender()
   }
 
   function closeAutocomplete(): void {
     if (autocompleteSelector) {
       autocompleteSelector = null
-      // 如果 statusContainer 只有补全内容，清空它（恢复 loader 或空状态）
-      if (!agent.state.isStreaming) {
-        statusContainer.clear()
-      }
+      // 清空补全槽（固定高度不变），statusContainer 不再被补全占用
+      completionSlot.setContent(null)
       screen.requestRender()
     }
   }
@@ -916,9 +949,10 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     if (useMainScreen) {
       screen.registerComponent(chatContainer)
       screen.registerComponent(statusContainer)
+      screen.registerComponent(completionSlot)
       screen.dock('bottom', editor)
     } else {
-      // alt: rootStack = VStack([chatScrollView(grow1), bottomDock[status, editor]])
+      // alt: rootStack = VStack([chatScrollView(grow1), bottomDock[status, completion, editor]])
       chatScrollView = new ScrollView({ stickyBottom: true })
       chatScrollView.setChild(chatContainer)
       const editorBox = new Box({ padding: 0 })
@@ -929,6 +963,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       )
       const bottomDock = new VStack([
         { component: statusContainer, grow: 0 },
+        { component: completionSlot, grow: 0, min: COMPLETION_SLOT_HEIGHT },
         { component: new Text(dim(gray('─'.repeat(terminal.columns)))), grow: 0 },
         { component: editorBox, grow: 0, min: 1 },
         { component: statusbar, grow: 0 },

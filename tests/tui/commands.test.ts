@@ -3,6 +3,8 @@ import {
   executeCommand,
   recordTokenUsage,
   setExtensionCommandResolver,
+  matchSlashCommands,
+  SLASH_COMMANDS,
 } from '../../src/interface/tui/commands.js'
 import type { Agent } from '../../src/agent/index.js'
 import { createAgentState } from '../../src/agent/state.js'
@@ -181,5 +183,35 @@ describe('executeCommand — /system', () => {
     expect(result!.output).toContain('已更新')
     expect(result!.output).toContain('8 字符')
     expect(agent.state.systemPrompt).toBe('你是代码审查专家')
+  })
+})
+describe('Slash 命令补全 — matchSlashCommands', () => {
+  it('空前缀返回全部命令（升序）', () => {
+    const names = matchSlashCommands('')
+    expect(names.length).toBeGreaterThan(5)
+    expect(names).toContain('help')
+    expect(names).toContain('exit')
+    // 升序
+    const sorted = [...names].sort()
+    expect(names).toEqual(sorted)
+  })
+
+  it('前缀 /h 匹配到 help（及任何 h 开头）', () => {
+    const names = matchSlashCommands('h')
+    expect(names.every((n) => n.startsWith('h'))).toBe(true)
+    expect(names).toContain('help')
+  })
+
+  it('前缀 /key 精确匹配 keymap', () => {
+    expect(matchSlashCommands('key')).toEqual(['keymap'])
+  })
+
+  it('无匹配返回空数组', () => {
+    expect(matchSlashCommands('zzz-not-a-command')).toEqual([])
+  })
+
+  it('SLASH_COMMANDS 中 quit 与 exit 并存但 help 不列 quit', () => {
+    expect(SLASH_COMMANDS).toHaveProperty('quit')
+    expect(SLASH_COMMANDS).toHaveProperty('exit')
   })
 })
