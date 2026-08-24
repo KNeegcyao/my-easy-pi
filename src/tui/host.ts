@@ -936,13 +936,15 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     }
 
     // === pi 风格：标记 revoked，不删除消息 ===
-    // 找到最后一个 assistant，标为撤回；再取 user 的文本供 /retry
+    // 撤回整个最后一回合：assistant + 对应的 user，二者都要 revoked，
+    // 否则 user 残留进 LLM 上下文会导致后续回答被旧请求"带跑"。
     let lastUserText: string | null = null
     let revokedOne = false
     for (let i = agent.state.messages.length - 1; i >= 0; i--) {
       const msg = agent.state.messages[i]
       if (revokedOne && msg.role === 'user') {
         lastUserText = msg.content
+        msg.revoked = true   // 这条 user 也撤回，不再进 LLM 上下文
         break
       }
       if (!revokedOne && msg.role === 'assistant') {
