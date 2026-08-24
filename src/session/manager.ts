@@ -151,6 +151,10 @@ export class SessionManager {
     depth: number
     isBranchPoint: boolean
     isActiveLeaf: boolean
+    /** 在兄弟节点中是否为最后一个（UI 用 └─ / ├─ 区分） */
+    isLastChild: boolean
+    /** 短 id（8 字符，供 /fork 使用） */
+    shortId: string
   }> {
     if (messages.length === 0) return []
 
@@ -177,8 +181,10 @@ export class SessionManager {
     const result: ReturnType<SessionManager['getTree']> = []
     const walk = (parentId: string | null, depth: number) => {
       const children = childrenOf.get(parentId) ?? []
-      for (const child of children) {
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i]
         const isBranch = (childrenOf.get(child.id)?.length ?? 0) > 1
+        const isLastChild = i === children.length - 1
         const summary = (child.content || '').slice(0, 40).replace(/\n/g, ' ')
         result.push({
           id: child.id,
@@ -187,6 +193,8 @@ export class SessionManager {
           depth,
           isBranchPoint: isBranch,
           isActiveLeaf: child.id === activeLeafId,
+          isLastChild,
+          shortId: child.id.slice(0, 8),
         })
         walk(child.id, depth + 1)
       }

@@ -309,17 +309,21 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     const messages = agent.state.messages
     const tree = sessionManager.getTree(messages)
     if (tree.length === 0) {
-      chatContainer.addChild(new Text(`  ${dim(gray('（空会话）'))}`))
-      chatContainer.addChild(new Spacer(1))
+      // 空会话只显示一次即时提示，不污染聊天历史
+      statusContainer.clear()
+      statusContainer.addChild(new Text(`  ${dim(gray('（空会话，发条消息后再用 /tree）'))}`))
       screen.requestRender()
+      setTimeout(() => { statusContainer.clear(); if (!agent.state.isStreaming) screen.requestRender() }, 2500)
       return
     }
 
     const opts: SelectOption[] = tree.map((node) => {
+      // 用 └─/├─ 区分兄弟中的末位，模拟树形目录视图
+      const branch = node.isLastChild ? '└─' : '├─'
       const indent = '  '.repeat(node.depth)
-      const marker = node.isBranchPoint ? cyan(bold('├')) : dim(gray('│'))
-      const active = node.isActiveLeaf ? ` ${green('●')}` : ''
-      const label = `${indent}${marker} ${node.role}: ${node.summary}${active}`
+      const branchMark = node.isBranchPoint ? cyan(bold(branch + '◆')) : dim(gray(branch))
+      const active = node.isActiveLeaf ? ` ${green('● ←当前')}` : ''
+      const label = `${indent}${branchMark} ${node.role}: ${node.summary} ${dim(gray('[' + node.shortId + ']'))}${active}`
       return { label, value: node.id }
     })
     opts.push({ label: '取消', value: '' })

@@ -50,6 +50,23 @@ describe('SessionManager 会话树 API — getTree', () => {
     expect(leaf?.id).toBe('a1')
   })
 
+  test('isLastChild 与 shortId 正确填充', () => {
+    const msgs = [
+      makeMsg('u1', null, 'user', '选哪个'),
+      makeMsg('a1', 'u1', 'assistant', '方案'),
+      makeMsg('u2a', 'a1', 'user', 'A'),
+      makeMsg('u2b', 'a1', 'user', 'B'),
+    ]
+    const tree = sm.getTree(msgs)
+    // a1 的两个孩子：u2a 非末，u2b 末
+    const u2a = tree.find((n) => n.id === 'u2a')!
+    const u2b = tree.find((n) => n.id === 'u2b')!
+    expect(u2a.isLastChild).toBe(false)
+    expect(u2b.isLastChild).toBe(true)
+    // shortId 为 8 字符
+    expect(u2a.shortId).toBe('u2a'.slice(0, 8))
+  })
+
   test('notification 节点不进树', () => {
     const meta = makeMsg('meta', null, 'notification', '会话名')
     const u1 = makeMsg('u1', null, 'user', 'hi')
