@@ -423,6 +423,31 @@ cat ~/.my-easy-pi/last-session
 # 输出类似：session-1722428800000
 ```
 
+### 4.9 会话树导航 API — `getTree` / `getPathToNode` / `forkSession`
+
+支撑 `/tree` 与 `/fork` 命令的三个方法：
+
+```typescript
+/** 构建缩进树形结构（供 /tree 渲染） */
+getTree(messages: AgentMessage[]): Array<{
+  id: string; role: string; summary: string; depth: number
+  isBranchPoint: boolean; isActiveLeaf: boolean
+  isLastChild: boolean; shortId: string; isRevoked: boolean
+}>
+
+/** 返回"根 → 指定节点"的路径（跳转用，替换 agent.state.messages） */
+getPathToNode(messages: AgentMessage[], nodeId: string): AgentMessage[]
+
+/** 从指定节点分叉出一个新会话文件（/fork） */
+forkSession(sourceId: string, nodeId: string, name?: string): Promise<string>
+```
+
+- `getTree` 深度优先遍历 `parentId` 树，产出缩进层级，并标记分叉点（多子节点）、当前叶、被撤回节点。
+- `getPathToNode` 复用 `getActiveBranch` 的回溯思想，从目标节点沿 `parentId` 链走回根。
+- `forkSession` 读取源会话的路径到新 JSONL 文件，原会话不变。
+
+> **教学点**：`getTree` 输出可以直接用来画上面「第四章」的可视化树——它是文件 `parentId` 数据的镜像。
+
 ## 6. 小结
 
 `SessionManager` 是会话层的核心门面，它封装了底层的存储操作，为上层（CLI、界面）提供了简洁的会话管理 API。核心设计思想：
