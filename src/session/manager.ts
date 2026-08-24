@@ -153,8 +153,10 @@ export class SessionManager {
     isActiveLeaf: boolean
     /** 在兄弟节点中是否为最后一个（UI 用 └─ / ├─ 区分） */
     isLastChild: boolean
-    /** 短 id（8 字符，供 /fork 使用） */
+    /** 取 id 末段的可定位短标识（counter+时间戳尾），节点间互异 */
     shortId: string
+    /** 该节点是否已被撤回（UI 降权展示） */
+    isRevoked: boolean
   }> {
     if (messages.length === 0) return []
 
@@ -186,6 +188,12 @@ export class SessionManager {
         const isBranch = (childrenOf.get(child.id)?.length ?? 0) > 1
         const isLastChild = i === children.length - 1
         const summary = (child.content || '').slice(0, 40).replace(/\n/g, ' ')
+        // id 形如 msg-{ts}-{counter}：取最后一个 '-' 之后的部分作为短标识，
+        // 避免同秒消息前缀撞名；若该段过短则附前面一段保证互异。
+        const segs = child.id.split('-')
+        const tail = segs[segs.length - 1] || child.id
+        const preTail = segs.length >= 2 ? segs[segs.length - 2] : ''
+        const shortId = tail.length >= 4 ? tail : `${preTail}-${tail}`
         result.push({
           id: child.id,
           role: child.role,
@@ -194,7 +202,8 @@ export class SessionManager {
           isBranchPoint: isBranch,
           isActiveLeaf: child.id === activeLeafId,
           isLastChild,
-          shortId: child.id.slice(0, 8),
+          shortId,
+          isRevoked: child.revoked === true,
         })
         walk(child.id, depth + 1)
       }

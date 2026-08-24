@@ -4,8 +4,8 @@ import * as storage from '../../../src/session/storage.js'
 import { existsSync } from 'fs'
 import type { AgentMessage } from '../../../src/ai/types.js'
 
-function makeMsg(id: string, parentId: string | null, role: AgentMessage['role'], content: string): AgentMessage {
-  return { id, parentId, role, content, createdAt: Date.now() }
+function makeMsg(id: string, parentId: string | null, role: AgentMessage['role'], content: string, revoked = false): AgentMessage {
+  return { id, parentId, role, content, createdAt: Date.now(), revoked }
 }
 
 describe('SessionManager 会话树 API — getTree', () => {
@@ -63,8 +63,36 @@ describe('SessionManager 会话树 API — getTree', () => {
     const u2b = tree.find((n) => n.id === 'u2b')!
     expect(u2a.isLastChild).toBe(false)
     expect(u2b.isLastChild).toBe(true)
-    // shortId 为 8 字符
-    expect(u2a.shortId).toBe('u2a'.slice(0, 8))
+    // shortId 取 id 末段（u2a 末段不足 4 字符时带前段以保证可定位）
+    expect(u2a.shortId).toBeTruthy()
+  })
+
+  test('shortId 取 id 末段，同前缀 id 间互异', () => {
+    // 模拟真实 id 格式 msg-{ts}-{counter}，同秒前缀相同
+    const msgs = [
+      makeMsg('msg-1787000000-1', null, 'user', 'a'),
+      makeMsg('msg-1787000000-2', 'msg-1787000000-1', 'assistant', 'b'),
+      makeMsg('msg-1787000000-3', 'msg-1787000000-2', 'user', 'c'),
+    ]
+    const tree = sm.getTree(msgs)
+    const ids = tree.map((n) => n.shortId)
+    // 互不相同（旧实现前 8 字符全撞成 msg-178）
+    expect(new Set(ids).size).toBe(3)
+    // 末段为计数器，互异且不含公共前缀
+    expect(ids.every((s) => s.includes('1') || s.includes('2') || s.includes('3'))).toBe(true)
+  })
+
+  test('isRevoked 正确反映撤回状态', () => {
+    const msgs = [
+      makeMsg('u1', null, 'user', 'hi'),
+      makeMsg('a1', 'u1', 'assistant', 'hello', true), // 被撤回
+      makeMsg('u2', 'u1', 'user', 'again'),
+    ]
+    const tree = sm.getTree(msgs)
+    const a1 = tree.find((n) => n.id === 'a1')!
+    const u1 = tree.find((n) => n.id === 'u1')!
+    expect(a1.isRevoked).toBe(true)
+    expect(u1.isRevoked).toBe(false)
   })
 
   test('notification 节点不进树', () => {

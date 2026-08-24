@@ -323,6 +323,11 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       const indent = '  '.repeat(node.depth)
       const branchMark = node.isBranchPoint ? cyan(bold(branch + '◆')) : dim(gray(branch))
       const active = node.isActiveLeaf ? ` ${green('● ←当前')}` : ''
+      // 已撤回节点：整行降权为灰色并加 (已撤回) 前缀
+      if (node.isRevoked) {
+        const label = `${indent}${dim(gray(branch))} ${dim(gray('(已撤回) ' + node.role + ': ' + node.summary))} ${dim(gray('[' + node.shortId + ']'))}`
+        return { label, value: node.id }
+      }
       const label = `${indent}${branchMark} ${node.role}: ${node.summary} ${dim(gray('[' + node.shortId + ']'))}${active}`
       return { label, value: node.id }
     })
