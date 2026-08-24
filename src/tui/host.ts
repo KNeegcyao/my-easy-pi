@@ -303,6 +303,65 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     }
   }
 
+  // ── 会话树导航 ──
+  function showTreeNavigation(): void {
+    if (!sessionManager || !currentSessionId) return
+    const messages = agent.state.messages
+    const tree = sessionManager.getTree(messages)
+    if (tree.length === 0) {
+      chatContainer.addChild(new Text(`  ${dim(gray('（空会话）'))}`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+      return
+    }
+
+    const opts: SelectOption[] = tree.map((node) => {
+      const indent = '  '.repeat(node.depth)
+      const marker = node.isBranchPoint ? cyan(bold('├')) : dim(gray('│'))
+      const active = node.isActiveLeaf ? ` ${green('●')}` : ''
+      const label = `${indent}${marker} ${node.role}: ${node.summary}${active}`
+      return { label, value: node.id }
+    })
+    opts.push({ label: '取消', value: '' })
+
+    const sel = new Selector(opts, `会话树 (${tree.length} 节点)`)
+    sel.onSelect = (opt) => {
+      autocompleteSelector = null
+      completionSlot.setContent(null)
+      if (!opt.value) { screen.requestRender(); return }
+      const targetPath = sessionManager.getPathToNode(messages, opt.value)
+      if (targetPath.length === 0) { screen.requestRender(); return }
+      agent.state.messages = targetPath
+      chatContainer.addChild(new Text(`  ${green('✓')} 已跳转到节点 ${dim(gray(opt.value.slice(0, 8) + '…'))}`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+    }
+    sel.onCancel = () => {
+      autocompleteSelector = null
+      completionSlot.setContent(null)
+      screen.requestRender()
+    }
+    autocompleteSelector = sel
+    completionSlot.setContent(sel)
+    screen.requestRender()
+  }
+
+  async function forkFromNode(nodeId: string): Promise<void> {
+    if (!sessionManager || !currentSessionId) return
+    try {
+      const newId = await sessionManager.forkSession(currentSessionId, nodeId)
+      chatContainer.addChild(new Text(`  ${green('✓')} 已分叉到新会话 ${dim(gray(newId))}`))
+      chatContainer.addChild(new Text(`  ${dim(gray('可用 -c 或 /resume 切换'))}`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      chatContainer.addChild(new Text(`  ${red('✗')} 分叉失败: ${msg}`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+    }
+  }
+
   // ── slash 命令 ──
   function handleSlashCommand(input: string): void {
     const trimmed = input.trim()
@@ -316,6 +375,37 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     }
     if (sessionManager && cmd === '/delete') {
       sessCmdDelete(parts[1])
+      return
+    }
+
+    // /tree 命令：会话树导航
+    if (cmd === '/tree') {
+      if (!sessionManager || !currentSessionId) {
+        chatContainer.addChild(new Text(`  ${red('✗')} 会话树需要已持久化的会话`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+        return
+      }
+      showTreeNavigation()
+      return
+    }
+
+    // /fork 命令：从指定节点分叉新会话
+    if (cmd === '/fork') {
+      if (!sessionManager || !currentSessionId) {
+        chatContainer.addChild(new Text(`  ${red('✗')} 分叉需要已持久化的会话`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+        return
+      }
+      const nodeId = parts[1]
+      if (!nodeId) {
+        chatContainer.addChild(new Text(`  ${yellow('用法')} ${dim(gray('/fork <节点id> — 在 /tree 中查看节点 id'))}`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+        return
+      }
+      forkFromNode(nodeId)
       return
     }
 
