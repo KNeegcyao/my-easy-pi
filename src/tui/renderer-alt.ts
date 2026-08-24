@@ -47,6 +47,19 @@ export class TuiAltScreen implements TUI {
     this.root = root
   }
 
+  // ── 底部 overlay（绝对定位浮层）──
+  // 补全/树导航用：渲染在 bottomDock 顶部之上，不进文档流 → bottomDock 高度恒定、输入框固定。
+  private bottomOverlay: Component | null = null
+  /** 底部布局引用，用于反推 overlay 应覆盖的起始行（= height - bottomDock 高度） */
+  private bottomDockRef: Stack | null = null
+
+  /** 挂底部 overlay；relativeDock 用于定位（通常是 bottomDock） */
+  setBottomOverlay(c: Component | null, relativeDock?: Stack): void {
+    this.bottomOverlay = c
+    if (relativeDock !== undefined) this.bottomDockRef = relativeDock
+    this.scheduleRender()
+  }
+
   showOverlay(_c: Component, _opts?: OverlayOptions): OverlayHandle {
     let closed = false
     return { get closed() { return closed }, close: () => { closed = true } }
@@ -100,6 +113,21 @@ export class TuiAltScreen implements TUI {
     this.root.setViewportHeight(height)
     const lines = this.root.render(width)
     while (lines.length < height) lines.push('')
+
+    // ── 底部 overlay：绝对定位浮层，覆盖 editor 上方的聊天区行 ──
+    // 不进 bottomDock 文档流 → bottomDock 高度恒定 → 输入框固定。
+    if (this.bottomOverlay) {
+      const overlayLines = this.bottomOverlay.render(width)
+      const maxH = 8
+      const sliced = overlayLines.slice(0, maxH)
+      // 反推 bottomDock 高度：用其引用量自然渲染行数（无 viewport 约束即自然高）
+      const dockH = this.bottomDockRef ? this.bottomDockRef.render(width).length : 0
+      const startRow = height - dockH - sliced.length
+      for (let k = 0; k < sliced.length; k++) {
+        const r = startRow + k
+        if (r >= 0 && r < height) lines[r] = sliced[k]
+      }
+    }
 
     // 跳过完全无变化帧
     if (this.previousScreen.length === height) {

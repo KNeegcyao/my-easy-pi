@@ -42,6 +42,8 @@ export const SLASH_COMMANDS: Readonly<Record<string, string>> = {
   clear: '清屏',
   exit: '退出程序',
   quit: '退出程序',
+  tree: '会话树导航（跳转到历史节点）',
+  fork: '从指定节点分叉出新会话',
 }
 
 /** 匹配前缀的命令名列表（升序），如 "h" → ["help"]；空前缀 → 全部命令 */

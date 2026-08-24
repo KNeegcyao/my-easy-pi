@@ -122,6 +122,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   let loaderInterval: NodeJS.Timeout | null = null
   let stopped = false
   let exitRaw: (() => void) | null = null
+  /** alt-screen 下 bottomDock 引用，供 overlay 反推覆盖起始行 */
+  let bottomDockRef: import('./layout/stack.js').VStack | null = null
   let confirming = false   // permission confirm 期间：跳过 editor onInput
   let keybinds = new KeyBinds('default')   // 键绑定状态机（/keymap 切换）
   let activeSelector: Selector | null = null  // 活跃选择器（/sessions /delete 等），防 readline+editor 双重消费 stdin
@@ -303,6 +305,75 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     }
   }
 
+  // ── 会话树导航 ──
+  function showTreeNavigation(): void {
+    if (!sessionManager || !currentSessionId) return
+    const messages = agent.state.messages
+    const tree = sessionManager.getTree(messages)
+    if (tree.length === 0) {
+      // 空会话只显示一次即时提示，不污染聊天历史
+      statusContainer.clear()
+      statusContainer.addChild(new Text(`  ${dim(gray('（空会话，发条消息后再用 /tree）'))}`))
+      screen.requestRender()
+      setTimeout(() => { statusContainer.clear(); if (!agent.state.isStreaming) screen.requestRender() }, 2500)
+      return
+    }
+
+    const opts: SelectOption[] = tree.map((node) => {
+      // 用 └─/├─ 区分兄弟中的末位，模拟树形目录视图
+      const branch = node.isLastChild ? '└─' : '├─'
+      const indent = '  '.repeat(node.depth)
+      const branchMark = node.isBranchPoint ? cyan(bold(branch + '◆')) : dim(gray(branch))
+      const active = node.isActiveLeaf ? ` ${green('● ←当前')}` : ''
+      // 已撤回节点：保留同样的分支线（仅灰化），加 (已撤回) 前缀，层级与活跃节点一致
+      if (node.isRevoked) {
+        const revokedMark = node.isBranchPoint ? dim(gray(branch + '◆')) : dim(gray(branch))
+        const label = `${indent}${revokedMark} ${dim(gray('(已撤回) ' + node.role + ': ' + node.summary))} ${dim(gray('[' + node.shortId + ']'))}`
+        return { label, value: node.id }
+      }
+      const label = `${indent}${branchMark} ${node.role}: ${node.summary} ${dim(gray('[' + node.shortId + ']'))}${active}`
+      return { label, value: node.id }
+    })
+    opts.push({ label: '取消', value: '' })
+
+    const sel = new Selector(opts, `会话树 (${tree.length} 节点)`)
+    sel.onSelect = (opt) => {
+      autocompleteSelector = null
+      hideCompletionOverlay()
+      if (!opt.value) { screen.requestRender(); return }
+      const targetPath = sessionManager.getPathToNode(messages, opt.value)
+      if (targetPath.length === 0) { screen.requestRender(); return }
+      agent.state.messages = targetPath
+      chatContainer.addChild(new Text(`  ${green('✓')} 已跳转到节点 ${dim(gray(opt.value.slice(0, 8) + '…'))}`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+    }
+    sel.onCancel = () => {
+      autocompleteSelector = null
+      hideCompletionOverlay()
+      screen.requestRender()
+    }
+    autocompleteSelector = sel
+    showCompletionOverlay(sel)
+    screen.requestRender()
+  }
+
+  async function forkFromNode(nodeId: string): Promise<void> {
+    if (!sessionManager || !currentSessionId) return
+    try {
+      const newId = await sessionManager.forkSession(currentSessionId, nodeId)
+      chatContainer.addChild(new Text(`  ${green('✓')} 已分叉到新会话 ${dim(gray(newId))}`))
+      chatContainer.addChild(new Text(`  ${dim(gray('可用 -c 或 /resume 切换'))}`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      chatContainer.addChild(new Text(`  ${red('✗')} 分叉失败: ${msg}`))
+      chatContainer.addChild(new Spacer(1))
+      screen.requestRender()
+    }
+  }
+
   // ── slash 命令 ──
   function handleSlashCommand(input: string): void {
     const trimmed = input.trim()
@@ -316,6 +387,37 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     }
     if (sessionManager && cmd === '/delete') {
       sessCmdDelete(parts[1])
+      return
+    }
+
+    // /tree 命令：会话树导航
+    if (cmd === '/tree') {
+      if (!sessionManager || !currentSessionId) {
+        chatContainer.addChild(new Text(`  ${red('✗')} 会话树需要已持久化的会话`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+        return
+      }
+      showTreeNavigation()
+      return
+    }
+
+    // /fork 命令：从指定节点分叉新会话
+    if (cmd === '/fork') {
+      if (!sessionManager || !currentSessionId) {
+        chatContainer.addChild(new Text(`  ${red('✗')} 分叉需要已持久化的会话`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+        return
+      }
+      const nodeId = parts[1]
+      if (!nodeId) {
+        chatContainer.addChild(new Text(`  ${yellow('用法')} ${dim(gray('/fork <节点id> — 在 /tree 中查看节点 id'))}`))
+        chatContainer.addChild(new Spacer(1))
+        screen.requestRender()
+        return
+      }
+      forkFromNode(nodeId)
       return
     }
 
@@ -584,10 +686,10 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
         editor.replaceAutocomplete(editor.getCursorPos(), `/${opt.value}`)
         screen.requestRender()
       }
-      sel.onCancel = () => { autocompleteSelector = null; completionSlot.setContent(null); screen.requestRender() }
+      sel.onCancel = () => { autocompleteSelector = null; hideCompletionOverlay(); screen.requestRender() }
       autocompleteSelector = sel
-      // 补全挂到固定高度槽，不占 loader slot、不改变 bottomDock 高度 → 输入框固定
-      completionSlot.setContent(sel)
+      // 补全挂到 overlay 浮层（alt）/ 固定槽（main），不进 bottomDock 文档流
+      showCompletionOverlay(sel)
       screen.requestRender()
       return
     }
@@ -620,20 +722,39 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
       screen.requestRender()
     }
-    sel.onCancel = () => { autocompleteSelector = null; completionSlot.setContent(null); screen.requestRender() }
+    sel.onCancel = () => { autocompleteSelector = null; hideCompletionOverlay(); screen.requestRender() }
     autocompleteSelector = sel
-    // 补全挂到固定高度槽（不占 loader slot、不污染 chat 历史、不改变布局高度）
-    completionSlot.setContent(sel)
+    // 补全挂到 overlay 浮层（alt）/ 固定槽（main）
+    showCompletionOverlay(sel)
     screen.requestRender()
   }
 
   function closeAutocomplete(): void {
     if (autocompleteSelector) {
       autocompleteSelector = null
-      // 清空补全槽（固定高度不变），statusContainer 不再被补全占用
-      completionSlot.setContent(null)
+      hideCompletionOverlay()
       screen.requestRender()
     }
+  }
+
+  /** 把补全/树选择器挂到底部 overlay（alt）或固定槽（main 降级） */
+  function showCompletionOverlay(sel: Selector): void {
+    const altScreen = screen as unknown as { setBottomOverlay?: (c: Component | null, dock?: unknown) => void }
+    if (altScreen.setBottomOverlay && bottomDockRef) {
+      altScreen.setBottomOverlay(sel, bottomDockRef)
+    } else {
+      // main-screen 降级路径：仍用固定槽（会空占，但 main 非主路径）
+      completionSlot.setContent(sel)
+    }
+  }
+
+  /** 移除补全/树浮层 */
+  function hideCompletionOverlay(): void {
+    const altScreen = screen as unknown as { setBottomOverlay?: (c: Component | null) => void }
+    if (altScreen.setBottomOverlay) {
+      altScreen.setBottomOverlay(null)
+    }
+    completionSlot.setContent(null)
   }
 
   /** 扫描当前目录下匹配前缀的文件/目录 */
@@ -842,13 +963,15 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     }
 
     // === pi 风格：标记 revoked，不删除消息 ===
-    // 找到最后一个 assistant，标为撤回；再取 user 的文本供 /retry
+    // 撤回整个最后一回合：assistant + 对应的 user，二者都要 revoked，
+    // 否则 user 残留进 LLM 上下文会导致后续回答被旧请求"带跑"。
     let lastUserText: string | null = null
     let revokedOne = false
     for (let i = agent.state.messages.length - 1; i >= 0; i--) {
       const msg = agent.state.messages[i]
       if (revokedOne && msg.role === 'user') {
         lastUserText = msg.content
+        msg.revoked = true   // 这条 user 也撤回，不再进 LLM 上下文
         break
       }
       if (!revokedOne && msg.role === 'assistant') {
@@ -952,7 +1075,9 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       screen.registerComponent(completionSlot)
       screen.dock('bottom', editor)
     } else {
-      // alt: rootStack = VStack([chatScrollView(grow1), bottomDock[status, completion, editor]])
+      // alt: rootStack = VStack([chatScrollView(grow1), bottomDock[status, editor, statusbar]])
+      // 补全/树导航不再进 bottomDock，改用 setBottomOverlay 绝对定位浮层，
+      // 使 bottomDock 高度恒定 → 输入框固定、平时无空白。
       chatScrollView = new ScrollView({ stickyBottom: true })
       chatScrollView.setChild(chatContainer)
       const editorBox = new Box({ padding: 0 })
@@ -963,7 +1088,6 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       )
       const bottomDock = new VStack([
         { component: statusContainer, grow: 0 },
-        { component: completionSlot, grow: 0, min: COMPLETION_SLOT_HEIGHT },
         { component: new Text(dim(gray('─'.repeat(terminal.columns)))), grow: 0 },
         { component: editorBox, grow: 0, min: 1 },
         { component: statusbar, grow: 0 },
@@ -973,6 +1097,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
         { component: bottomDock, grow: 0 },
       ])
       ;(screen as TuiAltScreen).setLayoutRoot(rootStack)
+      ;(screen as TuiAltScreen).setBottomOverlay(null, bottomDock)
+      bottomDockRef = bottomDock
     }
     screen.start()
     exitRaw = terminal.enterRawMode()

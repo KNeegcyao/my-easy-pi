@@ -140,4 +140,114 @@ export class SessionManager {
 
     return branch
   }
+
+  // ── 会话树导航 API ──
+
+  /** 树形节点（供 UI 渲染） */
+  getTree(messages: AgentMessage[]): Array<{
+    id: string
+    role: string
+    summary: string
+    depth: number
+    isBranchPoint: boolean
+    isActiveLeaf: boolean
+    /** 在兄弟节点中是否为最后一个（UI 用 └─ / ├─ 区分） */
+    isLastChild: boolean
+    /** 取 id 末段的可定位短标识（counter+时间戳尾），节点间互异 */
+    shortId: string
+    /** 该节点是否已被撤回（UI 降权展示） */
+    isRevoked: boolean
+  }> {
+    if (messages.length === 0) return []
+
+    const map = new Map<string, AgentMessage>()
+    for (const m of messages) map.set(m.id, m)
+
+    // 找当前活动叶（最后一条未撤回消息）
+    let activeLeafId: string | null = null
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (!messages[i].revoked) { activeLeafId = messages[i].id; break }
+    }
+
+    // 构建 children 索引
+    const childrenOf = new Map<string | null, AgentMessage[]>()
+    for (const m of messages) {
+      if (m.role === 'notification') continue
+      const parentKey = m.parentId
+      const list = childrenOf.get(parentKey) ?? []
+      list.push(m)
+      childrenOf.set(parentKey, list)
+    }
+
+    // 深度优先遍历，产出缩进树
+    const result: ReturnType<SessionManager['getTree']> = []
+    const walk = (parentId: string | null, depth: number) => {
+      const children = childrenOf.get(parentId) ?? []
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i]
+        const isBranch = (childrenOf.get(child.id)?.length ?? 0) > 1
+        const isLastChild = i === children.length - 1
+        const summary = (child.content || '').slice(0, 40).replace(/\n/g, ' ')
+        // id 形如 msg-{ts}-{counter}：取最后一个 '-' 之后的部分作为短标识，
+        // 避免同秒消息前缀撞名；若该段过短则附前面一段保证互异。
+        const segs = child.id.split('-')
+        const tail = segs[segs.length - 1] || child.id
+        const preTail = segs.length >= 2 ? segs[segs.length - 2] : ''
+        const shortId = tail.length >= 4 ? tail : `${preTail}-${tail}`
+        result.push({
+          id: child.id,
+          role: child.role,
+          summary: summary || '(空)',
+          depth,
+          isBranchPoint: isBranch,
+          isActiveLeaf: child.id === activeLeafId,
+          isLastChild,
+          shortId,
+          isRevoked: child.revoked === true,
+        })
+        walk(child.id, depth + 1)
+      }
+    }
+    walk(null, 0)
+    return result
+  }
+
+  /** 返回从根到指定节点的路径（含该节点） */
+  getPathToNode(messages: AgentMessage[], nodeId: string): AgentMessage[] {
+    const map = new Map<string, AgentMessage>()
+    for (const m of messages) map.set(m.id, m)
+    const target = map.get(nodeId)
+    if (!target) return []
+
+    const path: AgentMessage[] = []
+    let current: AgentMessage | undefined = target
+    const seen = new Set<string>()
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id)
+      path.unshift(current)
+      current = current.parentId ? map.get(current.parentId) : undefined
+    }
+    return path
+  }
+
+  /** 从指定节点分叉出一个新会话（新 JSONL 文件） */
+  async forkSession(sourceId: string, nodeId: string, name?: string): Promise<string> {
+    const messages = await this.loadSession(sourceId)
+    const path = this.getPathToNode(messages, nodeId)
+    if (path.length === 0) throw new Error(`节点不存在: ${nodeId}`)
+
+    const newId = `session-${Date.now()}`
+    const meta: AgentMessage = {
+      id: 'meta',
+      parentId: null,
+      role: 'notification',
+      content: name || `Fork of ${sourceId}`,
+      createdAt: Date.now(),
+    }
+    await storage.appendMessage(newId, meta)
+    for (const m of path) {
+      await storage.appendMessage(newId, m)
+    }
+    return newId
+  }
 }
