@@ -261,10 +261,18 @@ flowchart TB
 | `/theme` | 检测终端背景，切换明暗主题 | `host.ts`（terminal.detectBackground） |
 | `/keymap` | 默认 / Vim 键位切换 | `host.ts`（KeyBinds.setMode） |
 | `/compact` | 压缩上下文（阈值 15，保留近 8 条） | `host.ts`（session/compaction.ts） |
-| `/undo` `/retry` | 撤销 / 重试上一回合 | `host.ts`（turnHistory） |
+| `/undo` `/retry` | 撤销 / 重试上一回合 | `host.ts`（turnHistory, undoLastTurn） |
+| `/tree` | 会话树导航（可视化分支、跳转节点） | `host.ts` + `SessionManager.getTree` |
+| `/fork <短id>` | 从指定节点分叉出新会话 | `host.ts` + `SessionManager.forkSession` |
 | `/sessions` `/delete` | 会话列表 / 删除（Selector 交互） | `host.ts`（sessionManager） |
 
-### 4.4 ANSI 控制序列速查
+### 4.4 Slash 命令补全与 overlay 浮层
+
+- 键入 `/`（或 `/h` 前缀）会弹出**命令补全**浮层，↑/↓ 选择、Enter 确认、Esc 取消。
+- 补全/树导航以 **overlay 浮层**呈现（`renderer.setBottomOverlay`），
+  覆盖在输入框上方，**不进入 bottomDock 文档流** → 输入框位置恒定，平时无空白。
+
+### 4.5 ANSI 控制序列速查
 
 | 序列 | 效果 |
 |------|------|
@@ -301,6 +309,8 @@ my-easy-pi --main-screen  # 主屏模式（保留终端原生 scrollback）
 > /keymap                 # 切换默认 / Vim 键位
 > /compact                # 压缩上下文
 > /undo  /retry           # 撤销 / 重试上一回合
+> /tree                   # 会话树导航（浏览分支、跳转到历史节点）
+> /fork <短id>            # 从指定节点分叉出新会话
 > /sessions /delete <id>  # 会话管理
 > /clear  /exit           # 清屏 / 退出
 ```

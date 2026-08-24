@@ -90,14 +90,29 @@ export interface AgentMessage {
 // 旧行为：删消息
 agent.state.messages.splice(i, 1)  // ❌ 文件里还在，重启复活
 
-// 新行为：标 revoked
-agent.state.messages[i].revoked = true  // ✅ 标记，保留历史
+// 新行为：标记整回合被撤回
+// ⚠️ 不只是 assistant，对应的 user 消息也要标 revoked ——
+//    否则那条 user 请求会残留进 LLM 上下文，导致后续回答被旧请求"带跑"
+for (i = messages.length - 1; i >= 0; i--) {
+  const msg = agent.state.messages[i]
+  if (revokedOne && msg.role === 'user') {
+    msg.revoked = true   // user 也撤回，不再进 LLM 上下文
+    break
+  }
+  if (!revokedOne && msg.role === 'assistant') {
+    msg.revoked = true
+    revokedOne = true
+  }
+}
 
 // 然后把整个 messages 数组写回文件
 storage.writeMessages(sessionId, agent.state.messages)
 ```
 
-注意 `storage.writeMessages` 会**重写整个 JSONL 文件**。这是唯一一个"不是追加"的写操作——但它只在撤回时触发一次，可以接受。
+注意 `storage.writeMessages` 会**重写整个 JSONL 文件**。这是唯一"不是追加"的写操作——但它只在撤回时触发一次，可以接受。
+
+> **为什么要连 user 一起撤回？**
+> 撤回的本质是"撤销一个回合"。如果只标 assistant 而留下 user，模型下次请求时仍能看到那句 user 指令——你以为撤回的请求,其实还在"悄悄影响"后续回答。撤回整回合才是真撤回。
 
 ### 第三步：读消息时过滤撤回的
 
@@ -143,7 +158,7 @@ getActiveBranch(messages) {
     │
     ├── undoLastTurn()
     │     ├── 从 chatContainer 移除 UI 组件（streamTurn、spacer）
-    │     ├── 标记最后一条 assistant 消息为 revoked: true
+    │     ├── 标记整个回合（assistant + 对应 user）为 revoked: true
     │     ├── 流式撤回无 assistant → 直接移除最后一条 user 消息
     │     └── storage.writeMessages() 写回文件
     │
@@ -191,6 +206,42 @@ npx tsx src/cli.ts -c
    assistant: "..."     ← parentId: user, revoked: true
    user: "算了，归并"   ← parentId: user（分支出去）
 ```
+
+## 会话树导航 — `/tree` 与 `/fork`
+
+撤回只是"回溯"的起点。把整段对话看成一棵树，`/tree` 让你跳回任意节点继续，`/fork` 则把某个分支另存为一个新会话。
+
+### `/tree`：可视化会话树
+
+- 键入 `/tree` 打开导航浮层，按 `parentId` 缩进展示全部节点
+- 每个节点显示：角色 + 内容摘要 + 短 id；分叉点用 `◆` 标出
+- 当前活跃叶标 `● ←当前`；被撤回的节点整行灰化并加 `(已撤回)` 前缀
+
+```
+└─ user: 你好 [1787-1]
+  └─ assistant: 你好！ [1787-2]
+    └─ (已撤回) user: 写一段七言绝句 [1787-3]
+      └─ (已撤回) assistant: 《晨行》... [1787-4]
+    └─ user: 写一段唐诗 [1787-5]         ← 分叉点，引出两个分支
+      └─ assistant: 《秋山夜归》... [1787-6] ● ←当前
+```
+
+- 选中任意节点，活动位置切到该点，后续新消息以它为新分支
+
+### `/fork <短id>`：从某节点开新会话
+
+- 复制"根 → 该节点"的路径到**新会话文件**，原会话不变
+- 有了唯一短 id，`/tree` 里看一眼就能 `/fork` 指定节点进行对比实验
+
+### 三个命令的取舍
+
+| 命令 | 输出 | 典型场景 |
+|------|------|---------|
+| `/tree` | 同会话 | 想保留多个备选方案，就地分叉探索 |
+| `/fork` | 新会话文件 | 想从早期某点开个干净新分支 |
+| `/undo` | 同回合 | 只是撤回刚才那回，不想留分支 |
+
+> **教学点**：树的"节点 id + parentId"数据结构和文件里 JSONL 每行的 `id/parentId` 一一对应——`cat` 文件看到的就是这棵树的扁平序列化。
 
 ## 为什么这对初学者友好
 
