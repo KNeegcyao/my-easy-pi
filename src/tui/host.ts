@@ -122,6 +122,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
   let loaderInterval: NodeJS.Timeout | null = null
   let stopped = false
   let exitRaw: (() => void) | null = null
+  /** alt-screen 下 bottomDock 引用，供 overlay 反推覆盖起始行 */
+  let bottomDockRef: import('./layout/stack.js').VStack | null = null
   let confirming = false   // permission confirm 期间：跳过 editor onInput
   let keybinds = new KeyBinds('default')   // 键绑定状态机（/keymap 切换）
   let activeSelector: Selector | null = null  // 活跃选择器（/sessions /delete 等），防 readline+editor 双重消费 stdin
@@ -323,9 +325,10 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       const indent = '  '.repeat(node.depth)
       const branchMark = node.isBranchPoint ? cyan(bold(branch + '◆')) : dim(gray(branch))
       const active = node.isActiveLeaf ? ` ${green('● ←当前')}` : ''
-      // 已撤回节点：整行降权为灰色并加 (已撤回) 前缀
+      // 已撤回节点：保留同样的分支线（仅灰化），加 (已撤回) 前缀，层级与活跃节点一致
       if (node.isRevoked) {
-        const label = `${indent}${dim(gray(branch))} ${dim(gray('(已撤回) ' + node.role + ': ' + node.summary))} ${dim(gray('[' + node.shortId + ']'))}`
+        const revokedMark = node.isBranchPoint ? dim(gray(branch + '◆')) : dim(gray(branch))
+        const label = `${indent}${revokedMark} ${dim(gray('(已撤回) ' + node.role + ': ' + node.summary))} ${dim(gray('[' + node.shortId + ']'))}`
         return { label, value: node.id }
       }
       const label = `${indent}${branchMark} ${node.role}: ${node.summary} ${dim(gray('[' + node.shortId + ']'))}${active}`
@@ -336,7 +339,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     const sel = new Selector(opts, `会话树 (${tree.length} 节点)`)
     sel.onSelect = (opt) => {
       autocompleteSelector = null
-      completionSlot.setContent(null)
+      hideCompletionOverlay()
       if (!opt.value) { screen.requestRender(); return }
       const targetPath = sessionManager.getPathToNode(messages, opt.value)
       if (targetPath.length === 0) { screen.requestRender(); return }
@@ -347,11 +350,11 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
     }
     sel.onCancel = () => {
       autocompleteSelector = null
-      completionSlot.setContent(null)
+      hideCompletionOverlay()
       screen.requestRender()
     }
     autocompleteSelector = sel
-    completionSlot.setContent(sel)
+    showCompletionOverlay(sel)
     screen.requestRender()
   }
 
@@ -683,10 +686,10 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
         editor.replaceAutocomplete(editor.getCursorPos(), `/${opt.value}`)
         screen.requestRender()
       }
-      sel.onCancel = () => { autocompleteSelector = null; completionSlot.setContent(null); screen.requestRender() }
+      sel.onCancel = () => { autocompleteSelector = null; hideCompletionOverlay(); screen.requestRender() }
       autocompleteSelector = sel
-      // 补全挂到固定高度槽，不占 loader slot、不改变 bottomDock 高度 → 输入框固定
-      completionSlot.setContent(sel)
+      // 补全挂到 overlay 浮层（alt）/ 固定槽（main），不进 bottomDock 文档流
+      showCompletionOverlay(sel)
       screen.requestRender()
       return
     }
@@ -719,20 +722,39 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       }
       screen.requestRender()
     }
-    sel.onCancel = () => { autocompleteSelector = null; completionSlot.setContent(null); screen.requestRender() }
+    sel.onCancel = () => { autocompleteSelector = null; hideCompletionOverlay(); screen.requestRender() }
     autocompleteSelector = sel
-    // 补全挂到固定高度槽（不占 loader slot、不污染 chat 历史、不改变布局高度）
-    completionSlot.setContent(sel)
+    // 补全挂到 overlay 浮层（alt）/ 固定槽（main）
+    showCompletionOverlay(sel)
     screen.requestRender()
   }
 
   function closeAutocomplete(): void {
     if (autocompleteSelector) {
       autocompleteSelector = null
-      // 清空补全槽（固定高度不变），statusContainer 不再被补全占用
-      completionSlot.setContent(null)
+      hideCompletionOverlay()
       screen.requestRender()
     }
+  }
+
+  /** 把补全/树选择器挂到底部 overlay（alt）或固定槽（main 降级） */
+  function showCompletionOverlay(sel: Selector): void {
+    const altScreen = screen as unknown as { setBottomOverlay?: (c: Component | null, dock?: unknown) => void }
+    if (altScreen.setBottomOverlay && bottomDockRef) {
+      altScreen.setBottomOverlay(sel, bottomDockRef)
+    } else {
+      // main-screen 降级路径：仍用固定槽（会空占，但 main 非主路径）
+      completionSlot.setContent(sel)
+    }
+  }
+
+  /** 移除补全/树浮层 */
+  function hideCompletionOverlay(): void {
+    const altScreen = screen as unknown as { setBottomOverlay?: (c: Component | null) => void }
+    if (altScreen.setBottomOverlay) {
+      altScreen.setBottomOverlay(null)
+    }
+    completionSlot.setContent(null)
   }
 
   /** 扫描当前目录下匹配前缀的文件/目录 */
@@ -1053,7 +1075,9 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       screen.registerComponent(completionSlot)
       screen.dock('bottom', editor)
     } else {
-      // alt: rootStack = VStack([chatScrollView(grow1), bottomDock[status, completion, editor]])
+      // alt: rootStack = VStack([chatScrollView(grow1), bottomDock[status, editor, statusbar]])
+      // 补全/树导航不再进 bottomDock，改用 setBottomOverlay 绝对定位浮层，
+      // 使 bottomDock 高度恒定 → 输入框固定、平时无空白。
       chatScrollView = new ScrollView({ stickyBottom: true })
       chatScrollView.setChild(chatContainer)
       const editorBox = new Box({ padding: 0 })
@@ -1064,7 +1088,6 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       )
       const bottomDock = new VStack([
         { component: statusContainer, grow: 0 },
-        { component: completionSlot, grow: 0, min: 0 },
         { component: new Text(dim(gray('─'.repeat(terminal.columns)))), grow: 0 },
         { component: editorBox, grow: 0, min: 1 },
         { component: statusbar, grow: 0 },
@@ -1074,6 +1097,8 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
         { component: bottomDock, grow: 0 },
       ])
       ;(screen as TuiAltScreen).setLayoutRoot(rootStack)
+      ;(screen as TuiAltScreen).setBottomOverlay(null, bottomDock)
+      bottomDockRef = bottomDock
     }
     screen.start()
     exitRaw = terminal.enterRawMode()

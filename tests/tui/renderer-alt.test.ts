@@ -138,4 +138,26 @@ describe('TuiAltScreen', () => {
     expect(out).toContain('> prompt')
     s.stop()
   })
+
+  it('setBottomOverlay 浮层覆盖 editor 上方，editor 仍在底部', () => {
+    const term = new FT()
+    const s = new TuiAltScreen(term)
+    const chat = new Container([new Text('chat-line')])
+    const sv = new ScrollView({ stickyBottom: true }); sv.setChild(chat)
+    const editor = new Text('> prompt')
+    const bottomDock = new VStack([{ component: editor, grow: 0, min: 1 }])
+    s.setLayoutRoot(new VStack([
+      { component: sv, grow: 1, min: 1 },
+      { component: bottomDock, grow: 0 },
+    ]))
+    s.setBottomOverlay(new Text('OVERLAY-TEXT'), bottomDock)
+    s.start()
+    s.flushPending()
+    const out = term.written.join('')
+    expect(out).toContain('OVERLAY-TEXT')
+    const lastFrame = out.split('\x1b[?2026h').pop() || ''
+    expect(lastFrame).toContain('\x1b[5;1H')
+    expect(out).toContain('> prompt')
+    s.stop()
+  })
 })
