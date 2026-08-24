@@ -1059,7 +1059,7 @@ export function startTUI(agent: Agent, options?: StartTUIOptions): () => void {
       )
       const bottomDock = new VStack([
         { component: statusContainer, grow: 0 },
-        { component: completionSlot, grow: 0, min: COMPLETION_SLOT_HEIGHT },
+        { component: completionSlot, grow: 0, min: 0 },
         { component: new Text(dim(gray('─'.repeat(terminal.columns)))), grow: 0 },
         { component: editorBox, grow: 0, min: 1 },
         { component: statusbar, grow: 0 },
